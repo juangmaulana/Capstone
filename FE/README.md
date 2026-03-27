@@ -6,7 +6,9 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+First, do `npm install` in FE folder after cloning the repository
+
+Then, run the development server:
 
 ```bash
 npm run dev
