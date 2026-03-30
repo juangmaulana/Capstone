@@ -1,0 +1,5 @@
+[00:00:01.850] Server  LOG     ✓ Ready in 1563ms
+[00:00:09.713] Server  LOG     ○ Compiling / ...
+[00:00:11.291] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:04:32.246] Server  LOG     ✓ Compiled in 75ms
+[00:05:09.821] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
