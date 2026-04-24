@@ -1,16 +1,9 @@
-import { Observation } from "./schema";
+import { Observation, ObservationQuery } from "./schema";
 import { mockObservations } from "./mock";
 import { mockPlants } from "../plant/mock";
 import { Plant } from "../plant/schema";
 
 export type EnrichedObservation = Observation & { plant: Plant };
-
-export interface ObservationQuery {
-  search?: string;
-  risk?: string;
-  sort?: "date" | "confidence";
-  order?: "asc" | "desc";
-}
 
 export async function getAllObservations(): Promise<EnrichedObservation[]> {
   return mockObservations.map((obs) => {
