@@ -45,12 +45,10 @@ export default function Dashboard() {
   );
 
   return (
-    <div
-      className="relative flex min-h-[calc(100vh-64px)] w-full flex-col bg-gray-900"
-    >
-      {/* Hero section */}
+    <div className="relative w-full flex flex-col bg-gray-900">
+      {/* Hero section — fills the full viewport minus navbar */}
       <div
-        className="relative flex min-h-[75vh] w-full flex-col justify-center overflow-visible pb-12"
+        className="relative flex h-[calc(100vh-64px)] w-full flex-col justify-center overflow-hidden"
         style={{
           backgroundImage: 'url("/fb15b7a4-566e-4937-a66a-b4ea0e746ab0.jpg")',
           backgroundSize: 'cover',
@@ -59,7 +57,7 @@ export default function Dashboard() {
       >
         <div className="absolute inset-0 bg-black/10" />
 
-        <div className="relative z-20 w-full px-8 md:px-16 lg:px-24 xl:px-32">
+        <div className="relative z-10 w-full px-8 md:px-16 lg:px-24 xl:px-32">
           <div className="max-w-4xl">
             <p className="mb-4 text-sm font-semibold tracking-wide text-white drop-shadow-md">
               BioWatch | Invasive Alien Species Monitoring
@@ -128,7 +126,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Map Assets Section */}
+      {/* Map Assets Section — below the hero, visible on scroll */}
       <div className="relative z-10 w-full bg-gray-950">
         <div className="px-8 md:px-16 lg:px-24 xl:px-32 pt-12 pb-6">
           <h2 className="text-2xl font-bold text-white mb-2">Peta Taman Nasional Baluran</h2>
@@ -139,19 +137,19 @@ export default function Dashboard() {
             {
               title: "Peta Titik Api",
               subtitle: "2019 – 2025",
-              src: "/Peta Titik Api Baluran 2019-2025.svg",
+              src: "/peta-titik-api-baluran-2019-2025.jpg",
               description: "Sebaran titik api (hotspot) di kawasan Taman Nasional Baluran",
             },
             {
               title: "Peta LST",
               subtitle: "2025",
-              src: "/Peta LST Baluran 2025.svg",
+              src: "/peta-lst-baluran-2025.jpg",
               description: "Land Surface Temperature — distribusi suhu permukaan tanah",
             },
             {
               title: "Peta Indeks Vegetasi",
               subtitle: "2025",
-              src: "/Peta Indeks Vegetasi Baluran 2025.svg",
+              src: "/peta-indeks-vegetasi-baluran-2025.jpg",
               description: "NDVI — tingkat kerapatan vegetasi di kawasan Baluran",
             },
           ].map((map) => (

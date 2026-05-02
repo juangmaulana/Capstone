@@ -1,6 +1,6 @@
 "use client";
 
-import { Users, UserPlus, ShieldCheck, Activity, Bug, Upload, ScrollText, Database, Plus, Pencil, Trash2, Search, FileSpreadsheet, FileText, CheckCircle2, Clock, AlertCircle, AlertTriangle, Info, Server, Wifi, Filter, LogOut, User, Tag, Download, Eye, X, ChevronDown, ChevronRight, Image as ImageIcon, MapPin, Calendar, ThumbsUp, ThumbsDown, FileDown, BarChart3, Lock } from "lucide-react";
+import { Users, UserPlus, ShieldCheck, Activity, Bug, Upload, ScrollText, Database, Plus, Pencil, Trash2, Search, FileSpreadsheet, FileText, CheckCircle2, Clock, AlertCircle, AlertTriangle, Info, Server, Wifi, Filter, LogOut, User, Tag, Download, Eye, X, ChevronDown, ChevronRight, Image as ImageIcon, MapPin, Calendar, ThumbsUp, ThumbsDown, FileDown, BarChart3, Lock, Copy, KeyRound } from "lucide-react";
 import { useState, useRef, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminDataAnnotationPanel } from "@/components/AdminDataAnnotationPanel";
@@ -174,7 +174,10 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<Tab>("users");
   const [speciesSearch, setSpeciesSearch] = useState("");
   const [logFilter, setLogFilter] = useState<LogLevel | "all">("all");
-  const { user, logout } = useAuth();
+  const { user, logout, registerUser, updatePassword } = useAuth();
+
+  // Check if current user is Super Admin
+  const isSuperAdmin = user?.role === "Super Admin";
 
   // User management state
   const [users, setUsers] = useState(INITIAL_USERS);
@@ -182,7 +185,98 @@ export default function AdminPage() {
   const [editRoleValue, setEditRoleValue] = useState("");
   const [deleteConfirmUser, setDeleteConfirmUser] = useState<typeof INITIAL_USERS[0] | null>(null);
 
+  // Add User modal state (Super Admin only)
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [addUserForm, setAddUserForm] = useState({ email: "", name: "", role: "Researcher" });
+  const [addUserError, setAddUserError] = useState("");
+  const [addUserCreatedCreds, setAddUserCreatedCreds] = useState<{ email: string; password: string; name: string; role: string } | null>(null);
+  const [copiedCreds, setCopiedCreds] = useState(false);
+
+  // Auto-generate a secure temporary password
+  const generateTempPassword = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+    const specialChars = "!@#$%";
+    let password = "";
+    for (let i = 0; i < 8; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    password += specialChars.charAt(Math.floor(Math.random() * specialChars.length));
+    // Shuffle
+    return password.split("").sort(() => Math.random() - 0.5).join("");
+  };
+
+  const handleOpenAddUser = () => {
+    if (!isSuperAdmin) return;
+    setAddUserForm({ email: "", name: "", role: "Researcher" });
+    setAddUserError("");
+    setAddUserCreatedCreds(null);
+    setCopiedCreds(false);
+    setShowAddUser(true);
+  };
+
+  const handleAddUserSubmit = () => {
+    setAddUserError("");
+
+    // Validate email
+    if (!addUserForm.email.trim()) {
+      setAddUserError("Email wajib diisi");
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(addUserForm.email.trim())) {
+      setAddUserError("Format email tidak valid");
+      return;
+    }
+
+    // Check for duplicate email
+    if (users.some(u => u.email.toLowerCase() === addUserForm.email.trim().toLowerCase())) {
+      setAddUserError("Email sudah terdaftar dalam sistem");
+      return;
+    }
+
+    // Validate name
+    if (!addUserForm.name.trim()) {
+      setAddUserError("Nama user wajib diisi");
+      return;
+    }
+
+    // Generate temporary password
+    const tempPassword = generateTempPassword();
+
+    // Add the new user to the table
+    const newUser = {
+      id: Math.max(...users.map(u => u.id)) + 1,
+      name: addUserForm.name.trim(),
+      email: addUserForm.email.trim(),
+      role: addUserForm.role,
+      status: "Active",
+      lastLogin: "-",
+    };
+    setUsers(prev => [...prev, newUser]);
+
+    // Register credentials in the auth system so the user can log in
+    registerUser(addUserForm.email.trim(), tempPassword, addUserForm.name.trim(), addUserForm.role);
+
+    // Show credentials card
+    setAddUserCreatedCreds({
+      email: addUserForm.email.trim(),
+      password: tempPassword,
+      name: addUserForm.name.trim(),
+      role: addUserForm.role,
+    });
+  };
+
+  const handleCopyCredentials = () => {
+    if (!addUserCreatedCreds) return;
+    const text = `Email: ${addUserCreatedCreds.email}\nPassword Sementara: ${addUserCreatedCreds.password}`;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedCreds(true);
+      setTimeout(() => setCopiedCreds(false), 2000);
+    });
+  };
+
   const handleEditRole = (u: typeof INITIAL_USERS[0]) => {
+    if (!isSuperAdmin) return;
     setEditRoleUser(u);
     setEditRoleValue(u.role);
   };
@@ -196,6 +290,7 @@ export default function AdminPage() {
   };
 
   const handleDeleteUser = (u: typeof INITIAL_USERS[0]) => {
+    if (!isSuperAdmin) return;
     setDeleteConfirmUser(u);
   };
 
@@ -261,10 +356,75 @@ export default function AdminPage() {
     setPasswordErrors(errors);
     if (hasError) return;
 
-    // Mock success — reset form
+    // Actually update the password in the credential store
+    const success = updatePassword(
+      user?.email || "",
+      passwordForm.currentPassword,
+      passwordForm.newPassword
+    );
+
+    if (!success) {
+      setPasswordErrors({ repeatNewPassword: "", currentPassword: "Current password salah" });
+      return;
+    }
+
+    // Success — reset form, close modal, go to User Management
     setPasswordForm({ newPassword: "", repeatNewPassword: "", currentPassword: "" });
     setPasswordErrors({ repeatNewPassword: "", currentPassword: "" });
-    alert("Password berhasil diubah!");
+    setShowProfile(false);
+    setProfileEditing(false);
+    setActiveTab("users");
+  };
+
+  // Species management state
+  const [speciesData, setSpeciesData] = useState(SPECIES_DATA);
+  const [showAddSpecies, setShowAddSpecies] = useState(false);
+  const [speciesForm, setSpeciesForm] = useState({ id: 0, name: "", family: "", riskLevel: "Medium" });
+  const [deleteSpeciesConfirm, setDeleteSpeciesConfirm] = useState<typeof SPECIES_DATA[0] | null>(null);
+
+  const handleOpenAddSpecies = () => {
+    setSpeciesForm({ id: 0, name: "", family: "", riskLevel: "Medium" });
+    setShowAddSpecies(true);
+  };
+
+  const handleEditSpecies = (s: typeof SPECIES_DATA[0]) => {
+    setSpeciesForm({ id: s.id, name: s.name, family: s.family, riskLevel: s.riskLevel });
+    setShowAddSpecies(true);
+  };
+
+  const handleSaveSpecies = () => {
+    if (!speciesForm.name.trim() || !speciesForm.family.trim()) return;
+    
+    if (speciesForm.id === 0) {
+      const newSpecies = {
+        id: Math.max(...speciesData.map(s => s.id), 0) + 1,
+        name: speciesForm.name.trim(),
+        family: speciesForm.family.trim(),
+        riskLevel: speciesForm.riskLevel,
+        totalRecords: 0,
+        lastUpdated: new Date().toISOString().split("T")[0],
+      };
+      setSpeciesData(prev => [...prev, newSpecies]);
+    } else {
+      setSpeciesData(prev => prev.map(s => s.id === speciesForm.id ? {
+        ...s,
+        name: speciesForm.name.trim(),
+        family: speciesForm.family.trim(),
+        riskLevel: speciesForm.riskLevel,
+        lastUpdated: new Date().toISOString().split("T")[0],
+      } : s));
+    }
+    setShowAddSpecies(false);
+  };
+
+  const handleDeleteSpecies = (s: typeof SPECIES_DATA[0]) => {
+    setDeleteSpeciesConfirm(s);
+  };
+
+  const confirmDeleteSpecies = () => {
+    if (!deleteSpeciesConfirm) return;
+    setSpeciesData(prev => prev.filter(s => s.id !== deleteSpeciesConfirm.id));
+    setDeleteSpeciesConfirm(null);
   };
 
   // Annotation state
@@ -276,13 +436,29 @@ export default function AdminPage() {
   const [annotateNotes, setAnnotateNotes] = useState("");
   const [viewDetailItem, setViewDetailItem] = useState<AnnotationItem | null>(null);
 
-  const filteredSpecies = SPECIES_DATA.filter(s =>
+  const filteredSpecies = speciesData.filter(s =>
     s.name.toLowerCase().includes(speciesSearch.toLowerCase())
   );
 
+  const [systemLogs, setSystemLogs] = useState<LogEntry[]>(MOCK_LOGS);
+
+  const addLog = (level: LogLevel, source: string, message: string, userStr?: string) => {
+    setSystemLogs(prev => [
+      {
+        id: Math.max(...prev.map(l => l.id), 0) + 1,
+        timestamp: new Date().toISOString().replace("T", " ").substring(0, 19),
+        level,
+        source,
+        message,
+        user: userStr || user?.name || "Admin",
+      },
+      ...prev
+    ]);
+  };
+
   const filteredLogs = logFilter === "all"
-    ? MOCK_LOGS
-    : MOCK_LOGS.filter((log) => log.level === logFilter);
+    ? systemLogs
+    : systemLogs.filter((log) => log.level === logFilter);
 
   // Annotation helpers
   const getExpandedBatch = useMemo(() => {
@@ -457,10 +633,20 @@ export default function AdminPage() {
           <div className="rounded-lg border bg-card shadow-sm">
             <div className="flex items-center justify-between border-b px-6 py-4">
               <h2 className="text-lg font-semibold">Users</h2>
-              <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
-                <UserPlus className="h-4 w-4" />
-                Add User
-              </button>
+              {isSuperAdmin ? (
+                <button
+                  onClick={handleOpenAddUser}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Add User
+                </button>
+              ) : (
+                <div className="inline-flex items-center gap-2 rounded-lg bg-muted px-4 py-2 text-sm font-medium text-muted-foreground cursor-not-allowed" title="Hanya Super Admin yang dapat menambahkan user">
+                  <Lock className="h-4 w-4" />
+                  Add User
+                </div>
+              )}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -471,7 +657,7 @@ export default function AdminPage() {
                     <th className="px-6 py-3 text-left font-medium text-muted-foreground">Role</th>
                     <th className="px-6 py-3 text-left font-medium text-muted-foreground">Status</th>
                     <th className="px-6 py-3 text-left font-medium text-muted-foreground">Last Login</th>
-                    <th className="px-6 py-3 text-left font-medium text-muted-foreground">Actions</th>
+                    {isSuperAdmin && <th className="px-6 py-3 text-left font-medium text-muted-foreground">Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -493,24 +679,26 @@ export default function AdminPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-muted-foreground">{u.lastLogin}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleEditRole(u)}
-                            className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-                            title="Edit Role"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteUser(u)}
-                            className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive"
-                            title="Delete User"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
+                      {isSuperAdmin && (
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleEditRole(u)}
+                              className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                              title="Edit Role"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(u)}
+                              className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive"
+                              title="Delete User"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -525,8 +713,8 @@ export default function AdminPage() {
         <div className="space-y-6 animate-in fade-in duration-300">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { label: "Total Species", value: "5", color: "text-emerald-600" },
-              { label: "High Risk", value: "3", color: "text-red-600" },
+              { label: "Total Species", value: String(speciesData.length), color: "text-emerald-600" },
+              { label: "High Risk", value: String(speciesData.filter(s => s.riskLevel === "High").length), color: "text-red-600" },
               { label: "Total Records", value: "6,732", color: "text-blue-600" },
               { label: "Last Updated", value: "Today", color: "text-amber-600" },
             ].map((stat) => (
@@ -551,7 +739,7 @@ export default function AdminPage() {
                     className="h-9 w-56 rounded-lg border bg-background pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition"
                   />
                 </div>
-                <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+                <button onClick={handleOpenAddSpecies} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
                   <Plus className="h-4 w-4" />
                   Add Species
                 </button>
@@ -582,8 +770,8 @@ export default function AdminPage() {
                       <td className="px-6 py-4 text-muted-foreground">{species.lastUpdated}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                          <button className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground" title="Edit"><Pencil className="h-4 w-4" /></button>
-                          <button className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive" title="Delete"><Trash2 className="h-4 w-4" /></button>
+                          <button onClick={() => handleEditSpecies(species)} className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground" title="Edit"><Pencil className="h-4 w-4" /></button>
+                          <button onClick={() => handleDeleteSpecies(species)} className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive" title="Delete"><Trash2 className="h-4 w-4" /></button>
                         </div>
                       </td>
                     </tr>
@@ -648,7 +836,10 @@ export default function AdminPage() {
 
       {/* ─── DATA ANNOTATION TAB ─── */}
       {activeTab === "annotation" && (
-        <AdminDataAnnotationPanel adminName={user?.name || "Admin"} />
+        <AdminDataAnnotationPanel 
+          adminName={user?.name || "Admin"} 
+          onLog={(level, source, message) => addLog(level, source, message)}
+        />
       )}
 
       {/* ─── PROFILE MODAL ─── */}
@@ -730,7 +921,7 @@ export default function AdminPage() {
               {profileEditing && (
                 <div className="flex justify-end">
                   <button
-                    onClick={() => { setProfileEditing(false); }}
+                    onClick={() => { setProfileEditing(false); setShowProfile(false); setActiveTab("users"); }}
                     className="text-sm font-semibold uppercase tracking-wider text-primary hover:text-primary/80 transition-colors"
                   >
                     Save
@@ -885,6 +1076,302 @@ export default function AdminPage() {
                 className="rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-white hover:bg-destructive/90 transition-colors"
               >
                 Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── ADD USER MODAL (Super Admin Only) ─── */}
+      {showAddUser && isSuperAdmin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg rounded-2xl bg-card shadow-2xl border animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                  {addUserCreatedCreds ? <CheckCircle2 className="h-5 w-5 text-green-600" /> : <UserPlus className="h-5 w-5 text-primary" />}
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">{addUserCreatedCreds ? "User Berhasil Ditambahkan" : "Tambah User Baru"}</h3>
+                  <p className="text-xs text-muted-foreground">{addUserCreatedCreds ? "Simpan kredensial di bawah ini" : "Undang user baru dengan alamat email"}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAddUser(false)}
+                className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-6 space-y-5">
+              {addUserCreatedCreds ? (
+                /* ─── Credential Summary Card ─── */
+                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  {/* Success banner */}
+                  <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    <span><strong>{addUserCreatedCreds.name}</strong> berhasil ditambahkan sebagai <strong>{addUserCreatedCreds.role}</strong></span>
+                  </div>
+
+                  {/* Credential card */}
+                  <div className="rounded-xl border-2 border-dashed border-amber-300 bg-amber-50/50 p-5 space-y-4">
+                    <div className="flex items-center gap-2 text-amber-700">
+                      <KeyRound className="h-4 w-4" />
+                      <span className="text-sm font-semibold">Kredensial Login</span>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Email</p>
+                        <p className="text-sm font-mono font-medium bg-white rounded-lg border px-3 py-2">{addUserCreatedCreds.email}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Password Sementara</p>
+                        <p className="text-sm font-mono font-medium bg-white rounded-lg border px-3 py-2 tracking-wide">{addUserCreatedCreds.password}</p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleCopyCredentials}
+                      className={`w-full inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-all ${
+                        copiedCreds
+                          ? "bg-green-100 border-green-300 text-green-700"
+                          : "bg-white border-border text-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {copiedCreds ? (
+                        <><CheckCircle2 className="h-4 w-4" /> Tersalin!</>
+                      ) : (
+                        <><Copy className="h-4 w-4" /> Salin Kredensial</>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Warning note */}
+                  <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-800">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold">Penting!</p>
+                      <p>Kirimkan kredensial ini ke user melalui kanal yang aman. User disarankan segera mengganti password setelah login pertama.</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* ─── Add User Form ─── */
+                <>
+                  {/* Email field */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium">Email Address <span className="text-destructive">*</span></label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">@</span>
+                      <input
+                        type="email"
+                        value={addUserForm.email}
+                        onChange={(e) => {
+                          setAddUserForm(f => ({ ...f, email: e.target.value }));
+                          if (addUserError) setAddUserError("");
+                        }}
+                        placeholder="contoh@biowatch.id"
+                        className={`w-full h-11 rounded-lg border bg-background pl-9 pr-4 text-sm outline-none transition-all focus:ring-2 focus:ring-primary/20 ${
+                          addUserError ? "border-destructive focus:ring-destructive/20" : "border-border"
+                        }`}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">Masukkan email aktif user yang ingin ditambahkan ke sistem</p>
+                  </div>
+
+                  {/* Name field */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium">Nama Lengkap <span className="text-destructive">*</span></label>
+                    <input
+                      type="text"
+                      value={addUserForm.name}
+                      onChange={(e) => {
+                        setAddUserForm(f => ({ ...f, name: e.target.value }));
+                        if (addUserError) setAddUserError("");
+                      }}
+                      placeholder="Masukkan nama lengkap"
+                      className="w-full h-11 rounded-lg border border-border bg-background px-4 text-sm outline-none transition-all focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+
+                  {/* Role selection */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium">Role</label>
+                    <div className="flex flex-wrap gap-2">
+                      {AVAILABLE_ROLES.map((role) => (
+                        <button
+                          key={role}
+                          onClick={() => setAddUserForm(f => ({ ...f, role }))}
+                          className={`rounded-full px-4 py-1.5 text-sm font-medium border transition-colors ${
+                            addUserForm.role === role
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-card text-muted-foreground border-border hover:bg-muted"
+                          }`}
+                        >
+                          {role}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Password info */}
+                  <div className="flex items-start gap-2 rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-xs text-blue-700">
+                    <KeyRound className="h-4 w-4 shrink-0 mt-0.5" />
+                    <p>Password sementara akan di-<strong>generate otomatis</strong> oleh sistem dan ditampilkan setelah user berhasil ditambahkan.</p>
+                  </div>
+
+                  {/* Error message */}
+                  {addUserError && (
+                    <div className="flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive animate-in fade-in slide-in-from-top-1 duration-200">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      {addUserError}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between border-t px-6 py-4">
+              <p className="text-xs text-muted-foreground">
+                <ShieldCheck className="inline h-3.5 w-3.5 mr-1" />
+                Hanya Super Admin yang dapat menambahkan user
+              </p>
+              <div className="flex items-center gap-3">
+                {addUserCreatedCreds ? (
+                  <button
+                    onClick={() => setShowAddUser(false)}
+                    className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                  >
+                    Selesai
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => setShowAddUser(false)}
+                      className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      onClick={handleAddUserSubmit}
+                      className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                    >
+                      <UserPlus className="inline h-4 w-4 mr-1.5" />
+                      Tambah User
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ─── ADD/EDIT SPECIES MODAL ─── */}
+      {showAddSpecies && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-card shadow-2xl border animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b px-6 py-4 bg-muted/30">
+              <h2 className="text-lg font-semibold">{speciesForm.id === 0 ? "Add New Species" : "Edit Species"}</h2>
+              <button onClick={() => setShowAddSpecies(false)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Species Name <span className="text-destructive">*</span></label>
+                <input
+                  type="text"
+                  value={speciesForm.name}
+                  onChange={(e) => setSpeciesForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="e.g., Acacia nilotica"
+                  className="w-full h-11 rounded-lg border border-border bg-background px-4 text-sm outline-none transition-all focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Family <span className="text-destructive">*</span></label>
+                <input
+                  type="text"
+                  value={speciesForm.family}
+                  onChange={(e) => setSpeciesForm(f => ({ ...f, family: e.target.value }))}
+                  placeholder="e.g., Fabaceae"
+                  className="w-full h-11 rounded-lg border border-border bg-background px-4 text-sm outline-none transition-all focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Risk Level</label>
+                <div className="flex gap-3">
+                  <label className="flex items-center gap-2">
+                    <input 
+                      type="radio" 
+                      name="riskLevel" 
+                      value="High" 
+                      checked={speciesForm.riskLevel === "High"}
+                      onChange={(e) => setSpeciesForm(f => ({ ...f, riskLevel: e.target.value }))}
+                      className="text-primary focus:ring-primary"
+                    />
+                    <span className="text-sm">High</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input 
+                      type="radio" 
+                      name="riskLevel" 
+                      value="Medium" 
+                      checked={speciesForm.riskLevel === "Medium"}
+                      onChange={(e) => setSpeciesForm(f => ({ ...f, riskLevel: e.target.value }))}
+                      className="text-primary focus:ring-primary"
+                    />
+                    <span className="text-sm">Medium</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input 
+                      type="radio" 
+                      name="riskLevel" 
+                      value="Low" 
+                      checked={speciesForm.riskLevel === "Low"}
+                      onChange={(e) => setSpeciesForm(f => ({ ...f, riskLevel: e.target.value }))}
+                      className="text-primary focus:ring-primary"
+                    />
+                    <span className="text-sm">Low</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t bg-muted/30 px-6 py-4">
+              <button onClick={() => setShowAddSpecies(false)} className="rounded-lg border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors">
+                Cancel
+              </button>
+              <button onClick={handleSaveSpecies} disabled={!speciesForm.name.trim() || !speciesForm.family.trim()} className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                Save Species
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── DELETE SPECIES CONFIRMATION MODAL ─── */}
+      {deleteSpeciesConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-sm overflow-hidden rounded-2xl bg-card shadow-2xl border animate-in zoom-in-95 duration-200 p-6 text-center space-y-6">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+              <AlertTriangle className="h-6 w-6 text-destructive" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold">Delete Species?</h3>
+              <p className="text-sm text-muted-foreground">
+                Are you sure you want to delete <span className="font-bold italic text-foreground">{deleteSpeciesConfirm.name}</span>? This action cannot be undone.
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-3">
+              <button onClick={() => setDeleteSpeciesConfirm(null)} className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors">
+                Cancel
+              </button>
+              <button onClick={confirmDeleteSpecies} className="rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-white hover:bg-destructive/90 transition-colors">
+                Yes, Delete
               </button>
             </div>
           </div>

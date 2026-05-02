@@ -64,6 +64,7 @@ interface DraftBox {
 
 interface Props {
   adminName: string;
+  onLog?: (level: "info" | "warning" | "error" | "success", source: string, message: string) => void;
 }
 
 const statusStyles: Record<ItemStatus, string> = {
@@ -108,7 +109,7 @@ const readImageSize = (url: string) =>
     img.src = url;
   });
 
-export function AdminDataAnnotationPanel({ adminName }: Props) {
+export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
   const [batches, setBatches] = useState<AnnotationBatch[]>([
     {
       id: 1,
@@ -349,6 +350,10 @@ export function AdminDataAnnotationPanel({ adminName }: Props) {
       validatedBy: undefined,
       validatedAt: undefined,
     }));
+
+    if (activeItem.boxes.length > 0) {
+      onLog?.("success", "Annotation", `Annotated image ${activeItem.filename}`);
+    }
   };
 
   const validateAnnotation = () => {
@@ -360,6 +365,8 @@ export function AdminDataAnnotationPanel({ adminName }: Props) {
       validatedBy: adminName,
       validatedAt: toDateLabel(),
     }));
+
+    onLog?.("success", "Annotation", `Validated annotation for image ${activeItem.filename}`);
   };
 
   const exportBatchYoloZip = async () => {

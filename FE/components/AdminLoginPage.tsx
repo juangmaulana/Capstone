@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Leaf, Lock, Mail, Eye, EyeOff, ShieldCheck, AlertCircle, Loader2 } from "lucide-react";
 
@@ -20,18 +20,54 @@ export function AdminLoginPage() {
   const [forgotSuccess, setForgotSuccess] = useState(false);
   const [forgotSubmitting, setForgotSubmitting] = useState(false);
   const [forgotError, setForgotError] = useState("");
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
+  const [timeLeft, setTimeLeft] = useState(0);
+
+  useEffect(() => {
+    if (lockoutUntil) {
+      const interval = setInterval(() => {
+        const remaining = Math.ceil((lockoutUntil - Date.now()) / 1000);
+        if (remaining <= 0) {
+          setLockoutUntil(null);
+          setTimeLeft(0);
+          setFailedAttempts(0);
+          setError("");
+          clearInterval(interval);
+        } else {
+          setTimeLeft(remaining);
+        }
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [lockoutUntil]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (lockoutUntil && Date.now() < lockoutUntil) return;
+
     setError("");
     setIsSubmitting(true);
 
     const success = await login(email, password);
 
     if (!success) {
-      setError("Invalid email or password. Please try again.");
+      const newAttempts = failedAttempts + 1;
+      setFailedAttempts(newAttempts);
+      
+      if (newAttempts >= 5) {
+        const lockoutEnd = Date.now() + 60000;
+        setLockoutUntil(lockoutEnd);
+        setTimeLeft(60);
+        setError("Akun terkunci karena 5 kali salah password. Silakan tunggu 1 menit.");
+      } else {
+        setError(`Invalid email or password. Kesempatan tersisa: ${5 - newAttempts}`);
+      }
+      
       setShake(true);
       setTimeout(() => setShake(false), 600);
+    } else {
+      setFailedAttempts(0);
     }
 
     setIsSubmitting(false);
@@ -110,7 +146,7 @@ export function AdminLoginPage() {
                 required
                 autoComplete="email"
                 className="admin-login-input"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !!lockoutUntil}
               />
             </div>
           </div>
@@ -130,7 +166,7 @@ export function AdminLoginPage() {
                 required
                 autoComplete="current-password"
                 className="admin-login-input admin-login-input-password"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !!lockoutUntil}
               />
               <button
                 type="button"
@@ -149,10 +185,15 @@ export function AdminLoginPage() {
 
           <button
             type="submit"
-            disabled={isSubmitting || !email || !password}
+            disabled={isSubmitting || !email || !password || !!lockoutUntil}
             className="admin-login-submit"
           >
-            {isSubmitting ? (
+            {lockoutUntil ? (
+              <>
+                <Lock className="h-4 w-4" />
+                Terkunci ({timeLeft}s)
+              </>
+            ) : isSubmitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Signing in...

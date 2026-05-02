@@ -7,75 +7,75 @@ const SPECIES_DB: Record<string, any> = {
   "acacia-nilotica": {
     name: "Acacia nilotica",
     commonName: "Babul / Gum Arabic Tree",
-    description: "Acacia nilotica is an invasive woody weed in Baluran National Park, where it was originally introduced as a firebreak. It has since aggressively spread across the Bekol savanna, forming dense thickets that suppress the growth of native grasses essential for local herbivores like the Javan Banteng.",
+    description: "Acacia nilotica adalah gulma berkayu invasif di Taman Nasional Baluran, di mana awalnya diperkenalkan sebagai sekat bakar. Sejak itu ia menyebar secara agresif di sabana Bekol, membentuk semak belukar padat yang menekan pertumbuhan rumput asli yang penting bagi herbivora lokal seperti Banteng Jawa.",
     taxonomy: [
-      { rank: "Kingdom", value: "Plantae" },
-      { rank: "Phylum", value: "Tracheophyta" },
-      { rank: "Class", value: "Magnoliopsida" },
-      { rank: "Order", value: "Fabales" },
-      { rank: "Family", value: "Fabaceae" },
+      { rank: "Kerajaan", value: "Plantae" },
+      { rank: "Filum", value: "Tracheophyta" },
+      { rank: "Kelas", value: "Magnoliopsida" },
+      { rank: "Ordo", value: "Fabales" },
+      { rank: "Famili", value: "Fabaceae" },
       { rank: "Genus", value: "Vachellia" },
-      { rank: "Species", value: "V. nilotica" },
+      { rank: "Spesies", value: "V. nilotica" },
     ],
     herbariumSketch: "/sketsa-herbarium-acacia-nilotica.gif",
   },
   "lantana-camara": {
     name: "Lantana camara",
     commonName: "Tembelekan / Tickberry",
-    description: "Lantana camara is a highly invasive alien species in many tropical and subtropical regions. It forms dense, impenetrable thickets that outcompete native flora, alter fire regimes, and severely reduce grazing land for wildlife such as the Javan Banteng in savannas.",
+    description: "Lantana camara adalah spesies asing yang sangat invasif di banyak daerah tropis dan subtropis. Tanaman ini membentuk semak belukar yang padat dan tak tertembus yang mengalahkan flora asli, mengubah rezim kebakaran, dan sangat mengurangi lahan penggembalaan bagi satwa liar seperti Banteng Jawa di sabana.",
     taxonomy: [
-      { rank: "Kingdom", value: "Plantae" },
-      { rank: "Phylum", value: "Tracheophyta" },
-      { rank: "Class", value: "Magnoliopsida" },
-      { rank: "Order", value: "Lamiales" },
-      { rank: "Family", value: "Verbenaceae" },
+      { rank: "Kerajaan", value: "Plantae" },
+      { rank: "Filum", value: "Tracheophyta" },
+      { rank: "Kelas", value: "Magnoliopsida" },
+      { rank: "Ordo", value: "Lamiales" },
+      { rank: "Famili", value: "Verbenaceae" },
       { rank: "Genus", value: "Lantana" },
-      { rank: "Species", value: "L. camara" },
+      { rank: "Spesies", value: "L. camara" },
     ],
     herbariumSketch: "/sketsa-herbarium-lantana-camara.jpg",
   },
   "mikania-micrantha": {
     name: "Mikania micrantha",
     commonName: "Sembung Rambat / Bitter Vine",
-    description: "Known as the 'mile-a-minute' weed, Mikania micrantha is an extremely fast-growing perennial creeping vine. It is a severe threat to tropical ecosystems as it rapidly climbs over other plants and trees, smothering them and blocking sunlight, which can lead to the death of the underlying vegetation.",
+    description: "Dikenal sebagai gulma 'satu mil per menit', Mikania micrantha adalah tanaman rambat tahunan yang tumbuh sangat cepat. Tanaman ini merupakan ancaman serius bagi ekosistem tropis karena ia dengan cepat memanjat tanaman dan pohon lain, mencekik mereka dan menghalangi sinar matahari, yang dapat menyebabkan kematian vegetasi di bawahnya.",
     taxonomy: [
-      { rank: "Kingdom", value: "Plantae" },
-      { rank: "Phylum", value: "Tracheophyta" },
-      { rank: "Class", value: "Magnoliopsida" },
-      { rank: "Order", value: "Asterales" },
-      { rank: "Family", value: "Asteraceae" },
+      { rank: "Kerajaan", value: "Plantae" },
+      { rank: "Filum", value: "Tracheophyta" },
+      { rank: "Kelas", value: "Magnoliopsida" },
+      { rank: "Ordo", value: "Asterales" },
+      { rank: "Famili", value: "Asteraceae" },
       { rank: "Genus", value: "Mikania" },
-      { rank: "Species", value: "M. micrantha" },
+      { rank: "Spesies", value: "M. micrantha" },
     ],
     herbariumSketch: "/sketsa-herbarium-Mikania-micrantha.jpg",
   },
   "chromolaena-odorata": {
     name: "Chromolaena odorata",
     commonName: "Kirinyuh / Siam Weed",
-    description: "Chromolaena odorata is a rapidly growing perennial shrub and a highly destructive invasive weed in tropical regions. It aggressively invades forest margins, savannas, and agricultural lands, suppressing native plant growth through competition and allelopathy. It is also highly flammable.",
+    description: "Chromolaena odorata adalah semak tahunan yang tumbuh cepat dan gulma invasif yang sangat merusak di daerah tropis. Tanaman ini secara agresif menyerang tepi hutan, sabana, dan lahan pertanian, menekan pertumbuhan tanaman asli melalui persaingan dan alelopati. Tanaman ini juga sangat mudah terbakar.",
     taxonomy: [
-      { rank: "Kingdom", value: "Plantae" },
-      { rank: "Phylum", value: "Tracheophyta" },
-      { rank: "Class", value: "Magnoliopsida" },
-      { rank: "Order", value: "Asterales" },
-      { rank: "Family", value: "Asteraceae" },
+      { rank: "Kerajaan", value: "Plantae" },
+      { rank: "Filum", value: "Tracheophyta" },
+      { rank: "Kelas", value: "Magnoliopsida" },
+      { rank: "Ordo", value: "Asterales" },
+      { rank: "Famili", value: "Asteraceae" },
       { rank: "Genus", value: "Chromolaena" },
-      { rank: "Species", value: "C. odorata" },
+      { rank: "Spesies", value: "C. odorata" },
     ],
     herbariumSketch: "/sketsa-herbarium-Chromolaena-odorata.webp",
   },
   "ageratum-conyzoides": {
     name: "Ageratum conyzoides",
     commonName: "Bandotan / Billygoat Weed",
-    description: "Ageratum conyzoides is an annual herbaceous weed notorious for its high seed production and adaptability. It frequently invades disturbed lands, agricultural fields, and natural ecosystems. It produces allelopathic chemicals that inhibit the growth of surrounding native plants and can be toxic to grazing animals.",
+    description: "Ageratum conyzoides adalah gulma herba tahunan yang terkenal karena produksi bijinya yang tinggi dan kemampuan beradaptasinya. Tanaman ini sering menyerang lahan yang terganggu, ladang pertanian, dan ekosistem alami. Ia menghasilkan bahan kimia alelopati yang menghambat pertumbuhan tanaman asli di sekitarnya dan bisa menjadi racun bagi hewan pemakan rumput.",
     taxonomy: [
-      { rank: "Kingdom", value: "Plantae" },
-      { rank: "Phylum", value: "Tracheophyta" },
-      { rank: "Class", value: "Magnoliopsida" },
-      { rank: "Order", value: "Asterales" },
-      { rank: "Family", value: "Asteraceae" },
+      { rank: "Kerajaan", value: "Plantae" },
+      { rank: "Filum", value: "Tracheophyta" },
+      { rank: "Kelas", value: "Magnoliopsida" },
+      { rank: "Ordo", value: "Asterales" },
+      { rank: "Famili", value: "Asteraceae" },
       { rank: "Genus", value: "Ageratum" },
-      { rank: "Species", value: "A. conyzoides" },
+      { rank: "Spesies", value: "A. conyzoides" },
     ],
     herbariumSketch: "/sketsa-herbarium-Ageratum-conyzoides.webp",
   }
@@ -91,10 +91,10 @@ const getMockData = (id: string) => {
   const formattedId = id.replace(/-/g, " ").replace(/\b\w/g, l => l.toUpperCase());
   return {
     name: formattedId === "Search" ? "Lantana camara" : formattedId,
-    commonName: "Unknown Species",
-    description: "No description available for this species yet. Please check back later or update the database.",
+    commonName: "Spesies Tidak Diketahui",
+    description: "Belum ada keterangan untuk spesies ini. Silakan periksa kembali nanti atau perbarui basis data.",
     taxonomy: [
-      { rank: "Kingdom", value: "Unknown" },
+      { rank: "Kerajaan", value: "Tidak Diketahui" },
     ],
   };
 };
@@ -124,6 +124,19 @@ export default function SpeciesPage() {
 
       <div className="mx-auto w-full max-w-3xl">
         <div className="flex flex-col gap-6">
+
+          {/* Description */}
+          <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
+            <div className="flex items-center gap-2 border-b bg-muted/50 px-4 py-3">
+              <FileText className="h-4 w-4 text-primary" />
+              <h2 className="font-semibold text-sm">Keterangan Spesies</h2>
+            </div>
+            <div className="p-4">
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {species.description}
+              </p>
+            </div>
+          </div>
 
           {/* Sketch */}
           <div className="rounded-xl border bg-card text-card-foreground shadow-sm overflow-hidden flex flex-col">
@@ -156,19 +169,6 @@ export default function SpeciesPage() {
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
-
-          {/* Description */}
-          <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
-            <div className="flex items-center gap-2 border-b bg-muted/50 px-4 py-3">
-              <FileText className="h-4 w-4 text-primary" />
-              <h2 className="font-semibold text-sm">Keterangan Spesies</h2>
-            </div>
-            <div className="p-4">
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                {species.description}
-              </p>
             </div>
           </div>
         </div>
