@@ -1,0 +1,36 @@
+name: Web Dashboard CI (CAPS12)
+
+on:
+  push:
+    paths:
+      - 'FE/**'
+      - 'BE/**'
+  pull_request:
+    paths:
+      - 'FE/**'
+      - 'BE/**'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ambil Kode dari Repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install & Build Frontend
+        working-directory: ./FE
+        run: |
+          npm install
+          npm run build
+
+      - name: Install & Test Backend
+        working-directory: ./BE
+        run: |
+          npm install
+          # npm test (harus ada file test untuk API)

@@ -1,0 +1,46 @@
+name: AI Module CI (CAPS12)
+
+# 1. TRIGGER: Hanya jalan jika ada push/PR di folder AI
+on:
+  push:
+    paths:
+      - 'AI/**'
+  pull_request:
+    paths:
+      - 'AI/**'
+
+jobs:
+  ai-validation:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 pytest
+          if [ -f AI/requirements.txt ]; then pip install -r AI/requirements.txt; bit; fi
+
+      - name: Lint with flake8
+        run: |
+          # Stop syntax errors atau undefined names
+          flake8 AI --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Exit-zero sebagai warning (opsional)
+          flake8 AI --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Test with pytest
+        run: |
+          pytest AI/tests/
+
+      - name: Validate Model Files
+        run: |
+          echo "Memeriksa ketersediaan file model..."
+          # Mencari file .h5 atau .pt
+          find AI/ -name "*.h5" -o -name "*.pt" -o -name "*.onnx" | grep . || echo "No model file found yet"
