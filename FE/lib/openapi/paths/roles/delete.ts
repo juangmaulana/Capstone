@@ -3,7 +3,7 @@ import { registry } from '../../registry';
 
 registry.registerPath({
   method: 'delete',
-  path: '/api/roles/{id}',
+  path: '/api/v1/roles/{id}',
   tags: ['Roles'],
   summary: 'Delete role',
   request: {

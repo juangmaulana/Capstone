@@ -3,7 +3,7 @@ import { paramNumberIdSchema } from '@/lib/validation/param-number-id.schema'
 
 registry.registerPath({
   method: 'delete',
-  path: '/api/users/{id}',
+  path: '/api/v1/users/{id}',
   tags: ['Users'],
   summary: 'Delete user',
   request: {

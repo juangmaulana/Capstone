@@ -3,7 +3,7 @@ import { registry } from '../../registry';
 
 registry.registerPath({
   method: 'post',
-  path: '/api/users',
+  path: '/api/v1/users',
   tags: ['Users'],
   summary: 'Create user',
   request: {

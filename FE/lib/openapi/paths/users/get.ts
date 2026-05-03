@@ -5,7 +5,7 @@ import { userResponseSchema } from '@/server/features/user/schemas/user-response
 
 registry.registerPath({
   method: 'get',
-  path: '/api/users',
+  path: '/api/v1/users',
   tags: ['Users'],
   summary: 'Fetch all users',
   request: {
@@ -20,7 +20,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: 'get',
-  path: '/api/users/{id}',
+  path: '/api/v1/users/{id}',
   tags: ['Users'],
   summary: 'Fetch user',
   request: {

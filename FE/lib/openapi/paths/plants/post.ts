@@ -3,7 +3,7 @@ import { CreatePlantSchema } from '@/server/features/plant/schemas/create.schema
 
 registry.registerPath({
   method: 'post',
-  path: '/api/plants',
+  path: '/api/v1/plants',
   tags: ['Plants'],
   summary: 'Create plant',
   request: {

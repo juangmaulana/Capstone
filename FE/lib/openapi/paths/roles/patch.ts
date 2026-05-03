@@ -4,7 +4,7 @@ import { updateRoleSchema } from '@/server/features/role/schemas/update-role.sch
 
 registry.registerPath({
   method: 'patch',
-  path: '/api/roles/{id}',
+  path: '/api/v1/roles/{id}',
   tags: ['Roles'],
   summary: 'Update role',
   request: {

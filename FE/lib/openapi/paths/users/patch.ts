@@ -4,7 +4,7 @@ import { registry } from '../../registry';
 
 registry.registerPath({
   method: 'patch',
-  path: '/api/users/{id}',
+  path: '/api/v1/users/{id}',
   tags: ['Users'],
   summary: 'Update user',
   request: {

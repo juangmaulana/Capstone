@@ -4,7 +4,7 @@ import { paramNumberIdSchema } from '@/lib/validation/param-number-id.schema'
 
 registry.registerPath({
   method: 'get',
-  path: '/api/roles',
+  path: '/api/v1/roles',
   tags: ['Roles'],
   summary: 'Fetch all roles',
   request: {
@@ -19,7 +19,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: 'get',
-  path: '/api/roles/{id}',
+  path: '/api/v1/roles/{id}',
   tags: ['Roles'],
   summary: 'Fetch role',
   request: {

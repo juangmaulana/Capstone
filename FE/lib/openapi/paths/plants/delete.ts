@@ -3,7 +3,7 @@ import { IdSchema } from '@/server/shared/schemas/id.schema';
 
 registry.registerPath({
   method: 'delete',
-  path: '/api/plants/{id}',
+  path: '/api/v1/plants/{id}',
   tags: ['Plants'],
   summary: 'Delete plant',
   request: {

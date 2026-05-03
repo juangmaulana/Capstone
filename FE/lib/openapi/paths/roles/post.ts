@@ -3,7 +3,7 @@ import { registry } from '../../registry';
 
 registry.registerPath({
   method: 'post',
-  path: '/api/roles',
+  path: '/api/v1/roles',
   tags: ['Roles'],
   summary: 'Create role',
   request: {

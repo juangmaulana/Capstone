@@ -4,7 +4,7 @@ import { IdSchema } from '@/server/shared/schemas/id.schema';
 
 registry.registerPath({
   method: 'get',
-  path: '/api/plants',
+  path: '/api/v1/plants',
   tags: ['Plants'],
   summary: 'Fetch all plants',
   request: {
@@ -19,7 +19,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: 'get',
-  path: '/api/plants/{id}',
+  path: '/api/v1/plants/{id}',
   tags: ['Plants'],
   summary: 'Fetch plant',
   request: {
