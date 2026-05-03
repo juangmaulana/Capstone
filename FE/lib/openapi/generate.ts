@@ -1,4 +1,4 @@
-import './register-paths'
+import './paths'
 import { OpenApiGeneratorV3 } from '@asteasolutions/zod-to-openapi'
 import { registry } from './registry'
 
@@ -13,18 +13,26 @@ export const generateOpenApiDoc = () => {
       version: '1.0.0',
     },
     tags: [
-    {
-      name: 'Users',
-      description: 'Operations related to user management (CRUD, search, roles)',
-    },
-    {
-      name: 'Roles',
-      description: 'Role-based access control and permissions',
-    },
-    {
-      name: 'Auth',
-      description: 'Authentication and session management',
-    },
-  ],
+      {
+        name: 'Users',
+        description: 'Manage users, including creation, updates, deletion, role assignment, and user lookup.',
+      },
+      {
+        name: 'Roles',
+        description: 'Define and manage roles and permissions for role-based access control.',
+      },
+      {
+        name: 'Plants',
+        description: 'Manage plant records, including botanical data, taxonomy, and environmental information.',
+      },
+      {
+        name: 'Images',
+        description: 'Handle image uploads, storage, retrieval, and association with identifications.',
+      },
+      {
+        name: 'Identifications',
+        description: 'Manage plant identification records and related classification or matching results.',
+      },
+    ],
   })
 }
