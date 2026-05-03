@@ -1,4 +1,4 @@
-import { ColumnType, Generated, Insertable, Kysely, Selectable, Updateable } from "kysely";
+import { Generated, Insertable, Kysely, Selectable, Updateable } from "kysely";
 
 export type DB = Kysely<Database>;
 
@@ -8,8 +8,8 @@ export interface UserTable {
   name: string
   email: string
   password: string
-  created_at: Generated<Date>
-  updated_at: Generated<Date>
+  readonly created_at: Generated<Date>
+  readonly updated_at: Generated<Date>
 }
 export type UserSelect = Selectable<UserTable>
 export type UserInsert = Insertable<UserTable>
@@ -19,8 +19,8 @@ export interface RoleTable {
   readonly id: Generated<number>
   name: string
   description: string
-  created_at: Generated<Date>
-  updated_at: Generated<Date>
+  readonly created_at: Generated<Date>
+  readonly updated_at: Generated<Date>
 }
 export type RoleSelect = Selectable<RoleTable>
 export type RoleInsert = Insertable<RoleTable> 
@@ -36,8 +36,8 @@ export interface PlantTable {
   ecological_information: string
   environmental_impact: string
   image_path: string
-  created_at: Generated<Date>
-  updated_at: Generated<Date>
+  readonly created_at: Generated<Date>
+  readonly updated_at: Generated<Date>
 }
 export type PlantSelect = Selectable<PlantTable>
 export type PlantInsert = Insertable<PlantTable>
@@ -69,7 +69,7 @@ export interface SessionTable {
   readonly id: string
   user_id: number
   expires_at: Generated<Date>
-  created_at: Generated<Date>
+  readonly created_at: Generated<Date>
 }
 export type SessionSelect = Selectable<SessionTable>
 export type SessionInsert = Insertable<SessionTable>

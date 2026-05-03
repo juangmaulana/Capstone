@@ -1,22 +1,37 @@
-import { NextResponse } from "next/server";
-import { getPlantById } from "@/lib/plant/service";
-import { getObservationsByPlantId } from "@/lib/observation/service";
-import { PlantSchema } from "@/lib/plant/schema";
-import { ObservationListSchema } from "@/lib/observation/schema";
+import { withErrorHandling } from '@/lib/api/errors/error-handler';
+import { parseWithZod } from '@/lib/validation/parse-with-zod';
+import { plant } from '@/server/features/plant';
+import { UpdatePlantSchema } from '@/server/features/plant/schemas/update.schema';
+import { IdSchema } from '@/server/shared/schemas/id.schema';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
-  try {
-    const plantId = parseInt((await params).id, 10);
-    const plant = await getPlantById(plantId);
-    if (!plant) return NextResponse.json({ error: "Plant not found" }, { status: 404 });
+export const GET = withErrorHandling(async (
+  req: NextRequest, 
+  { params }: { params: { id: string } },
+) => {
+  const { id } = parseWithZod(IdSchema, await params)
+  const data = await plant.query.byId(id)
 
-    const observations = await getObservationsByPlantId(plantId);
+  return NextResponse.json({ success: true, data })
+})
 
-    return NextResponse.json({
-        plant: PlantSchema.parse(plant),
-        observations: ObservationListSchema.parse({ observations }).observations,
-    });
-  } catch(err) {
-    return NextResponse.json({ error: "Failed to fetch plant" }, { status: 500 });
-  }
-}
+export const PATCH = withErrorHandling(async (
+  req: NextRequest,
+  { params }: { params: { id: string } },
+) => {
+  const { id } = parseWithZod(IdSchema, await params)
+  const input = parseWithZod(UpdatePlantSchema, await req.json())
+  const data = await plant.command.update(id, input)
+
+  return NextResponse.json({ success: true, data })
+})
+
+export const DELETE = withErrorHandling(async (
+  req: NextRequest, 
+  { params }: { params: { id: string } },
+) => {
+  const { id } = parseWithZod(IdSchema, await params)
+  const data = await plant.command.delete(id)
+
+  return NextResponse.json({ success: true, data })
+})
