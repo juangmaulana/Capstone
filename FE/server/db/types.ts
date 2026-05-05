@@ -56,6 +56,7 @@ export type IdentificationSelect = Selectable<IdentificationTable>
 
 export interface ImageTable {
   readonly id: Generated<number>
+  identificationId: number
   file_name: string
   file_path: string
   file_size: number

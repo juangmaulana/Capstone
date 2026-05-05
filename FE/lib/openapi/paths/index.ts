@@ -1,3 +1,5 @@
 import './users'
 import './roles'
 import './plants'
+import './identifications'
+import './images'
