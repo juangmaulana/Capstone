@@ -1,5 +1,4 @@
 import { withErrorHandling } from '@/lib/api/errors/error-handler';
-import { env } from '@/lib/env';
 import { parseWithZod } from '@/lib/validation/parse-with-zod';
 import { plant } from '@/server/features/plant';
 import { CreatePlantSchema } from '@/server/features/plant/schemas/create.schema';

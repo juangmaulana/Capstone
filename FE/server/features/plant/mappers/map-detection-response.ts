@@ -11,6 +11,7 @@ export function mapDetectionResponse(flask: any) {
         y1: d.bbox.y1,
         y2: d.bbox.y2,
       },
+      link: `/api/v1/plants?search=${encodeURIComponent(d.class)}`,
     })),
     meta: {
       processing_time_ms: Math.round(flask.processing_time * 1000),

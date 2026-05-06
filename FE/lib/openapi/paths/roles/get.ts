@@ -1,6 +1,6 @@
 import { listRolesSchema } from '@/server/features/role/schemas/list-roles.schema'
 import { registry } from '../../registry'
-import { paramNumberIdSchema } from '@/lib/validation/param-number-id.schema'
+import { IdSchema } from '@/server/shared/schemas/id.schema';
 
 registry.registerPath({
   method: 'get',
@@ -23,7 +23,7 @@ registry.registerPath({
   tags: ['Roles'],
   summary: 'Fetch role',
   request: {
-    params: paramNumberIdSchema,
+    params: IdSchema,
   },
   responses: {
     200: {

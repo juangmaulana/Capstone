@@ -1,4 +1,4 @@
-import { paramNumberIdSchema } from '@/lib/validation/param-number-id.schema';
+import { IdSchema } from '@/server/shared/schemas/id.schema';
 import { registry } from '../../registry';
 import { updateRoleSchema } from '@/server/features/role/schemas/update-role.schema';
 
@@ -8,7 +8,7 @@ registry.registerPath({
   tags: ['Roles'],
   summary: 'Update role',
   request: {
-    params: paramNumberIdSchema,
+    params: IdSchema,
     body: {
       content: {
         'application/json': {

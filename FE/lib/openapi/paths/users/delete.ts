@@ -1,5 +1,5 @@
 import { registry } from '../../registry'
-import { paramNumberIdSchema } from '@/lib/validation/param-number-id.schema'
+import { IdSchema } from '@/server/shared/schemas/id.schema';
 
 registry.registerPath({
   method: 'delete',
@@ -7,7 +7,7 @@ registry.registerPath({
   tags: ['Users'],
   summary: 'Delete user',
   request: {
-    params: paramNumberIdSchema,
+    params: IdSchema,
   },
   responses: {
     200: {

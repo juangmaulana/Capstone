@@ -1,4 +1,4 @@
-import { paramNumberIdSchema } from '@/lib/validation/param-number-id.schema';
+import { IdSchema } from '@/server/shared/schemas/id.schema';
 import { registry } from '../../registry';
 
 registry.registerPath({
@@ -7,7 +7,7 @@ registry.registerPath({
   tags: ['Roles'],
   summary: 'Delete role',
   request: {
-    params: paramNumberIdSchema,
+    params: IdSchema,
   },
   responses: {
     200: {

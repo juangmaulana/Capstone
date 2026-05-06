@@ -1,5 +1,5 @@
 import { registry } from '../../registry'
-import { paramNumberIdSchema } from '@/lib/validation/param-number-id.schema'
+import { IdSchema } from '@/server/shared/schemas/id.schema';
 import { listUsersSchema } from '@/server/features/user/schemas/list-users.schema'
 import { userResponseSchema } from '@/server/features/user/schemas/user-response.schema'
 
@@ -24,7 +24,7 @@ registry.registerPath({
   tags: ['Users'],
   summary: 'Fetch user',
   request: {
-    params: paramNumberIdSchema,
+    params: IdSchema,
   },
   responses: {
     200: {

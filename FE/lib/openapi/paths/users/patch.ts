@@ -1,4 +1,4 @@
-import { paramNumberIdSchema } from '@/lib/validation/param-number-id.schema';
+import { IdSchema } from '@/server/shared/schemas/id.schema';
 import { updateUserSchema } from '@/server/features/user/schemas/update-user.schema';
 import { registry } from '../../registry';
 
@@ -8,7 +8,7 @@ registry.registerPath({
   tags: ['Users'],
   summary: 'Update user',
   request: {
-    params: paramNumberIdSchema,
+    params: IdSchema,
     body: {
       content: {
         'application/json': {
