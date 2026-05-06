@@ -1,6 +1,7 @@
 export class Image {
   constructor(
     public id: number,
+    public userId: number,
     public identificationId: number,
     public name: string,
     public path: string,

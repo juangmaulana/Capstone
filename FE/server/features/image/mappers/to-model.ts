@@ -4,6 +4,7 @@ import { Image } from '../model'
 export const toModel = (row: ImageSelect): Image => {
   return new Image(
     row.id,
+    row.userId,
     row.identificationId,
     row.file_name,
     row.file_path,
