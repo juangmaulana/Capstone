@@ -4,6 +4,7 @@ import { Identification } from '../model'
 export const toModel = (row: IdentificationSelect): Identification => {
   return new Identification(
     row.id,
+    row.image_id,
     row.plant_id,
     row.confidence,
     row.ai_response,
