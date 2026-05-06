@@ -7,7 +7,7 @@ export type ImageRepo = {
 }
 
 export const createImageRepo = (db: DB): ImageRepo => ({
-  findById: (id) => 
+  findById: async (id) => 
     db.selectFrom('images')
       .selectAll()
       .where('id', '=', id)

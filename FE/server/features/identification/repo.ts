@@ -9,7 +9,7 @@ export type IdentificationRepo = {
 }
 
 export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
-  findAll: (filter = {}) => {
+  findAll: async (filter = {}) => {
     let query = db.selectFrom('identifications')
 
     if (filter.search !== undefined) {
@@ -41,7 +41,7 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
       .then(rows => rows.map(toModel))
   },
 
-  findById: (id) => 
+  findById: async (id) => 
     db.selectFrom('identifications')
       .selectAll()
       .where('id', '=', id)

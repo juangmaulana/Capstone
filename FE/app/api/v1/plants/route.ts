@@ -1,4 +1,5 @@
 import { withErrorHandling } from '@/lib/api/errors/error-handler';
+import { env } from '@/lib/env';
 import { parseWithZod } from '@/lib/validation/parse-with-zod';
 import { plant } from '@/server/features/plant';
 import { CreatePlantSchema } from '@/server/features/plant/schemas/create.schema';
@@ -14,9 +15,40 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
     offset: req.nextUrl.searchParams.get("offset") ?? undefined,
   }
   const filter = parseWithZod(PlantFilterSchema, searchParams)
-  const data = await plant.query.list(filter)
+  const { data, total, limit, offset } = await plant.query.list(filter)
 
-  return NextResponse.json({ success: true, data, meta: {}})
+  const hasNext = offset + limit < total
+  const hasPrev = offset > 0
+  
+  let next = null
+  const nextUrl = new URL(req.url)
+  if (hasNext) {
+    nextUrl.searchParams.set('offset', String(offset + limit))
+    next = nextUrl.toString()
+  }
+
+  let prev = null
+  const prevUrl = new URL(req.url)
+  if (hasPrev) {
+    prevUrl.searchParams.set('offset', String(Math.max(offset - limit, 0)))
+    prev = prevUrl.toString()
+  }
+
+  return NextResponse.json({ 
+    success: true, 
+    data, 
+    meta: {
+      total,
+      limit,
+      offset,
+      totalPages: Math.ceil(total / limit),
+      currentPage: Math.floor(offset / limit) + 1,
+    },
+    links: {
+      prev,
+      next,
+    }
+  })
 })
 
 export const POST = withErrorHandling(async (req: NextRequest) => {

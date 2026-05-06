@@ -11,7 +11,12 @@ export type PlantFilter = {
 }
 
 export type PlantRepo = {
-  findAll(filter?: PlantFilter): Promise<Plant[]>
+  findAll(filter?: PlantFilter): Promise<{
+    data: Plant[],
+    total: number,
+    limit: number,
+    offset: number,
+  }>
   findById(id: number): Promise<Plant | null>
   create(data: PlantInsert): Promise<Plant>
   update(id: number, data: PlantUpdate): Promise<Plant | null>
@@ -20,6 +25,9 @@ export type PlantRepo = {
 
 export const createPlantRepo = (db: DB): PlantRepo => ({
   findAll: async (filter = {}) => {
+    const limit = Math.min(filter.limit ?? 20, 100)
+    const offset = filter.offset ?? 0
+
     let query = db.selectFrom('plants')
 
     if (filter.search !== undefined) {
@@ -42,17 +50,20 @@ export const createPlantRepo = (db: DB): PlantRepo => ({
       query = query.where('genus', '=', filter.genus)
     }
 
-    if (filter.limit !== undefined) {
-      query = query.limit(filter.limit) 
-    }
+    const totalResult = await query
+      .select((eb) => eb.fn.count<number>('id').as('count'))
+      .executeTakeFirst()
+    const total = Number(totalResult?.count ?? 0)
 
-    if (filter.offset !== undefined) {
-      query = query.offset(filter.offset)
-    }
-
-    return query.selectAll()
+    const data = await query
+      .limit(limit)
+      .offset(offset)
+      .selectAll()
+      .orderBy('created_at', 'desc')
       .execute()
       .then(rows => rows.map(toModel))
+
+    return { data, total, limit, offset }
   },
 
   findById: async (id) =>

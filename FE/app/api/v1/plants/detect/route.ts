@@ -1,6 +1,7 @@
 import { withErrorHandling } from "@/lib/api/errors/error-handler"
 import { parseWithZod } from "@/lib/validation/parse-with-zod"
-import { mapDetectionResponse } from "@/server/features/seach/mappers/map-detection-response"
+import { mapDetectionResponse } from "@/server/features/plant/mappers/map-detection-response"
+import { slugify } from "@/server/shared/helpers/slugify"
 import { ImageSchema } from "@/server/shared/schemas/image.schema"
 import { NextRequest, NextResponse } from "next/server"
 
@@ -29,5 +30,21 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
 
   const data = mapDetectionResponse(flaskData.data)
 
-  return NextResponse.json({ success: true, data })
+  if (!data.plants?.length) {
+    return NextResponse.json({
+      success: false,
+      data,
+      meta: {
+        message: "No plants detected",
+      },
+    });
+  }
+
+  return NextResponse.json({
+    success: true,
+    data,
+    meta: {
+      links: data.plants.map((p) => `/api/v1/plants?search=${encodeURIComponent(p.name)}`),
+    },
+  })
 })
