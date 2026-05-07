@@ -12,12 +12,29 @@ interface ApiUser {
   name: string;
   email: string;
   roleId: number;
+  role_id?: number;
+  status?: string;
+  updatedAt?: string;
+  updated_at?: string;
+  lastLoginAt?: string;
 }
 
 interface ApiRole {
   id: number;
   name: string;
   description: string;
+}
+
+interface ApiPlant {
+  id: number;
+  scientificName?: string;
+  scientific_name?: string;
+  commonName?: string;
+  common_name?: string;
+  family: string;
+  genus: string;
+  updatedAt?: string;
+  updated_at?: string;
 }
 
 interface DisplayUser {
@@ -223,14 +240,17 @@ export default function AdminPage() {
       rolesData.forEach(r => { roleMap[r.id] = r.name; });
 
       if (usersJson.success && usersJson.data) {
-        setUsers(usersJson.data.map((u: any) => ({
+        setUsers(usersJson.data.map((u: ApiUser) => ({
           id: u.id,
           name: u.name,
           email: u.email,
-          role: roleMap[u.roleId] || roleMap[u.role_id] || "User",
-          roleId: u.roleId || u.role_id,
-          status: "Active",
-          lastLogin: u.updatedAt || u.updated_at || "-",
+          role: roleMap[u.roleId || u.role_id || 0] || "User",
+          roleId: u.roleId || u.role_id || 0,
+          status: "Active", // Default to Active since we don't have a status column yet
+          lastLogin: u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString('id-ID', {
+            dateStyle: 'medium',
+            timeStyle: 'short'
+          }) : "-",
         })));
       }
     } catch (e) { console.error("Failed to fetch users:", e); }
@@ -243,9 +263,9 @@ export default function AdminPage() {
       const res = await fetch("/api/v1/plants?limit=100");
       const json = await res.json();
       if (json.success && json.data) {
-        setSpeciesData(json.data.map((p: any) => ({
+        setSpeciesData(json.data.map((p: ApiPlant) => ({
           id: p.id,
-          name: p.scientificName || p.scientific_name || "",
+          name: p.scientificName || p.scientific_name || p.commonName || p.common_name || "",
           family: p.family || "",
           genus: p.genus || "",
           lastUpdated: p.updatedAt || p.updated_at || "-",
@@ -333,7 +353,7 @@ export default function AdminPage() {
     });
   };
 
-  const handleEditRole = (u: typeof INITIAL_USERS[0]) => {
+  const handleEditRole = (u: DisplayUser) => {
     if (!isSuperAdmin) return;
     setEditRoleUser(u);
     setEditRoleValue(u.role);
@@ -354,7 +374,7 @@ export default function AdminPage() {
     setEditRoleUser(null);
   };
 
-  const handleDeleteUser = (u: typeof INITIAL_USERS[0]) => {
+  const handleDeleteUser = (u: DisplayUser) => {
     if (!isSuperAdmin) return;
     setDeleteConfirmUser(u);
   };
@@ -692,8 +712,8 @@ export default function AdminPage() {
             {[
               { label: "Total Users", value: String(users.length), icon: Users, color: "text-blue-600 bg-blue-50" },
               { label: "Active Users", value: String(users.filter(u => u.status === "Active").length), icon: Activity, color: "text-green-600 bg-green-50" },
-              { label: "Admins", value: String(users.filter(u => u.role === "Admin").length), icon: ShieldCheck, color: "text-purple-600 bg-purple-50" },
-              { label: "New This Month", value: "5", icon: UserPlus, color: "text-amber-600 bg-amber-50" },
+              { label: "Admins", value: String(users.filter(u => u.role.includes("Admin")).length), icon: ShieldCheck, color: "text-purple-600 bg-purple-50" },
+              { label: "Roles", value: String(roles.length), icon: UserPlus, color: "text-amber-600 bg-amber-50" },
             ].map((stat) => (
               <div key={stat.label} className="stat-card flex items-center gap-4">
                 <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${stat.color}`}>

@@ -3,4 +3,6 @@ export type User = {
   roleId: number
   name: string
   email: string
+  lastLoginAt?: Date | string | null
+  updatedAt?: Date | string | null
 }

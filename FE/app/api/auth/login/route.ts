@@ -36,6 +36,12 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Update last login
+    await db.updateTable("users")
+      .set({ last_login_at: new Date() })
+      .where("id", "=", userRow.id)
+      .execute()
+
     // Get role name
     const roleRow = await db
       .selectFrom("roles")

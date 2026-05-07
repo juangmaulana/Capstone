@@ -25,6 +25,7 @@ export async function up(db: Kysely<any>) {
       col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
     .addColumn('updated_at', 'timestamp', (col) =>
       col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+    .addColumn('last_login_at', 'timestamp')
     .execute();
 
     await db.schema

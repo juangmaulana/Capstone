@@ -10,6 +10,7 @@ export interface UserTable {
   password: string
   readonly created_at: Generated<Date>
   readonly updated_at: Generated<Date>
+  last_login_at?: Date | null
 }
 export type UserSelect = Selectable<UserTable>
 export type UserInsert = Insertable<UserTable>

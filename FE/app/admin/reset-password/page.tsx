@@ -33,8 +33,8 @@ function ResetPasswordContent() {
     e.preventDefault();
     setError("");
 
-    if (password.length < 6) {
-      setError("Password minimal 6 karakter");
+    if (password.length < 8) {
+      setError("Password minimal 8 karakter");
       return;
     }
     if (password !== confirmPassword) {
@@ -135,7 +135,7 @@ function ResetPasswordContent() {
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Minimal 6 karakter"
+                placeholder="Minimal 8 karakter"
                 required
                 style={styles.input}
               />
