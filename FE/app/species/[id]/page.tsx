@@ -101,8 +101,8 @@ export default function SpeciesPage() {
             scientificName: p.scientificName || p.scientific_name || "",
             family: p.family || "",
             genus: p.genus || "",
-            botanicalDescription: p.botanicalDescription || p.botanical_description || "",
-            ecologicalInformation: p.ecologicalInformation || p.ecological_information || "",
+            botanicalDescription: p.botanicalDescription || p.botanical_description || p.description || "",
+            ecologicalInformation: p.ecologicalInformation || p.ecological_information || p.ecology || "",
             environmentalImpact: p.environmentalImpact || p.environmental_impact || "",
             imagePath: p.imagePath || p.image_path || "",
           });
