@@ -16,7 +16,7 @@ async function addLastLoginColumn() {
   try {
     await db.schema
       .alterTable('users')
-      .addColumn('last_l  ogin_at', 'timestamp')
+      .addColumn('last_login_at', 'timestamp')
       .execute()
     console.log('Column last_login_at added successfully')
   } catch (err: any) {

@@ -23,7 +23,7 @@ function ResetPasswordContent() {
       setIsValidToken(false);
       return;
     }
-    fetch(`/api/auth/reset-password?token=${token}`)
+    fetch(`/api/v1/auth/reset-password?token=${token}`)
       .then((res) => res.json())
       .then((data) => setIsValidToken(data.valid === true))
       .catch(() => setIsValidToken(false));
@@ -44,7 +44,7 @@ function ResetPasswordContent() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch("/api/auth/reset-password", {
+      const res = await fetch("/api/v1/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, password }),

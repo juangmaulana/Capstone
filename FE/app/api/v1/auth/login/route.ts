@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     const userRow = await db
       .selectFrom("users")
       .selectAll()
-      .where("email", "=", email)
+      .where("email", "=", email.trim().toLowerCase())
       .executeTakeFirst()
 
     if (!userRow) {

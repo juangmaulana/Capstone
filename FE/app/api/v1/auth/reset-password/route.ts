@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { db } from '@/server/db';
-import { resetTokens } from '@/app/api/auth/forgot-password/route';
+import { resetTokens } from '@/app/api/v1/auth/forgot-password/route';
 
 export async function POST(req: NextRequest) {
   try {
