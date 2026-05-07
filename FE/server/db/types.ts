@@ -10,6 +10,7 @@ export interface UserTable {
   password: string
   readonly created_at: Generated<Date>
   readonly updated_at: Generated<Date>
+  last_login_at?: Date | null
 }
 export type UserSelect = Selectable<UserTable>
 export type UserInsert = Insertable<UserTable>
@@ -56,8 +57,8 @@ export type IdentificationSelect = Selectable<IdentificationTable>
 
 export interface ImageTable {
   readonly id: Generated<number>
-  userId: number
-  identificationId: number
+  user_id: number
+  identification_id: number
   file_name: string
   file_path: string
   file_size: number

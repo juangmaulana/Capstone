@@ -6,4 +6,6 @@ export const toDomain = (row: UserSelect): User => ({
   roleId: row.role_id,
   name: row.name,
   email: row.email,
+  lastLoginAt: row.last_login_at,
+  updatedAt: row.updated_at,
 })

@@ -22,7 +22,7 @@
 
   --color-warning: hsl(var(--warning));
   --color-warning-foreground: hsl(var(--warning-foreground));
-  
+
   --color-success: hsl(var(--success));
   --color-success-foreground: hsl(var(--success-foreground));
 
@@ -60,22 +60,41 @@
 
   --font-sans: "Inter", "system-ui", "sans-serif";
   --font-mono: "JetBrains Mono", "monospace";
-  
+
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
   --animate-pulse-subtle: pulse-subtle 2s ease-in-out infinite;
-  
+
   @keyframes accordion-down {
-    from { height: 0; }
-    to { height: var(--radix-accordion-content-height); }
+    from {
+      height: 0;
+    }
+
+    to {
+      height: var(--radix-accordion-content-height);
+    }
   }
+
   @keyframes accordion-up {
-    from { height: var(--radix-accordion-content-height); }
-    to { height: 0; }
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+
+    to {
+      height: 0;
+    }
   }
+
   @keyframes pulse-subtle {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
+
+    0%,
+    100% {
+      opacity: 1;
+    }
+
+    50% {
+      opacity: 0.7;
+    }
   }
 }
 
@@ -166,6 +185,7 @@
 }
 
 @layer base {
+
   *,
   ::after,
   ::before,
@@ -185,16 +205,20 @@
   .stat-card {
     @apply rounded-lg border bg-card p-4 shadow-sm transition-shadow hover:shadow-md;
   }
+
   .panel-header {
     @apply text-sm font-semibold uppercase tracking-wider text-muted-foreground;
   }
+
   .risk-high {
     @apply bg-destructive/10 text-destructive border-destructive/20;
   }
+
   .risk-medium {
     @apply text-warning-foreground border-warning/20;
     background-color: color-mix(in srgb, var(--color-warning) 10%, transparent);
   }
+
   .risk-low {
     @apply bg-primary/10 text-primary border-primary/20;
   }

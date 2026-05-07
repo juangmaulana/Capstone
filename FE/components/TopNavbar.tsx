@@ -9,11 +9,12 @@ const routeLabels: Record<string, string> = {
   "/modeling": "Modeling (SDM)",
   "/data": "Data Explorer",
   "/reports": "Reports",
+  "/admin": "Admin",
 };
 
 export function TopNavbar() {
   const pathname = usePathname();
-  const currentLabel = routeLabels[pathname] || "Page";
+  const currentLabel = routeLabels[pathname] || routeLabels[Object.keys(routeLabels).find(key => pathname.startsWith(key) && key !== "/") || ""] || "Page";
 
   return (
     <header className="flex h-16 shrink-0 items-center gap-4 border-b bg-card px-4">

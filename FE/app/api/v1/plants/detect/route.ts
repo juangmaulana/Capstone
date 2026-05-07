@@ -3,6 +3,13 @@ import { parseWithZod } from "@/lib/validation/parse-with-zod"
 import { mapDetectionResponse } from "@/server/features/plant/mappers/map-detection-response"
 import { ImageSchema } from "@/server/shared/schemas/image.schema"
 import { NextRequest, NextResponse } from "next/server"
+import { Client } from "@gradio/client"
+
+const GRADIO_URL = process.env.DETECTION_API_URL
+
+if (!GRADIO_URL) {
+  throw new Error("DETECTION_API_URL is not defined in environment variables")
+}
 
 export const POST = withErrorHandling(async (req: NextRequest) => {
   const formData = await req.formData()
@@ -13,21 +20,19 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
 
   const file = input.image as File
 
-  const forwardForm = new FormData()
-  forwardForm.append("image", file)
+  // Convert File to Blob for Gradio client
+  const arrayBuffer = await file.arrayBuffer()
+  const blob = new Blob([arrayBuffer], { type: file.type })
 
-  const response = await fetch("http://localhost:5001/detect", {
-    method: "POST",
-    body: forwardForm,
+  const client = await Client.connect(GRADIO_URL)
+  const result = await client.predict("/predict", {
+    image: blob,
   })
 
-  if (!response.ok) {
-    throw new Error("Detection request failed")
-  }
+  // Gradio returns: result.data = [annotatedImage, boundingBoxJson]
+  const gradioData = result.data as any[]
 
-  const flaskData = await response.json()
-
-  const data = mapDetectionResponse(flaskData.data)
+  const data = mapDetectionResponse(gradioData)
 
   if (!data?.plants?.length) {
     return NextResponse.json({

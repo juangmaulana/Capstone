@@ -33,7 +33,7 @@ export const PlantBaseSchema = z.object({
   botanicalDescription: DescriptionSchema,
   ecologicalInformation: EcologySchema,
   environmentalImpact: EnvironmentalImpactSchema,
-  referenceImagePath: ImagePathSchema,
+  imagePath: ImagePathSchema,
 });
 
 export type PlantBaseRequest = z.infer<typeof PlantBaseSchema>
