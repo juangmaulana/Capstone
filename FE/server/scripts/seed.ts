@@ -13,7 +13,7 @@ async function seed() {
     }),
   })
 
-  console.log('🌱 Seeding database...')
+  console.log('Seeding database...')
 
   // --- Seed Roles ---
   const existingRoles = await db.selectFrom('roles').selectAll().execute()
@@ -24,9 +24,9 @@ async function seed() {
       { name: 'Researcher', description: 'Research and data access' },
       { name: 'Field Officer', description: 'Field data collection' },
     ]).execute()
-    console.log('✅ Roles seeded')
+    console.log('Roles seeded')
   } else {
-    console.log('⏭️  Roles already exist, skipping')
+    console.log('Roles already exist, skipping')
   }
 
   // --- Seed Admin User ---
@@ -41,10 +41,10 @@ async function seed() {
         email: 'admin@biowatch.id',
         password: passwordHash,
       }).execute()
-      console.log('✅ Admin user seeded (email: admin@biowatch.id, password: admin123)')
+      console.log('Admin user seeded (email: admin@biowatch.id, password: admin123)')
     }
   } else {
-    console.log('⏭️  Users already exist, skipping')
+    console.log('Users already exist, skipping')
   }
 
   // --- Seed Plants (5 Invasive Alien Species in Baluran) ---
@@ -102,16 +102,16 @@ async function seed() {
         image_path: '/sketsa-herbarium-Ageratum-conyzoides.webp',
       },
     ]).execute()
-    console.log('✅ Plants seeded (5 invasive alien species)')
+    console.log('Plants seeded (5 invasive alien species)')
   } else {
-    console.log('⏭️  Plants already exist, skipping')
+    console.log('Plants already exist, skipping')
   }
 
-  console.log('🎉 Seeding complete!')
+  console.log('Seeding complete!')
   await db.destroy()
 }
 
 seed().catch((err) => {
-  console.error('❌ Seed failed:', err)
+  console.error('Seed failed:', err)
   process.exit(1)
 })
