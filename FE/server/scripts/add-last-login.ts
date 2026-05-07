@@ -11,19 +11,19 @@ async function addLastLoginColumn() {
     }),
   })
 
-  console.log('🔄 Adding last_login_at column to users table...')
+  console.log('Adding last_login_at column to users table...')
 
   try {
     await db.schema
       .alterTable('users')
-      .addColumn('last_login_at', 'timestamp')
+      .addColumn('last_l  ogin_at', 'timestamp')
       .execute()
-    console.log('✅ Column last_login_at added successfully')
+    console.log('Column last_login_at added successfully')
   } catch (err: any) {
     if (err.code === '42701') {
-      console.log('⏭️  Column last_login_at already exists, skipping')
+      console.log('Column last_login_at already exists, skipping')
     } else {
-      console.error('❌ Failed to add column:', err)
+      console.error('Failed to add column:', err)
     }
   }
 
