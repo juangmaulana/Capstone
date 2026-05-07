@@ -1,110 +1,149 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Leaf, Network, Map as MapIcon, ThermometerSun, FileText, Image as ImageIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowLeft, Leaf, Network, Map as MapIcon, ThermometerSun, FileText, Image as ImageIcon, Loader2 } from "lucide-react";
 
-const SPECIES_DB: Record<string, any> = {
-  "acacia-nilotica": {
-    name: "Acacia nilotica",
-    commonName: "Babul / Gum Arabic Tree",
-    description: "Acacia nilotica adalah gulma berkayu invasif di Taman Nasional Baluran, di mana awalnya diperkenalkan sebagai sekat bakar. Sejak itu ia menyebar secara agresif di sabana Bekol, membentuk semak belukar padat yang menekan pertumbuhan rumput asli yang penting bagi herbivora lokal seperti Banteng Jawa.",
-    taxonomy: [
-      { rank: "Kerajaan", value: "Plantae" },
-      { rank: "Filum", value: "Tracheophyta" },
-      { rank: "Kelas", value: "Magnoliopsida" },
-      { rank: "Ordo", value: "Fabales" },
-      { rank: "Famili", value: "Fabaceae" },
-      { rank: "Genus", value: "Vachellia" },
-      { rank: "Spesies", value: "V. nilotica" },
-    ],
-    herbariumSketch: "/sketsa-herbarium-acacia-nilotica.gif",
-  },
-  "lantana-camara": {
-    name: "Lantana camara",
-    commonName: "Tembelekan / Tickberry",
-    description: "Lantana camara adalah spesies asing yang sangat invasif di banyak daerah tropis dan subtropis. Tanaman ini membentuk semak belukar yang padat dan tak tertembus yang mengalahkan flora asli, mengubah rezim kebakaran, dan sangat mengurangi lahan penggembalaan bagi satwa liar seperti Banteng Jawa di sabana.",
-    taxonomy: [
-      { rank: "Kerajaan", value: "Plantae" },
-      { rank: "Filum", value: "Tracheophyta" },
-      { rank: "Kelas", value: "Magnoliopsida" },
-      { rank: "Ordo", value: "Lamiales" },
-      { rank: "Famili", value: "Verbenaceae" },
-      { rank: "Genus", value: "Lantana" },
-      { rank: "Spesies", value: "L. camara" },
-    ],
-    herbariumSketch: "/sketsa-herbarium-lantana-camara.jpg",
-  },
-  "mikania-micrantha": {
-    name: "Mikania micrantha",
-    commonName: "Sembung Rambat / Bitter Vine",
-    description: "Dikenal sebagai gulma 'satu mil per menit', Mikania micrantha adalah tanaman rambat tahunan yang tumbuh sangat cepat. Tanaman ini merupakan ancaman serius bagi ekosistem tropis karena ia dengan cepat memanjat tanaman dan pohon lain, mencekik mereka dan menghalangi sinar matahari, yang dapat menyebabkan kematian vegetasi di bawahnya.",
-    taxonomy: [
-      { rank: "Kerajaan", value: "Plantae" },
-      { rank: "Filum", value: "Tracheophyta" },
-      { rank: "Kelas", value: "Magnoliopsida" },
-      { rank: "Ordo", value: "Asterales" },
-      { rank: "Famili", value: "Asteraceae" },
-      { rank: "Genus", value: "Mikania" },
-      { rank: "Spesies", value: "M. micrantha" },
-    ],
-    herbariumSketch: "/sketsa-herbarium-Mikania-micrantha.jpg",
-  },
-  "chromolaena-odorata": {
-    name: "Chromolaena odorata",
-    commonName: "Kirinyuh / Siam Weed",
-    description: "Chromolaena odorata adalah semak tahunan yang tumbuh cepat dan gulma invasif yang sangat merusak di daerah tropis. Tanaman ini secara agresif menyerang tepi hutan, sabana, dan lahan pertanian, menekan pertumbuhan tanaman asli melalui persaingan dan alelopati. Tanaman ini juga sangat mudah terbakar.",
-    taxonomy: [
-      { rank: "Kerajaan", value: "Plantae" },
-      { rank: "Filum", value: "Tracheophyta" },
-      { rank: "Kelas", value: "Magnoliopsida" },
-      { rank: "Ordo", value: "Asterales" },
-      { rank: "Famili", value: "Asteraceae" },
-      { rank: "Genus", value: "Chromolaena" },
-      { rank: "Spesies", value: "C. odorata" },
-    ],
-    herbariumSketch: "/sketsa-herbarium-Chromolaena-odorata.webp",
-  },
-  "ageratum-conyzoides": {
-    name: "Ageratum conyzoides",
-    commonName: "Bandotan / Billygoat Weed",
-    description: "Ageratum conyzoides adalah gulma herba tahunan yang terkenal karena produksi bijinya yang tinggi dan kemampuan beradaptasinya. Tanaman ini sering menyerang lahan yang terganggu, ladang pertanian, dan ekosistem alami. Ia menghasilkan bahan kimia alelopati yang menghambat pertumbuhan tanaman asli di sekitarnya dan bisa menjadi racun bagi hewan pemakan rumput.",
-    taxonomy: [
-      { rank: "Kerajaan", value: "Plantae" },
-      { rank: "Filum", value: "Tracheophyta" },
-      { rank: "Kelas", value: "Magnoliopsida" },
-      { rank: "Ordo", value: "Asterales" },
-      { rank: "Famili", value: "Asteraceae" },
-      { rank: "Genus", value: "Ageratum" },
-      { rank: "Spesies", value: "A. conyzoides" },
-    ],
-    herbariumSketch: "/sketsa-herbarium-Ageratum-conyzoides.webp",
-  }
+// Taxonomy data for the 5 invasive species
+const TAXONOMY_DB: Record<string, { rank: string; value: string }[]> = {
+  "acacia nilotica": [
+    { rank: "Kerajaan", value: "Plantae" },
+    { rank: "Filum", value: "Tracheophyta" },
+    { rank: "Kelas", value: "Magnoliopsida" },
+    { rank: "Ordo", value: "Fabales" },
+    { rank: "Famili", value: "Fabaceae" },
+    { rank: "Genus", value: "Vachellia" },
+    { rank: "Spesies", value: "V. nilotica" },
+  ],
+  "lantana camara": [
+    { rank: "Kerajaan", value: "Plantae" },
+    { rank: "Filum", value: "Tracheophyta" },
+    { rank: "Kelas", value: "Magnoliopsida" },
+    { rank: "Ordo", value: "Lamiales" },
+    { rank: "Famili", value: "Verbenaceae" },
+    { rank: "Genus", value: "Lantana" },
+    { rank: "Spesies", value: "L. camara" },
+  ],
+  "mikania micrantha": [
+    { rank: "Kerajaan", value: "Plantae" },
+    { rank: "Filum", value: "Tracheophyta" },
+    { rank: "Kelas", value: "Magnoliopsida" },
+    { rank: "Ordo", value: "Asterales" },
+    { rank: "Famili", value: "Asteraceae" },
+    { rank: "Genus", value: "Mikania" },
+    { rank: "Spesies", value: "M. micrantha" },
+  ],
+  "chromolaena odorata": [
+    { rank: "Kerajaan", value: "Plantae" },
+    { rank: "Filum", value: "Tracheophyta" },
+    { rank: "Kelas", value: "Magnoliopsida" },
+    { rank: "Ordo", value: "Asterales" },
+    { rank: "Famili", value: "Asteraceae" },
+    { rank: "Genus", value: "Chromolaena" },
+    { rank: "Spesies", value: "C. odorata" },
+  ],
+  "ageratum conyzoides": [
+    { rank: "Kerajaan", value: "Plantae" },
+    { rank: "Filum", value: "Tracheophyta" },
+    { rank: "Kelas", value: "Magnoliopsida" },
+    { rank: "Ordo", value: "Asterales" },
+    { rank: "Famili", value: "Asteraceae" },
+    { rank: "Genus", value: "Ageratum" },
+    { rank: "Spesies", value: "A. conyzoides" },
+  ],
 };
 
-const getMockData = (id: string) => {
-  const normId = id.toLowerCase().trim();
-  if (SPECIES_DB[normId]) {
-    return SPECIES_DB[normId];
-  }
-
-  // Fallback if not found
-  const formattedId = id.replace(/-/g, " ").replace(/\b\w/g, l => l.toUpperCase());
-  return {
-    name: formattedId === "Search" ? "Lantana camara" : formattedId,
-    commonName: "Spesies Tidak Diketahui",
-    description: "Belum ada keterangan untuk spesies ini. Silakan periksa kembali nanti atau perbarui basis data.",
-    taxonomy: [
-      { rank: "Kerajaan", value: "Tidak Diketahui" },
-    ],
-  };
-};
+interface PlantData {
+  id: number;
+  commonName: string;
+  scientificName: string;
+  family: string;
+  genus: string;
+  botanicalDescription: string;
+  ecologicalInformation: string;
+  environmentalImpact: string;
+  imagePath: string;
+}
 
 export default function SpeciesPage() {
   const params = useParams();
   const router = useRouter();
   const id = typeof params?.id === "string" ? params.id : "lantana-camara";
 
-  const species = getMockData(id);
+  const [plant, setPlant] = useState<PlantData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchPlant() {
+      setIsLoading(true);
+      setError(null);
+      try {
+        // Convert slug to search query (e.g. "acacia-nilotica" -> "Acacia nilotica")
+        const searchTerm = id.replace(/-/g, " ");
+        const res = await fetch(`/api/v1/plants?search=${encodeURIComponent(searchTerm)}&limit=1`);
+        const json = await res.json();
+
+        if (json.success && json.data && json.data.length > 0) {
+          const p = json.data[0];
+          setPlant({
+            id: p.id,
+            commonName: p.commonName || p.common_name || "",
+            scientificName: p.scientificName || p.scientific_name || "",
+            family: p.family || "",
+            genus: p.genus || "",
+            botanicalDescription: p.botanicalDescription || p.botanical_description || "",
+            ecologicalInformation: p.ecologicalInformation || p.ecological_information || "",
+            environmentalImpact: p.environmentalImpact || p.environmental_impact || "",
+            imagePath: p.imagePath || p.image_path || "",
+          });
+        } else {
+          setError("Spesies tidak ditemukan dalam database.");
+        }
+      } catch (err) {
+        console.error("Failed to fetch plant:", err);
+        setError("Gagal memuat data spesies.");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchPlant();
+  }, [id]);
+
+  // Get taxonomy for the species
+  const taxonomy = plant
+    ? TAXONOMY_DB[plant.scientificName.toLowerCase()] || [
+        { rank: "Kerajaan", value: "Plantae" },
+        { rank: "Famili", value: plant.family },
+        { rank: "Genus", value: plant.genus },
+        { rank: "Spesies", value: plant.scientificName },
+      ]
+    : [];
+
+  if (isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center bg-muted/20 p-8">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Memuat data spesies...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !plant) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center bg-muted/20 p-8">
+        <p className="text-lg font-semibold text-muted-foreground">{error || "Spesies tidak ditemukan"}</p>
+        <button
+          onClick={() => router.back()}
+          className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+        >
+          Kembali
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-muted/20 p-4 md:p-6 lg:p-8">
@@ -117,8 +156,8 @@ export default function SpeciesPage() {
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div>
-          <h1 className="text-2xl font-bold md:text-3xl italic">{species.name}</h1>
-          <p className="text-sm text-muted-foreground">{species.commonName}</p>
+          <h1 className="text-2xl font-bold md:text-3xl italic">{plant.scientificName}</h1>
+          <p className="text-sm text-muted-foreground">{plant.commonName}</p>
         </div>
       </div>
 
@@ -131,28 +170,39 @@ export default function SpeciesPage() {
               <FileText className="h-4 w-4 text-primary" />
               <h2 className="font-semibold text-sm">Keterangan Spesies</h2>
             </div>
-            <div className="p-4">
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                {species.description}
-              </p>
+            <div className="p-4 space-y-4">
+              <div>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Deskripsi Botani</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">{plant.botanicalDescription}</p>
+              </div>
+              <div>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Informasi Ekologi</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">{plant.ecologicalInformation}</p>
+              </div>
+              <div>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Dampak Lingkungan</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">{plant.environmentalImpact}</p>
+              </div>
             </div>
           </div>
 
           {/* Sketch */}
-          <div className="rounded-xl border bg-card text-card-foreground shadow-sm overflow-hidden flex flex-col">
-            <div className="flex items-center gap-2 border-b bg-muted/50 px-4 py-3">
-              <ImageIcon className="h-4 w-4 text-primary" />
-              <h2 className="font-semibold text-sm">Sketsa Herbarium</h2>
+          {plant.imagePath && (
+            <div className="rounded-xl border bg-card text-card-foreground shadow-sm overflow-hidden flex flex-col">
+              <div className="flex items-center gap-2 border-b bg-muted/50 px-4 py-3">
+                <ImageIcon className="h-4 w-4 text-primary" />
+                <h2 className="font-semibold text-sm">Sketsa Herbarium</h2>
+              </div>
+              <div className="relative aspect-[3/4] w-full bg-muted">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={plant.imagePath}
+                  alt={`Herbarium sketch of ${plant.scientificName}`}
+                  className="h-full w-full object-cover"
+                />
+              </div>
             </div>
-            <div className="relative aspect-[3/4] w-full bg-muted">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={species.herbariumSketch}
-                alt={`Herbarium sketch of ${species.name}`}
-                className="h-full w-full object-cover"
-              />
-            </div>
-          </div>
+          )}
 
           {/* Taxonomy */}
           <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
@@ -162,7 +212,7 @@ export default function SpeciesPage() {
             </div>
             <div className="p-4">
               <div className="flex flex-col space-y-2">
-                {species.taxonomy.map((item: any, idx: number) => (
+                {taxonomy.map((item, idx) => (
                   <div key={idx} className="flex justify-between text-sm py-1 border-b last:border-0 border-muted">
                     <span className="text-muted-foreground">{item.rank}</span>
                     <span className="font-medium">{item.value}</span>

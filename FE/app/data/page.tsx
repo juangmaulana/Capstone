@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -19,44 +19,91 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Download, Search, Filter } from "lucide-react";
+import { Download, Search, Filter, Loader2 } from "lucide-react";
 
-const DATA = [
-  { id: 1, species: "Acacia nilotica", location: "Savana Bekol, Baluran", risk: "Critical", date: "2025-12-15", source: "Field Survey", confidence: 96 },
-  { id: 2, species: "Lantana camara", location: "Pantai Bama, Baluran", risk: "High", date: "2025-11-20", source: "GBIF Import", confidence: 88 },
-  { id: 3, species: "Mikania micrantha", location: "Gunung Baluran, Baluran", risk: "Medium", date: "2026-01-05", source: "Citizen Science", confidence: 78 },
-  { id: 4, species: "Chromolaena odorata", location: "Hutan Tropis, Baluran", risk: "High", date: "2026-02-10", source: "Remote Sensing", confidence: 95 },
-  { id: 5, species: "Ageratum conyzoides", location: "Pos Sumber Batang, Baluran", risk: "Low", date: "2026-01-28", source: "Field Survey", confidence: 75 },
-  { id: 6, species: "Lantana camara", location: "Savana Bekol, Baluran", risk: "Critical", date: "2025-10-14", source: "GBIF Import", confidence: 91 },
-  { id: 7, species: "Acacia nilotica", location: "Gunung Baluran, Baluran", risk: "High", date: "2025-09-03", source: "Field Survey", confidence: 92 },
-  { id: 8, species: "Chromolaena odorata", location: "Kawasan Bama, Baluran", risk: "Medium", date: "2026-02-20", source: "Citizen Science", confidence: 84 },
-];
-
-const riskVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  Critical: "destructive",
-  High: "destructive",
-  Medium: "secondary",
-  Low: "outline",
-};
+interface PlantRecord {
+  id: number;
+  commonName: string;
+  scientificName: string;
+  family: string;
+  genus: string;
+  botanicalDescription: string;
+  imagePath: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export default function DataExplorer() {
   const [search, setSearch] = useState("");
-  const [riskFilter, setRiskFilter] = useState("all");
+  const [familyFilter, setFamilyFilter] = useState("all");
+  const [plants, setPlants] = useState<PlantRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const limit = 20;
 
-  const filtered = DATA.filter((d) => {
-    const matchSearch = d.species.toLowerCase().includes(search.toLowerCase()) || d.location.toLowerCase().includes(search.toLowerCase());
-    const matchRisk = riskFilter === "all" || d.risk === riskFilter;
-    return matchSearch && matchRisk;
-  });
+  useEffect(() => {
+    async function fetchData() {
+      setIsLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (search) params.set("search", search);
+        if (familyFilter !== "all") params.set("family", familyFilter);
+        params.set("limit", String(limit));
+        params.set("offset", String((page - 1) * limit));
+
+        const res = await fetch(`/api/v1/plants?${params.toString()}`);
+        const json = await res.json();
+
+        if (json.success && json.data) {
+          setPlants(json.data.map((p: any) => ({
+            id: p.id,
+            commonName: p.commonName || p.common_name || "",
+            scientificName: p.scientificName || p.scientific_name || "",
+            family: p.family || "",
+            genus: p.genus || "",
+            botanicalDescription: p.botanicalDescription || p.botanical_description || "",
+            imagePath: p.imagePath || p.image_path || "",
+            createdAt: p.createdAt || p.created_at || "",
+            updatedAt: p.updatedAt || p.updated_at || "",
+          })));
+          setTotal(json.meta?.total || json.data.length);
+        }
+      } catch (err) {
+        console.error("Failed to fetch plants:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchData();
+  }, [search, familyFilter, page]);
+
+  // Get unique families for filter
+  const families = [...new Set(plants.map(p => p.family))].filter(Boolean);
+
+  const handleExportCSV = () => {
+    if (plants.length === 0) return;
+    const headers = "ID,Scientific Name,Common Name,Family,Genus,Created At\n";
+    const rows = plants.map(p =>
+      `${p.id},"${p.scientificName}","${p.commonName}","${p.family}","${p.genus}","${p.createdAt}"`
+    ).join("\n");
+    const blob = new Blob([headers + rows], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "biowatch_plants_export.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="flex flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Data Explorer</h1>
-          <p className="text-sm text-muted-foreground">Browse and manage species observation records</p>
+          <p className="text-sm text-muted-foreground">Browse and manage species records from database</p>
         </div>
-        <Button variant="outline" className="gap-2">
+        <Button variant="outline" className="gap-2" onClick={handleExportCSV} disabled={plants.length === 0}>
           <Download className="h-4 w-4" /> Export CSV
         </Button>
       </div>
@@ -66,58 +113,96 @@ export default function DataExplorer() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search species or location..."
+            placeholder="Search species..."
             className="pl-9"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           />
         </div>
-        <Select value={riskFilter} onValueChange={setRiskFilter}>
-          <SelectTrigger className="w-40">
+        <Select value={familyFilter} onValueChange={(v) => { setFamilyFilter(v); setPage(1); }}>
+          <SelectTrigger className="w-48">
             <Filter className="mr-2 h-4 w-4" />
-            <SelectValue placeholder="Risk Level" />
+            <SelectValue placeholder="Family" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Risks</SelectItem>
-            <SelectItem value="Critical">Critical</SelectItem>
-            <SelectItem value="High">High</SelectItem>
-            <SelectItem value="Medium">Medium</SelectItem>
-            <SelectItem value="Low">Low</SelectItem>
+            <SelectItem value="all">All Families</SelectItem>
+            <SelectItem value="Fabaceae">Fabaceae</SelectItem>
+            <SelectItem value="Verbenaceae">Verbenaceae</SelectItem>
+            <SelectItem value="Asteraceae">Asteraceae</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       {/* Table */}
       <div className="rounded-lg border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Species</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead>Risk Level</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead className="text-right">Confidence</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell className="font-medium">{row.species}</TableCell>
-                <TableCell>{row.location}</TableCell>
-                <TableCell>
-                  <Badge variant={riskVariant[row.risk]}>{row.risk}</Badge>
-                </TableCell>
-                <TableCell>{row.date}</TableCell>
-                <TableCell>{row.source}</TableCell>
-                <TableCell className="text-right">{row.confidence}%</TableCell>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+            <span className="text-sm text-muted-foreground">Memuat data dari database...</span>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Scientific Name</TableHead>
+                <TableHead>Common Name</TableHead>
+                <TableHead>Family</TableHead>
+                <TableHead>Genus</TableHead>
+                <TableHead>Image</TableHead>
+                <TableHead>Updated</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {plants.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    Tidak ada data ditemukan
+                  </TableCell>
+                </TableRow>
+              ) : (
+                plants.map((row) => (
+                  <TableRow key={row.id} className="cursor-pointer hover:bg-muted/50" onClick={() => {
+                    const slug = row.scientificName.toLowerCase().replace(/\s+/g, '-');
+                    window.location.href = `/species/${slug}`;
+                  }}>
+                    <TableCell className="font-medium italic">{row.scientificName}</TableCell>
+                    <TableCell>{row.commonName}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{row.family}</Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{row.genus}</TableCell>
+                    <TableCell>
+                      {row.imagePath ? (
+                        <Badge variant="outline" className="text-xs">Available</Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-xs">
+                      {row.updatedAt ? new Date(row.updatedAt).toLocaleDateString('id-ID') : '—'}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        )}
       </div>
 
-      <p className="text-xs text-muted-foreground">{filtered.length} records found</p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">{total} records found</p>
+        {total > limit && (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
+              Previous
+            </Button>
+            <span className="text-xs text-muted-foreground">Page {page} of {Math.ceil(total / limit)}</span>
+            <Button variant="outline" size="sm" disabled={page >= Math.ceil(total / limit)} onClick={() => setPage(p => p + 1)}>
+              Next
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

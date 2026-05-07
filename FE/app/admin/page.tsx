@@ -1,29 +1,42 @@
 "use client";
 
 import { Users, UserPlus, ShieldCheck, Activity, Bug, Upload, ScrollText, Database, Plus, Pencil, Trash2, Search, FileSpreadsheet, FileText, CheckCircle2, Clock, AlertCircle, AlertTriangle, Info, Server, Wifi, Filter, LogOut, User, Tag, Download, Eye, X, ChevronDown, ChevronRight, Image as ImageIcon, MapPin, Calendar, ThumbsUp, ThumbsDown, FileDown, BarChart3, Lock, Copy, KeyRound } from "lucide-react";
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminDataAnnotationPanel } from "@/components/AdminDataAnnotationPanel";
 
-/* ───────────── MOCK DATA ───────────── */
+/* ───────────── TYPES ───────────── */
 
-const INITIAL_USERS = [
-  { id: 1, name: "Dr. Andi Prasetyo", email: "andi@biowatch.id", role: "Admin", status: "Active", lastLogin: "2026-04-15" },
-  { id: 2, name: "Siti Nurhaliza", email: "siti@biowatch.id", role: "Researcher", status: "Active", lastLogin: "2026-04-14" },
-  { id: 3, name: "Budi Santoso", email: "budi@biowatch.id", role: "Field Officer", status: "Active", lastLogin: "2026-04-13" },
-  { id: 4, name: "Maya Putri", email: "maya@biowatch.id", role: "Researcher", status: "Inactive", lastLogin: "2026-03-28" },
-  { id: 5, name: "Rudi Hermawan", email: "rudi@biowatch.id", role: "Field Officer", status: "Active", lastLogin: "2026-04-12" },
-];
+interface ApiUser {
+  id: number;
+  name: string;
+  email: string;
+  roleId: number;
+}
 
-const AVAILABLE_ROLES = ["Admin", "Researcher", "Field Officer"];
+interface ApiRole {
+  id: number;
+  name: string;
+  description: string;
+}
 
-const SPECIES_DATA = [
-  { id: 1, name: "Acacia nilotica", family: "Fabaceae", riskLevel: "High", totalRecords: 1247, lastUpdated: "2026-04-10" },
-  { id: 2, name: "Ageratum conyzoides", family: "Asteraceae", riskLevel: "Medium", totalRecords: 892, lastUpdated: "2026-04-08" },
-  { id: 3, name: "Chromolaena odorata", family: "Asteraceae", riskLevel: "High", totalRecords: 2103, lastUpdated: "2026-04-12" },
-  { id: 4, name: "Lantana camara", family: "Verbenaceae", riskLevel: "High", totalRecords: 1856, lastUpdated: "2026-04-11" },
-  { id: 5, name: "Mikania micrantha", family: "Asteraceae", riskLevel: "Medium", totalRecords: 634, lastUpdated: "2026-04-06" },
-];
+interface DisplayUser {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  roleId: number;
+  status: string;
+  lastLogin: string;
+}
+
+interface DisplaySpecies {
+  id: number;
+  name: string;
+  family: string;
+  genus: string;
+  lastUpdated: string;
+}
 
 type LogLevel = "info" | "warning" | "error" | "success";
 
@@ -179,11 +192,76 @@ export default function AdminPage() {
   // Check if current user is Super Admin
   const isSuperAdmin = user?.role === "Super Admin";
 
-  // User management state
-  const [users, setUsers] = useState(INITIAL_USERS);
-  const [editRoleUser, setEditRoleUser] = useState<typeof INITIAL_USERS[0] | null>(null);
+  // User management state (must be declared before fetch functions)
+  const [users, setUsers] = useState<DisplayUser[]>([]);
+  const [roles, setRoles] = useState<ApiRole[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+  const [isLoadingSpecies, setIsLoadingSpecies] = useState(true);
+
+  // Fetch functions
+  const fetchRoles = useCallback(async () => {
+    try {
+      const res = await fetch("/api/roles");
+      const json = await res.json();
+      if (json.success && json.data) {
+        setRoles(json.data);
+        return json.data as ApiRole[];
+      }
+    } catch (e) { console.error("Failed to fetch roles:", e); }
+    return [] as ApiRole[];
+  }, []);
+
+  const fetchUsers = useCallback(async () => {
+    setIsLoadingUsers(true);
+    try {
+      const [usersRes, rolesData] = await Promise.all([
+        fetch("/api/users?limit=100"),
+        fetchRoles(),
+      ]);
+      const usersJson = await usersRes.json();
+      const roleMap: Record<number, string> = {};
+      rolesData.forEach(r => { roleMap[r.id] = r.name; });
+
+      if (usersJson.success && usersJson.data) {
+        setUsers(usersJson.data.map((u: any) => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          role: roleMap[u.roleId] || roleMap[u.role_id] || "User",
+          roleId: u.roleId || u.role_id,
+          status: "Active",
+          lastLogin: u.updatedAt || u.updated_at || "-",
+        })));
+      }
+    } catch (e) { console.error("Failed to fetch users:", e); }
+    setIsLoadingUsers(false);
+  }, [fetchRoles]);
+
+  const fetchSpecies = useCallback(async () => {
+    setIsLoadingSpecies(true);
+    try {
+      const res = await fetch("/api/v1/plants?limit=100");
+      const json = await res.json();
+      if (json.success && json.data) {
+        setSpeciesData(json.data.map((p: any) => ({
+          id: p.id,
+          name: p.scientificName || p.scientific_name || "",
+          family: p.family || "",
+          genus: p.genus || "",
+          lastUpdated: p.updatedAt || p.updated_at || "-",
+        })));
+      }
+    } catch (e) { console.error("Failed to fetch species:", e); }
+    setIsLoadingSpecies(false);
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
+    fetchSpecies();
+  }, []);
+  const [editRoleUser, setEditRoleUser] = useState<DisplayUser | null>(null);
   const [editRoleValue, setEditRoleValue] = useState("");
-  const [deleteConfirmUser, setDeleteConfirmUser] = useState<typeof INITIAL_USERS[0] | null>(null);
+  const [deleteConfirmUser, setDeleteConfirmUser] = useState<DisplayUser | null>(null);
 
   // Add User modal state (Super Admin only)
   const [showAddUser, setShowAddUser] = useState(false);
@@ -214,56 +292,36 @@ export default function AdminPage() {
     setShowAddUser(true);
   };
 
-  const handleAddUserSubmit = () => {
+  const handleAddUserSubmit = async () => {
     setAddUserError("");
 
-    // Validate email
-    if (!addUserForm.email.trim()) {
-      setAddUserError("Email wajib diisi");
-      return;
-    }
+    if (!addUserForm.email.trim()) { setAddUserError("Email wajib diisi"); return; }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(addUserForm.email.trim())) {
-      setAddUserError("Format email tidak valid");
-      return;
-    }
+    if (!emailRegex.test(addUserForm.email.trim())) { setAddUserError("Format email tidak valid"); return; }
+    if (!addUserForm.name.trim()) { setAddUserError("Nama user wajib diisi"); return; }
 
-    // Check for duplicate email
-    if (users.some(u => u.email.toLowerCase() === addUserForm.email.trim().toLowerCase())) {
-      setAddUserError("Email sudah terdaftar dalam sistem");
-      return;
-    }
-
-    // Validate name
-    if (!addUserForm.name.trim()) {
-      setAddUserError("Nama user wajib diisi");
-      return;
-    }
-
-    // Generate temporary password
     const tempPassword = generateTempPassword();
+    const selectedRole = roles.find(r => r.name === addUserForm.role);
+    if (!selectedRole) { setAddUserError("Role tidak ditemukan"); return; }
 
-    // Add the new user to the table
-    const newUser = {
-      id: Math.max(...users.map(u => u.id)) + 1,
-      name: addUserForm.name.trim(),
-      email: addUserForm.email.trim(),
-      role: addUserForm.role,
-      status: "Active",
-      lastLogin: "-",
-    };
-    setUsers(prev => [...prev, newUser]);
+    try {
+      const res = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: addUserForm.name.trim(),
+          email: addUserForm.email.trim(),
+          password: tempPassword,
+          confirmPassword: tempPassword,
+          roleId: selectedRole.id,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setAddUserError(json.error?.message || "Gagal menambahkan user"); return; }
 
-    // Register credentials in the auth system so the user can log in
-    registerUser(addUserForm.email.trim(), tempPassword, addUserForm.name.trim(), addUserForm.role);
-
-    // Show credentials card
-    setAddUserCreatedCreds({
-      email: addUserForm.email.trim(),
-      password: tempPassword,
-      name: addUserForm.name.trim(),
-      role: addUserForm.role,
-    });
+      setAddUserCreatedCreds({ email: addUserForm.email.trim(), password: tempPassword, name: addUserForm.name.trim(), role: addUserForm.role });
+      fetchUsers();
+    } catch { setAddUserError("Gagal menghubungi server"); }
   };
 
   const handleCopyCredentials = () => {
@@ -281,11 +339,18 @@ export default function AdminPage() {
     setEditRoleValue(u.role);
   };
 
-  const submitRoleChange = () => {
+  const submitRoleChange = async () => {
     if (!editRoleUser) return;
-    setUsers(prev => prev.map(u =>
-      u.id === editRoleUser.id ? { ...u, role: editRoleValue } : u
-    ));
+    const selectedRole = roles.find(r => r.name === editRoleValue);
+    if (!selectedRole) return;
+    try {
+      await fetch(`/api/v1/users/${editRoleUser.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roleId: selectedRole.id }),
+      });
+      fetchUsers();
+    } catch (e) { console.error("Failed to update role:", e); }
     setEditRoleUser(null);
   };
 
@@ -294,9 +359,12 @@ export default function AdminPage() {
     setDeleteConfirmUser(u);
   };
 
-  const confirmDeleteUser = () => {
+  const confirmDeleteUser = async () => {
     if (!deleteConfirmUser) return;
-    setUsers(prev => prev.filter(u => u.id !== deleteConfirmUser.id));
+    try {
+      await fetch(`/api/v1/users/${deleteConfirmUser.id}`, { method: "DELETE" });
+      fetchUsers();
+    } catch (e) { console.error("Failed to delete user:", e); }
     setDeleteConfirmUser(null);
   };
 
@@ -377,53 +445,63 @@ export default function AdminPage() {
   };
 
   // Species management state
-  const [speciesData, setSpeciesData] = useState(SPECIES_DATA);
+  const [speciesData, setSpeciesData] = useState<DisplaySpecies[]>([]);
   const [showAddSpecies, setShowAddSpecies] = useState(false);
-  const [speciesForm, setSpeciesForm] = useState({ id: 0, name: "", family: "", riskLevel: "Medium" });
-  const [deleteSpeciesConfirm, setDeleteSpeciesConfirm] = useState<typeof SPECIES_DATA[0] | null>(null);
+  const [speciesForm, setSpeciesForm] = useState({ id: 0, name: "", family: "", genus: "" });
+  const [deleteSpeciesConfirm, setDeleteSpeciesConfirm] = useState<DisplaySpecies | null>(null);
 
   const handleOpenAddSpecies = () => {
-    setSpeciesForm({ id: 0, name: "", family: "", riskLevel: "Medium" });
+    setSpeciesForm({ id: 0, name: "", family: "", genus: "" });
     setShowAddSpecies(true);
   };
 
-  const handleEditSpecies = (s: typeof SPECIES_DATA[0]) => {
-    setSpeciesForm({ id: s.id, name: s.name, family: s.family, riskLevel: s.riskLevel });
+  const handleEditSpecies = (s: DisplaySpecies) => {
+    setSpeciesForm({ id: s.id, name: s.name, family: s.family, genus: s.genus || "" });
     setShowAddSpecies(true);
   };
 
-  const handleSaveSpecies = () => {
+  const handleSaveSpecies = async () => {
     if (!speciesForm.name.trim() || !speciesForm.family.trim()) return;
-    
-    if (speciesForm.id === 0) {
-      const newSpecies = {
-        id: Math.max(...speciesData.map(s => s.id), 0) + 1,
-        name: speciesForm.name.trim(),
-        family: speciesForm.family.trim(),
-        riskLevel: speciesForm.riskLevel,
-        totalRecords: 0,
-        lastUpdated: new Date().toISOString().split("T")[0],
-      };
-      setSpeciesData(prev => [...prev, newSpecies]);
-    } else {
-      setSpeciesData(prev => prev.map(s => s.id === speciesForm.id ? {
-        ...s,
-        name: speciesForm.name.trim(),
-        family: speciesForm.family.trim(),
-        riskLevel: speciesForm.riskLevel,
-        lastUpdated: new Date().toISOString().split("T")[0],
-      } : s));
-    }
+    try {
+      if (speciesForm.id === 0) {
+        await fetch("/api/v1/plants", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            commonName: speciesForm.name.trim(),
+            scientificName: speciesForm.name.trim(),
+            family: speciesForm.family.trim(),
+            genus: speciesForm.genus.trim() || speciesForm.family.trim(),
+            botanicalDescription: "-",
+            ecologicalInformation: "-",
+            environmentalImpact: "-",
+            imagePath: "",
+          }),
+        });
+      }
+      fetchSpecies();
+    } catch (e) { console.error("Failed to save species:", e); }
     setShowAddSpecies(false);
   };
 
-  const handleDeleteSpecies = (s: typeof SPECIES_DATA[0]) => {
+  const handleDeleteSpecies = (s: DisplaySpecies) => {
     setDeleteSpeciesConfirm(s);
   };
 
-  const confirmDeleteSpecies = () => {
+  const confirmDeleteSpecies = async () => {
     if (!deleteSpeciesConfirm) return;
-    setSpeciesData(prev => prev.filter(s => s.id !== deleteSpeciesConfirm.id));
+    try {
+      const res = await fetch(`/api/v1/plants/${deleteSpeciesConfirm.id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setSpeciesData(prev => prev.filter(s => s.id !== deleteSpeciesConfirm.id));
+      } else {
+        console.error("Failed to delete species from API");
+      }
+    } catch (e) {
+      console.error("Error deleting species:", e);
+    }
     setDeleteSpeciesConfirm(null);
   };
 
@@ -711,11 +789,10 @@ export default function AdminPage() {
       {/* ─── SPECIES MANAGEMENT TAB ─── */}
       {activeTab === "species" && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
-              { label: "Total Species", value: String(speciesData.length), color: "text-emerald-600" },
-              { label: "High Risk", value: String(speciesData.filter(s => s.riskLevel === "High").length), color: "text-red-600" },
-              { label: "Total Records", value: "6,732", color: "text-blue-600" },
+              { label: "Total Species", value: isLoadingSpecies ? "..." : String(speciesData.length), color: "text-emerald-600" },
+              { label: "Families", value: isLoadingSpecies ? "..." : String(new Set(speciesData.map(s => s.family)).size), color: "text-blue-600" },
               { label: "Last Updated", value: "Today", color: "text-amber-600" },
             ].map((stat) => (
               <div key={stat.label} className="stat-card">
@@ -751,8 +828,7 @@ export default function AdminPage() {
                   <tr className="border-b bg-muted/50">
                     <th className="px-6 py-3 text-left font-medium text-muted-foreground">Species Name</th>
                     <th className="px-6 py-3 text-left font-medium text-muted-foreground">Family</th>
-                    <th className="px-6 py-3 text-left font-medium text-muted-foreground">Risk Level</th>
-                    <th className="px-6 py-3 text-left font-medium text-muted-foreground">Records</th>
+                    <th className="px-6 py-3 text-left font-medium text-muted-foreground">Genus</th>
                     <th className="px-6 py-3 text-left font-medium text-muted-foreground">Last Updated</th>
                     <th className="px-6 py-3 text-left font-medium text-muted-foreground">Actions</th>
                   </tr>
@@ -762,12 +838,8 @@ export default function AdminPage() {
                     <tr key={species.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                       <td className="px-6 py-4 font-medium italic">{species.name}</td>
                       <td className="px-6 py-4 text-muted-foreground">{species.family}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${species.riskLevel === "High" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"
-                          }`}>{species.riskLevel}</span>
-                      </td>
-                      <td className="px-6 py-4 text-muted-foreground">{species.totalRecords.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-muted-foreground">{species.lastUpdated}</td>
+                      <td className="px-6 py-4 text-muted-foreground">{species.genus}</td>
+                      <td className="px-6 py-4 text-muted-foreground text-xs">{species.lastUpdated ? new Date(species.lastUpdated).toLocaleDateString('id-ID') : '-'}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <button onClick={() => handleEditSpecies(species)} className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground" title="Edit"><Pencil className="h-4 w-4" /></button>
@@ -1015,7 +1087,7 @@ export default function AdminPage() {
             <div className="space-y-2">
               <label className="block text-sm font-medium">Role</label>
               <div className="flex flex-wrap gap-2">
-                {AVAILABLE_ROLES.map((role) => (
+                {roles.map((r) => r.name).filter(n => n !== 'Super Admin').map((role) => (
                   <button
                     key={role}
                     onClick={() => setEditRoleValue(role)}
@@ -1202,7 +1274,7 @@ export default function AdminPage() {
                   <div className="space-y-2">
                     <label className="block text-sm font-medium">Role</label>
                     <div className="flex flex-wrap gap-2">
-                      {AVAILABLE_ROLES.map((role) => (
+                      {roles.map((r) => r.name).filter(n => n !== 'Super Admin').map((role) => (
                         <button
                           key={role}
                           onClick={() => setAddUserForm(f => ({ ...f, role }))}
@@ -1303,42 +1375,14 @@ export default function AdminPage() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="block text-sm font-medium">Risk Level</label>
-                <div className="flex gap-3">
-                  <label className="flex items-center gap-2">
-                    <input 
-                      type="radio" 
-                      name="riskLevel" 
-                      value="High" 
-                      checked={speciesForm.riskLevel === "High"}
-                      onChange={(e) => setSpeciesForm(f => ({ ...f, riskLevel: e.target.value }))}
-                      className="text-primary focus:ring-primary"
-                    />
-                    <span className="text-sm">High</span>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input 
-                      type="radio" 
-                      name="riskLevel" 
-                      value="Medium" 
-                      checked={speciesForm.riskLevel === "Medium"}
-                      onChange={(e) => setSpeciesForm(f => ({ ...f, riskLevel: e.target.value }))}
-                      className="text-primary focus:ring-primary"
-                    />
-                    <span className="text-sm">Medium</span>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input 
-                      type="radio" 
-                      name="riskLevel" 
-                      value="Low" 
-                      checked={speciesForm.riskLevel === "Low"}
-                      onChange={(e) => setSpeciesForm(f => ({ ...f, riskLevel: e.target.value }))}
-                      className="text-primary focus:ring-primary"
-                    />
-                    <span className="text-sm">Low</span>
-                  </label>
-                </div>
+                <label className="block text-sm font-medium">Genus <span className="text-destructive">*</span></label>
+                <input
+                  type="text"
+                  value={speciesForm.genus}
+                  onChange={(e) => setSpeciesForm(f => ({ ...f, genus: e.target.value }))}
+                  placeholder="e.g., Vachellia"
+                  className="w-full h-11 rounded-lg border border-border bg-background px-4 text-sm outline-none transition-all focus:ring-2 focus:ring-primary/20"
+                />
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 border-t bg-muted/30 px-6 py-4">

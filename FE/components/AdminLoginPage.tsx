@@ -4,9 +4,6 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Leaf, Lock, Mail, Eye, EyeOff, ShieldCheck, AlertCircle, Loader2 } from "lucide-react";
 
-/* Registered emails that can receive password reset */
-const REGISTERED_EMAILS = ["admin", "andi@biowatch.id"];
-
 export function AdminLoginPage() {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
@@ -77,17 +74,26 @@ export function AdminLoginPage() {
     e.preventDefault();
     setForgotError("");
     setForgotSubmitting(true);
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setForgotSubmitting(false);
 
-    const isRegistered = REGISTERED_EMAILS.includes(forgotEmail.trim().toLowerCase());
-    if (!isRegistered) {
-      setForgotError("Email tidak terdaftar dalam sistem. Silakan gunakan email yang terdaftar.");
-      return;
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setForgotError(data.error?.message || "Terjadi kesalahan saat mengirim email.");
+      } else {
+        setForgotSuccess(true);
+      }
+    } catch (err) {
+      setForgotError("Terjadi kesalahan koneksi. Silakan coba lagi.");
+    } finally {
+      setForgotSubmitting(false);
     }
-
-    setForgotSuccess(true);
   };
 
   const openForgot = () => {

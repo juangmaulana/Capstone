@@ -1,24 +1,44 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Search, Camera } from "lucide-react";
+import { Search, Camera, Loader2 } from "lucide-react";
 import { CameraSearchDialog } from "@/components/CameraSearchDialog";
 import { useRouter } from "next/navigation";
-
-const SPECIES_LIST = [
-  "Acacia nilotica",
-  "Ageratum conyzoides",
-  "Chromolaena odorata",
-  "Lantana camara",
-  "Mikania micrantha",
-];
 
 export default function Dashboard() {
   const [isCameraDialogOpen, setIsCameraDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [speciesList, setSpeciesList] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fetch species list from API
+  useEffect(() => {
+    async function fetchSpecies() {
+      try {
+        const res = await fetch("/api/v1/plants?limit=100");
+        const json = await res.json();
+        if (json.success && json.data) {
+          setSpeciesList(json.data.map((p: any) => p.scientificName || p.scientific_name));
+        }
+      } catch (err) {
+        console.error("Failed to fetch species:", err);
+        // Fallback
+        setSpeciesList([
+          "Acacia nilotica",
+          "Ageratum conyzoides",
+          "Chromolaena odorata",
+          "Lantana camara",
+          "Mikania micrantha",
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchSpecies();
+  }, []);
 
   const handleSearch = (e?: React.FormEvent, queryOverride?: string) => {
     if (e) e.preventDefault();
@@ -40,7 +60,7 @@ export default function Dashboard() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filteredSpecies = SPECIES_LIST.filter(species =>
+  const filteredSpecies = speciesList.filter(species =>
     species.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -97,7 +117,12 @@ export default function Dashboard() {
               {/* Dropdown */}
               {isDropdownOpen && (
                 <div className="absolute top-full left-0 w-full bg-white rounded-b-2xl shadow-xl border-t border-gray-100 py-2 z-50">
-                  {filteredSpecies.length > 0 ? (
+                  {isLoading ? (
+                    <div className="flex items-center justify-center px-5 py-3 text-gray-500">
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Memuat data spesies...
+                    </div>
+                  ) : filteredSpecies.length > 0 ? (
                     filteredSpecies.map(sp => (
                       <div
                         key={sp}

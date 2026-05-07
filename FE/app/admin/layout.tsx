@@ -2,10 +2,12 @@
 
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AdminLoginPage } from "@/components/AdminLoginPage";
+import { usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
 function AdminGate({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
+  const pathname = usePathname();
 
   if (isLoading) {
     return (
@@ -16,6 +18,11 @@ function AdminGate({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     );
+  }
+
+  // Allow access to reset-password page without authentication
+  if (pathname === "/admin/reset-password") {
+    return <>{children}</>;
   }
 
   if (!isAuthenticated) {

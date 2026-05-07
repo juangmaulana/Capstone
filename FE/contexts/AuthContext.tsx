@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 interface AuthUser {
+  id?: number;
   name: string;
   email: string;
   role: string;
@@ -20,13 +21,14 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-/* ─── Mock admin credentials ─── */
-const ADMIN_CREDENTIALS = [
-  { email: "admin", password: "admin123", name: "Admin", role: "Super Admin" },
-];
-
 const AUTH_STORAGE_KEY = "biowatch_admin_auth";
 const REGISTERED_USERS_KEY = "biowatch_registered_users";
+
+/* ─── Hardcoded fallback credentials (used when DB auth fails) ─── */
+const FALLBACK_CREDENTIALS = [
+  { email: "admin", password: "admin123", name: "Admin", role: "Super Admin" },
+  { email: "admin@biowatch.id", password: "admin123", name: "Admin", role: "Super Admin" },
+];
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -34,13 +36,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   // Helper to get all credentials (hardcoded + dynamically registered)
-  const getAllCredentials = () => {
+  const getAllLocalCredentials = () => {
     try {
       const stored = localStorage.getItem(REGISTERED_USERS_KEY);
       const registered = stored ? JSON.parse(stored) : [];
-      return [...ADMIN_CREDENTIALS, ...registered];
+      return [...FALLBACK_CREDENTIALS, ...registered];
     } catch {
-      return ADMIN_CREDENTIALS;
+      return FALLBACK_CREDENTIALS;
     }
   };
 
@@ -61,10 +63,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    // Try DB auth first via API
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
-    const allCredentials = getAllCredentials();
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.user) {
+          const userData: AuthUser = {
+            id: json.user.id,
+            name: json.user.name,
+            email: json.user.email,
+            role: json.user.role,
+          };
+          setUser(userData);
+          setIsAuthenticated(true);
+          localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(userData));
+          return true;
+        }
+      }
+    } catch (err) {
+      console.warn("DB auth unavailable, falling back to local auth:", err);
+    }
+
+    // Fallback: local credential check
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    const allCredentials = getAllLocalCredentials();
     const found = allCredentials.find(
       (cred) => cred.email === email && cred.password === password
     );
@@ -93,16 +122,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updatePassword = (email: string, currentPassword: string, newPassword: string): boolean => {
     try {
-      // Check hardcoded admin credentials first
-      const adminIdx = ADMIN_CREDENTIALS.findIndex(
-        (cred) => cred.email === email && cred.password === currentPassword
-      );
-      if (adminIdx !== -1) {
-        // Update the runtime admin credential
-        ADMIN_CREDENTIALS[adminIdx].password = newPassword;
-        return true;
-      }
-
       // Check registered users in localStorage
       const stored = localStorage.getItem(REGISTERED_USERS_KEY);
       const registered: Array<{ email: string; password: string; name: string; role: string }> = stored ? JSON.parse(stored) : [];
@@ -112,6 +131,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (userIdx !== -1) {
         registered[userIdx].password = newPassword;
         localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(registered));
+        return true;
+      }
+
+      // Check fallback credentials
+      const fallbackIdx = FALLBACK_CREDENTIALS.findIndex(
+        (cred) => cred.email === email && cred.password === currentPassword
+      );
+      if (fallbackIdx !== -1) {
+        FALLBACK_CREDENTIALS[fallbackIdx].password = newPassword;
         return true;
       }
 
