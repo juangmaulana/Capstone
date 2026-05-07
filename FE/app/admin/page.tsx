@@ -228,7 +228,7 @@ export default function AdminPage() {
   // Fetch functions
   const fetchRoles = useCallback(async () => {
     try {
-      const res = await fetch("/api/roles");
+      const res = await fetch("/api/v1/roles");
       const json = await res.json();
       if (json.success && json.data) {
         setRoles(json.data);
@@ -242,7 +242,7 @@ export default function AdminPage() {
     setIsLoadingUsers(true);
     try {
       const [usersRes, rolesData] = await Promise.all([
-        fetch("/api/users?limit=100"),
+        fetch("/api/v1/users?limit=100"),
         fetchRoles(),
       ]);
       const usersJson = await usersRes.json();
@@ -339,7 +339,7 @@ export default function AdminPage() {
     if (!selectedRole) { setAddUserError("Role tidak ditemukan"); return; }
 
     try {
-      const res = await fetch("/api/users", {
+      const res = await fetch("/api/v1/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
