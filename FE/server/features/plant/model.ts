@@ -8,4 +8,5 @@ export type Plant = {
   ecology: string
   environmentalImpact: string
   imagePath: string
+  updatedAt: Date
 }

@@ -12,6 +12,7 @@ export const toModel = (row: PlantSelect): Plant => {
     ecology: row.ecological_information,
     environmentalImpact: row.environmental_impact,
     imagePath: row.image_path,
+    updatedAt: row.updated_at,
   }
 }
 

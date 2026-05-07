@@ -1,5 +1,6 @@
 import { ApiError } from '../api-error';
-import { ErrorCode, ErrorMessageMap } from './error-codes';
+import { ErrorCode } from './error-codes';
+import { ErrorMessageMap } from './error-messages';
 
 export const notFound = (message = ErrorMessageMap[ErrorCode.NOT_FOUND]) =>
   new ApiError(ErrorCode.NOT_FOUND, message);

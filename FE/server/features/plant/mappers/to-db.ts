@@ -10,7 +10,7 @@ export const toDbInsert = (input: CreatePlantRequest): PlantInsert => ({
   botanical_description: input.botanicalDescription,
   ecological_information: input.ecologicalInformation,
   environmental_impact: input.environmentalImpact,
-  image_path: input.referenceImagePath,
+  image_path: input.imagePath,
 });
 
 export const toDbUpdate = (input: UpdatePlantRequest): PlantUpdate => ({
@@ -21,5 +21,5 @@ export const toDbUpdate = (input: UpdatePlantRequest): PlantUpdate => ({
   ...(input.botanicalDescription !== undefined && { botanical_description: input.botanicalDescription }),
   ...(input.ecologicalInformation !== undefined && { ecological_information: input.ecologicalInformation  }),
   ...(input.environmentalImpact !== undefined && { environmental_impact: input.environmentalImpact }),
-  ...(input.referenceImagePath !== undefined && { image_path: input.referenceImagePath }),
+  ...(input.imagePath !== undefined && { image_path: input.imagePath }),
 });
