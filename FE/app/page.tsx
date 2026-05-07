@@ -27,7 +27,7 @@ export default function Dashboard() {
         console.error("Failed to fetch species:", err);
         // Fallback
         setSpeciesList([
-          "Acacia nilotica",
+          "Vachellia nilotica",
           "Ageratum conyzoides",
           "Chromolaena odorata",
           "Lantana camara",

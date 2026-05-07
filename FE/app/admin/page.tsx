@@ -33,6 +33,12 @@ interface ApiPlant {
   common_name?: string;
   family: string;
   genus: string;
+  botanicalDescription?: string;
+  botanical_description?: string;
+  ecologicalInformation?: string;
+  ecological_information?: string;
+  environmentalImpact?: string;
+  environmental_impact?: string;
   updatedAt?: string;
   updated_at?: string;
 }
@@ -49,9 +55,13 @@ interface DisplayUser {
 
 interface DisplaySpecies {
   id: number;
-  name: string;
+  scientificName: string;
+  commonName: string;
   family: string;
   genus: string;
+  botanicalDescription: string;
+  ecologicalInformation: string;
+  environmentalImpact: string;
   lastUpdated: string;
 }
 
@@ -265,9 +275,13 @@ export default function AdminPage() {
       if (json.success && json.data) {
         setSpeciesData(json.data.map((p: ApiPlant) => ({
           id: p.id,
-          name: p.scientificName || p.scientific_name || p.commonName || p.common_name || "",
+          scientificName: p.scientificName || p.scientific_name || "",
+          commonName: p.commonName || p.common_name || "",
           family: p.family || "",
           genus: p.genus || "",
+          botanicalDescription: p.botanicalDescription || p.botanical_description || "",
+          ecologicalInformation: p.ecologicalInformation || p.ecological_information || "",
+          environmentalImpact: p.environmentalImpact || p.environmental_impact || "",
           lastUpdated: p.updatedAt || p.updated_at || "-",
         })));
       }
@@ -467,41 +481,93 @@ export default function AdminPage() {
   // Species management state
   const [speciesData, setSpeciesData] = useState<DisplaySpecies[]>([]);
   const [showAddSpecies, setShowAddSpecies] = useState(false);
-  const [speciesForm, setSpeciesForm] = useState({ id: 0, name: "", family: "", genus: "" });
+  const [speciesForm, setSpeciesForm] = useState({ 
+    id: 0, 
+    scientificName: "", 
+    commonName: "", 
+    family: "", 
+    genus: "",
+    botanicalDescription: "",
+    ecologicalInformation: "",
+    environmentalImpact: ""
+  });
   const [deleteSpeciesConfirm, setDeleteSpeciesConfirm] = useState<DisplaySpecies | null>(null);
 
   const handleOpenAddSpecies = () => {
-    setSpeciesForm({ id: 0, name: "", family: "", genus: "" });
+    setSpeciesForm({ 
+      id: 0, 
+      scientificName: "", 
+      commonName: "", 
+      family: "", 
+      genus: "",
+      botanicalDescription: "",
+      ecologicalInformation: "",
+      environmentalImpact: ""
+    });
     setShowAddSpecies(true);
   };
 
   const handleEditSpecies = (s: DisplaySpecies) => {
-    setSpeciesForm({ id: s.id, name: s.name, family: s.family, genus: s.genus || "" });
+    setSpeciesForm({ 
+      id: s.id, 
+      scientificName: s.scientificName, 
+      commonName: s.commonName, 
+      family: s.family, 
+      genus: s.genus || "",
+      botanicalDescription: s.botanicalDescription || "",
+      ecologicalInformation: s.ecologicalInformation || "",
+      environmentalImpact: s.environmentalImpact || ""
+    });
     setShowAddSpecies(true);
   };
 
   const handleSaveSpecies = async () => {
-    if (!speciesForm.name.trim() || !speciesForm.family.trim()) return;
+    if (!speciesForm.scientificName.trim() || !speciesForm.family.trim()) return;
     try {
+      let res;
       if (speciesForm.id === 0) {
-        await fetch("/api/v1/plants", {
+        res = await fetch("/api/v1/plants", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            commonName: speciesForm.name.trim(),
-            scientificName: speciesForm.name.trim(),
+            commonName: speciesForm.commonName.trim() || speciesForm.scientificName.trim(),
+            scientificName: speciesForm.scientificName.trim(),
             family: speciesForm.family.trim(),
             genus: speciesForm.genus.trim() || speciesForm.family.trim(),
-            botanicalDescription: "-",
-            ecologicalInformation: "-",
-            environmentalImpact: "-",
+            botanicalDescription: speciesForm.botanicalDescription.trim() || "-",
+            ecologicalInformation: speciesForm.ecologicalInformation.trim() || "-",
+            environmentalImpact: speciesForm.environmentalImpact.trim() || "-",
             imagePath: "",
           }),
         });
+      } else {
+        res = await fetch(`/api/v1/plants/${speciesForm.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            commonName: speciesForm.commonName.trim(),
+            scientificName: speciesForm.scientificName.trim(),
+            family: speciesForm.family.trim(),
+            genus: speciesForm.genus.trim(),
+            botanicalDescription: speciesForm.botanicalDescription.trim(),
+            ecologicalInformation: speciesForm.ecologicalInformation.trim(),
+            environmentalImpact: speciesForm.environmentalImpact.trim(),
+          }),
+        });
       }
-      fetchSpecies();
-    } catch (e) { console.error("Failed to save species:", e); }
-    setShowAddSpecies(false);
+      
+      if (res && res.ok) {
+        await fetchSpecies();
+        setShowAddSpecies(false);
+      } else {
+        const err = await res?.json();
+        console.error("Failed to save species:", err);
+        alert(`Gagal menyimpan spesies: ${err?.error?.message || "Unknown error"}`);
+      }
+    } catch (e) { 
+      console.error("Failed to save species:", e); 
+      alert("Terjadi kesalahan saat menghubungi server");
+    }
   };
 
   const handleDeleteSpecies = (s: DisplaySpecies) => {
@@ -535,7 +601,8 @@ export default function AdminPage() {
   const [viewDetailItem, setViewDetailItem] = useState<AnnotationItem | null>(null);
 
   const filteredSpecies = speciesData.filter(s =>
-    s.name.toLowerCase().includes(speciesSearch.toLowerCase())
+    s.scientificName.toLowerCase().includes(speciesSearch.toLowerCase()) ||
+    s.commonName.toLowerCase().includes(speciesSearch.toLowerCase())
   );
 
   const [systemLogs, setSystemLogs] = useState<LogEntry[]>(MOCK_LOGS);
@@ -846,7 +913,8 @@ export default function AdminPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="px-6 py-3 text-left font-medium text-muted-foreground">Species Name</th>
+                    <th className="px-6 py-3 text-left font-medium text-muted-foreground">Scientific Name</th>
+                    <th className="px-6 py-3 text-left font-medium text-muted-foreground">Common Name</th>
                     <th className="px-6 py-3 text-left font-medium text-muted-foreground">Family</th>
                     <th className="px-6 py-3 text-left font-medium text-muted-foreground">Genus</th>
                     <th className="px-6 py-3 text-left font-medium text-muted-foreground">Last Updated</th>
@@ -856,7 +924,8 @@ export default function AdminPage() {
                 <tbody>
                   {filteredSpecies.map((species) => (
                     <tr key={species.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                      <td className="px-6 py-4 font-medium italic">{species.name}</td>
+                      <td className="px-6 py-4 font-medium italic">{species.scientificName}</td>
+                      <td className="px-6 py-4 text-muted-foreground">{species.commonName}</td>
                       <td className="px-6 py-4 text-muted-foreground">{species.family}</td>
                       <td className="px-6 py-4 text-muted-foreground">{species.genus}</td>
                       <td className="px-6 py-4 text-muted-foreground text-xs">{species.lastUpdated ? new Date(species.lastUpdated).toLocaleDateString('id-ID') : '-'}</td>
@@ -1373,35 +1442,80 @@ export default function AdminPage() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="space-y-4 py-4 px-6">
               <div className="space-y-2">
-                <label className="block text-sm font-medium">Species Name <span className="text-destructive">*</span></label>
+                <label className="text-sm font-medium">Scientific Name</label>
                 <input
                   type="text"
-                  value={speciesForm.name}
-                  onChange={(e) => setSpeciesForm(f => ({ ...f, name: e.target.value }))}
+                  value={speciesForm.scientificName}
+                  onChange={(e) => setSpeciesForm({ ...speciesForm, scientificName: e.target.value })}
                   placeholder="e.g., Acacia nilotica"
-                  className="w-full h-11 rounded-lg border border-border bg-background px-4 text-sm outline-none transition-all focus:ring-2 focus:ring-primary/20"
+                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
               <div className="space-y-2">
-                <label className="block text-sm font-medium">Family <span className="text-destructive">*</span></label>
+                <label className="text-sm font-medium">Common Name</label>
                 <input
                   type="text"
-                  value={speciesForm.family}
-                  onChange={(e) => setSpeciesForm(f => ({ ...f, family: e.target.value }))}
-                  placeholder="e.g., Fabaceae"
-                  className="w-full h-11 rounded-lg border border-border bg-background px-4 text-sm outline-none transition-all focus:ring-2 focus:ring-primary/20"
+                  value={speciesForm.commonName}
+                  onChange={(e) => setSpeciesForm({ ...speciesForm, commonName: e.target.value })}
+                  placeholder="e.g., Babul"
+                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Family</label>
+                  <input
+                    type="text"
+                    value={speciesForm.family}
+                    onChange={(e) => setSpeciesForm({ ...speciesForm, family: e.target.value })}
+                    placeholder="e.g., Fabaceae"
+                    className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Genus</label>
+                  <input
+                    type="text"
+                    value={speciesForm.genus}
+                    onChange={(e) => setSpeciesForm({ ...speciesForm, genus: e.target.value })}
+                    placeholder="e.g., Vachellia"
+                    className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+              </div>
+
               <div className="space-y-2">
-                <label className="block text-sm font-medium">Genus <span className="text-destructive">*</span></label>
-                <input
-                  type="text"
-                  value={speciesForm.genus}
-                  onChange={(e) => setSpeciesForm(f => ({ ...f, genus: e.target.value }))}
-                  placeholder="e.g., Vachellia"
-                  className="w-full h-11 rounded-lg border border-border bg-background px-4 text-sm outline-none transition-all focus:ring-2 focus:ring-primary/20"
+                <label className="text-sm font-medium">Botanical Description</label>
+                <textarea
+                  value={speciesForm.botanicalDescription}
+                  onChange={(e) => setSpeciesForm({ ...speciesForm, botanicalDescription: e.target.value })}
+                  placeholder="Describe the plant's physical characteristics..."
+                  rows={3}
+                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 resize-none"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Ecological Information</label>
+                <textarea
+                  value={speciesForm.ecologicalInformation}
+                  onChange={(e) => setSpeciesForm({ ...speciesForm, ecologicalInformation: e.target.value })}
+                  placeholder="Describe its habitat and ecological role..."
+                  rows={3}
+                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 resize-none"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Environmental Impact</label>
+                <textarea
+                  value={speciesForm.environmentalImpact}
+                  onChange={(e) => setSpeciesForm({ ...speciesForm, environmentalImpact: e.target.value })}
+                  placeholder="Describe its impact on the environment..."
+                  rows={3}
+                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 resize-none"
                 />
               </div>
             </div>
@@ -1409,7 +1523,7 @@ export default function AdminPage() {
               <button onClick={() => setShowAddSpecies(false)} className="rounded-lg border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors">
                 Cancel
               </button>
-              <button onClick={handleSaveSpecies} disabled={!speciesForm.name.trim() || !speciesForm.family.trim()} className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              <button onClick={handleSaveSpecies} disabled={!speciesForm.scientificName.trim() || !speciesForm.family.trim()} className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                 Save Species
               </button>
             </div>
@@ -1427,7 +1541,7 @@ export default function AdminPage() {
             <div className="space-y-2">
               <h3 className="text-lg font-semibold">Delete Species?</h3>
               <p className="text-sm text-muted-foreground">
-                Are you sure you want to delete <span className="font-bold italic text-foreground">{deleteSpeciesConfirm.name}</span>? This action cannot be undone.
+                Are you sure you want to delete <span className="font-bold italic text-foreground">{deleteSpeciesConfirm.scientificName}</span>? This action cannot be undone.
               </p>
             </div>
             <div className="flex items-center justify-center gap-3">

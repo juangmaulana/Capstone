@@ -1,0 +1,26 @@
+import { mapDbError } from '@/lib/db/mappers'
+import { PlantRepo } from '../repo'
+import { UpdatePlantRequest } from '../schemas/update.schema'
+
+export const updatePlant = (deps: {
+  plantRepo: PlantRepo,
+}) => async (id: number, input: UpdatePlantRequest) => {
+  try {
+    const updateData: any = {
+      updated_at: new Date(),
+    }
+
+    if (input.commonName !== undefined) updateData.common_name = input.commonName
+    if (input.scientificName !== undefined) updateData.scientific_name = input.scientificName
+    if (input.family !== undefined) updateData.family = input.family
+    if (input.genus !== undefined) updateData.genus = input.genus
+    if (input.botanicalDescription !== undefined) updateData.botanical_description = input.botanicalDescription
+    if (input.ecologicalInformation !== undefined) updateData.ecological_information = input.ecologicalInformation
+    if (input.environmentalImpact !== undefined) updateData.environmental_impact = input.environmentalImpact
+    if (input.imagePath !== undefined) updateData.image_path = input.imagePath
+
+    return await deps.plantRepo.update(id, updateData)
+  } catch (err) {
+    throw mapDbError(err)
+  }
+}

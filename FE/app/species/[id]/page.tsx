@@ -6,7 +6,7 @@ import { ArrowLeft, Leaf, Network, Map as MapIcon, ThermometerSun, FileText, Ima
 
 // Taxonomy data for the 5 invasive species
 const TAXONOMY_DB: Record<string, { rank: string; value: string }[]> = {
-  "acacia nilotica": [
+  "vachellia nilotica": [
     { rank: "Kerajaan", value: "Plantae" },
     { rank: "Filum", value: "Tracheophyta" },
     { rank: "Kelas", value: "Magnoliopsida" },
@@ -80,9 +80,18 @@ export default function SpeciesPage() {
       setError(null);
       try {
         // Convert slug to search query (e.g. "acacia-nilotica" -> "Acacia nilotica")
-        const searchTerm = id.replace(/-/g, " ");
-        const res = await fetch(`/api/v1/plants?search=${encodeURIComponent(searchTerm)}&limit=1`);
-        const json = await res.json();
+        const searchTerm = id.replace(/-/g, " ").trim();
+        let res = await fetch(`/api/v1/plants?search=${encodeURIComponent(searchTerm)}&limit=1`);
+        let json = await res.json();
+
+        // If no exact match, try a broader search with just the first word (usually the Genus)
+        if (!(json.success && json.data && json.data.length > 0)) {
+          const firstWord = searchTerm.split(" ")[0];
+          if (firstWord && firstWord.length > 2) {
+            res = await fetch(`/api/v1/plants?search=${encodeURIComponent(firstWord)}&limit=1`);
+            json = await res.json();
+          }
+        }
 
         if (json.success && json.data && json.data.length > 0) {
           const p = json.data[0];

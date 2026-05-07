@@ -5,7 +5,11 @@ import { ImageSchema } from "@/server/shared/schemas/image.schema"
 import { NextRequest, NextResponse } from "next/server"
 import { Client } from "@gradio/client"
 
-const GRADIO_URL = process.env.DETECTION_API_URL || "http://194.233.74.133:7860"
+const GRADIO_URL = process.env.DETECTION_API_URL
+
+if (!GRADIO_URL) {
+  throw new Error("DETECTION_API_URL is not defined in environment variables")
+}
 
 export const POST = withErrorHandling(async (req: NextRequest) => {
   const formData = await req.formData()
