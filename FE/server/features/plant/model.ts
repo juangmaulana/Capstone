@@ -1,15 +1,12 @@
-export class Plant {
-  constructor(
-    public id: number,
-    public commonName: string,
-    public scientificName: string,
-    public family: string,
-    public genus: string,
-    public botanicalDescription: string,
-    public ecologicalInformation: string,
-    public environmentalImpact: string,
-    public imagePath: string,
-    public createdAt: Date,
-    public updatedAt: Date,
-  ) {}
+export type Plant = {
+  id: number
+  commonName: string
+  scientificName: string
+  family: string
+  genus: string
+  description: string
+  ecology: string
+  environmentalImpact: string
+  imagePath: string
+  updatedAt: Date
 }

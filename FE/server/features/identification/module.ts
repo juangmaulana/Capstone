@@ -1,8 +1,8 @@
-import { IdentificationRepo } from './repo'
-import { listIdentifications } from './queries/list'
 import { getIdentificationById } from './queries/get-by-id'
+import { listIdentifications } from './queries/list'
+import { IdentificationRepo } from './repo'
 
-export const identificationModule = (deps: {
+export const createIdentificationModule = (deps: {
   identificationRepo: IdentificationRepo,
 }) => {
   const { identificationRepo } = deps

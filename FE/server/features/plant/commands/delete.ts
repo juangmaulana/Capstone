@@ -1,17 +1,17 @@
-import { PlantRepo } from '../repo';
-import { ApiError } from '@/lib/api/api-error';
-import { ErrorCode } from '@/lib/api/errors/error-codes';
+import { mapDbError } from '@/lib/db/mappers';
+import { PlantRepo } from '../repo'
+import { notFound } from '@/lib/api/errors/http.error';
+import { Plant } from '../model';
 
-export const deletePlant = (deps: { plantRepo: PlantRepo }) => {
-  const { plantRepo } = deps;
+export const deletePlant = (deps: {
+  plantRepo: PlantRepo,
+}) => async (id: number): Promise<Plant> => {
+  try {
+    const plant = await deps.plantRepo.delete(id)
+    if (!plant) throw notFound(`Plant with id ${id} not found`)
 
-  return async (id: number) => {
-    const deleted = await plantRepo.delete(id);
-
-    if (!deleted) {
-      throw new ApiError(ErrorCode.NOT_FOUND, 'Plant not found');
-    }
-
-    return deleted;
-  };
-};
+    return plant
+  } catch (err) {
+    throw mapDbError(err)
+  }
+}

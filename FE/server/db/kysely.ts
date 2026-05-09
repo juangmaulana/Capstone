@@ -9,5 +9,6 @@ export function createDb(connectionString: string) {
 
   return new Kysely<Database>({
     dialect: new PostgresDialect({ pool }),
+    log: ['error'],
   })
 }

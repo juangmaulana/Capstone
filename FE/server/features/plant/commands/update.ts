@@ -1,25 +1,19 @@
-import { mapDbError } from '@/lib/db/mappers'
 import { PlantRepo } from '../repo'
 import { UpdatePlantRequest } from '../schemas/update.schema'
+import { toDbUpdate } from '../mappers/to-db'
+import { notFound } from '@/lib/api/errors/http.error'
+import { mapDbError } from '@/lib/db/mappers'
+import { Plant } from '../model'
 
 export const updatePlant = (deps: {
   plantRepo: PlantRepo,
-}) => async (id: number, input: UpdatePlantRequest) => {
+}) => async (id: number, input: UpdatePlantRequest): Promise<Plant> => {
+  const dbInput = toDbUpdate(input)
   try {
-    const updateData: any = {
-      updated_at: new Date(),
-    }
+    const plant = await deps.plantRepo.update(id, dbInput)
+    if (!plant) throw notFound(`Plant with id ${id} not found`)
 
-    if (input.commonName !== undefined) updateData.common_name = input.commonName
-    if (input.scientificName !== undefined) updateData.scientific_name = input.scientificName
-    if (input.family !== undefined) updateData.family = input.family
-    if (input.genus !== undefined) updateData.genus = input.genus
-    if (input.botanicalDescription !== undefined) updateData.botanical_description = input.botanicalDescription
-    if (input.ecologicalInformation !== undefined) updateData.ecological_information = input.ecologicalInformation
-    if (input.environmentalImpact !== undefined) updateData.environmental_impact = input.environmentalImpact
-    if (input.imagePath !== undefined) updateData.image_path = input.imagePath
-
-    return await deps.plantRepo.update(id, updateData)
+    return plant
   } catch (err) {
     throw mapDbError(err)
   }

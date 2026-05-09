@@ -1,7 +1,7 @@
-import { db } from '@/server/db'
-import { identificationModule } from './module'
-import { createIdentificationRepo } from './repo'
+import { db } from '@/server/db';
+import { createIdentificationModule } from './module';
+import { createIdentificationRepo } from './repo';
 
-export const identification = identificationModule({
-  identificationRepo: createIdentificationRepo(db),
+export const identification = createIdentificationModule({
+  identificationRepo: createIdentificationRepo(db)
 })

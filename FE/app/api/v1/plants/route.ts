@@ -51,7 +51,9 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
 })
 
 export const POST = withErrorHandling(async (req: NextRequest) => {
-  const input = parseWithZod(CreatePlantSchema, await req.json())
+  // TODO: add upload image logic and return the image url
+  const body = await req.json()
+  const input = parseWithZod(CreatePlantSchema, { ...body, imagePath: 'image/picture.jpg' })
   const data = await plant.command.create(input)
 
   return NextResponse.json({ success: true, data })
