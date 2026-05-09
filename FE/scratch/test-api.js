@@ -1,6 +1,6 @@
 
 async function testApi() {
-  const terms = ["lantana camara", "acacia nilotica", "mikania micrantha", "chromolaena odorata", "ageratum conyzoides"];
+  const terms = ["lantana camara", "Vachellia Nilotica", "mikania micrantha", "chromolaena odorata", "ageratum conyzoides"];
   for (const term of terms) {
     const url = `http://localhost:3000/api/v1/plants?search=${encodeURIComponent(term)}&limit=1`;
     try {
