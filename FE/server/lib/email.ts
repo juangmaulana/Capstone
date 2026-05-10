@@ -12,7 +12,7 @@ const transporter = nodemailer.createTransport({
 
 const FROM_ADDRESS = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@biowatch.id';
 const APP_NAME = 'BioWatch';
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://194.233.74.133:3000';
 
 export interface SendEmailOptions {
   to: string;
