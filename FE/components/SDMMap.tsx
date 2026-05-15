@@ -7,6 +7,33 @@ interface SDMMapProps {
   year: string;
 }
 
+// IUCN-based suitability risk zones with their colors
+const SUITABILITY_ZONES = {
+  critical: { color: "#C62828", label: "Critical Risk" },
+  high: { color: "#E65100", label: "High Risk" },
+  medium: { color: "#F9A825", label: "Medium Risk" },
+  low: { color: "#2E7D32", label: "Low Risk" },
+};
+
+// Seed-based pseudo-random for consistent results per species+year
+function seededRandom(seed: number) {
+  let s = seed;
+  return () => {
+    s = (s * 16807) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+function hashCode(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
 export function SDMMap({ species, year }: SDMMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<L.Map | null>(null);
@@ -56,42 +83,58 @@ export function SDMMap({ species, year }: SDMMapProps) {
       }
     });
 
-    // Simulate different distribution severity based on year.
-    // Farther years = more circles/area covered.
     const yearNum = parseInt(year);
-    const severityFactor = Math.max(1, (yearNum - 2025) / 5); // increases over time
+    const severityFactor = Math.max(1, (yearNum - 2025) / 10);
     
-    // Base center of distribution
-    const centers = [
-      { lat: -7.838, lng: 114.375 },
-      { lat: -7.815, lng: 114.368 },
-      { lat: -7.855, lng: 114.410 },
-      { lat: -7.820, lng: 114.385 },
-      { lat: -7.805, lng: 114.355 },
+    // Base centers of distribution zones
+    const zoneCenters = [
+      // Critical risk zones — core invasion centers
+      { lat: -7.838, lng: 114.375, zone: "critical" as const },
+      { lat: -7.805, lng: 114.355, zone: "critical" as const },
+      // High risk zones — surrounding areas
+      { lat: -7.842, lng: 114.391, zone: "high" as const },
+      { lat: -7.840, lng: 114.360, zone: "high" as const },
+      { lat: -7.855, lng: 114.410, zone: "high" as const },
+      // Medium risk zones — transition areas
+      { lat: -7.815, lng: 114.368, zone: "medium" as const },
+      { lat: -7.845, lng: 114.395, zone: "medium" as const },
+      { lat: -7.825, lng: 114.405, zone: "medium" as const },
+      // Low risk zones — peripheral areas
+      { lat: -7.820, lng: 114.385, zone: "low" as const },
+      { lat: -7.810, lng: 114.415, zone: "low" as const },
+      { lat: -7.860, lng: 114.370, zone: "low" as const },
     ];
-    
-    // Pick a specific color based on species roughly
-    const isCritical = species.includes("lantana") || species.includes("acacia");
-    const baseColor = isCritical ? "#C62828" : "#E65100"; // Red or Orange hue
 
-    // Generate random points around the centers to simulate distribution
-    const numPoints = Math.min(200, 10 + Math.floor(severityFactor * 15));
-    
-    for (let i = 0; i < numPoints; i++) {
-       const center = centers[i % centers.length];
-       // spread increases with year
-       const latOffset = (Math.random() - 0.5) * 0.05 * (severityFactor * 0.5);
-       const lngOffset = (Math.random() - 0.5) * 0.05 * (severityFactor * 0.5);
-       
-       L.circleMarker([center.lat + latOffset, center.lng + lngOffset], {
-        radius: 12 + (Math.random() * 8), // slightly fuzzy blobs
-        fillColor: baseColor,
-        color: baseColor,
-        weight: 0,
-        opacity: 0,
-        fillOpacity: 0.15, // stack them for heatmap effect
-      }).addTo(map);
-    }
+    const seed = hashCode(`${species}-${year}`);
+    const rng = seededRandom(seed);
+
+    // Zone-specific configuration for point density and spread
+    const zoneConfig = {
+      critical: { points: Math.min(60, 8 + Math.floor(severityFactor * 8)), spread: 0.015, radius: 16, opacity: 0.20 },
+      high: { points: Math.min(50, 6 + Math.floor(severityFactor * 6)), spread: 0.020, radius: 14, opacity: 0.16 },
+      medium: { points: Math.min(40, 5 + Math.floor(severityFactor * 5)), spread: 0.025, radius: 12, opacity: 0.13 },
+      low: { points: Math.min(30, 4 + Math.floor(severityFactor * 4)), spread: 0.030, radius: 10, opacity: 0.10 },
+    };
+
+    // Generate suitability heatmap zones
+    zoneCenters.forEach((center) => {
+      const config = zoneConfig[center.zone];
+      const { color } = SUITABILITY_ZONES[center.zone];
+
+      for (let i = 0; i < config.points; i++) {
+        const latOffset = (rng() - 0.5) * config.spread * severityFactor * 0.5;
+        const lngOffset = (rng() - 0.5) * config.spread * severityFactor * 0.5;
+
+        L.circleMarker([center.lat + latOffset, center.lng + lngOffset], {
+          radius: config.radius + (rng() * 6),
+          fillColor: color,
+          color: color,
+          weight: 0,
+          opacity: 0,
+          fillOpacity: config.opacity,
+        }).addTo(map);
+      }
+    });
 
   }, [species, year]);
 

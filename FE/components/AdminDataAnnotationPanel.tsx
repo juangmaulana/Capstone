@@ -1,13 +1,15 @@
 "use client";
 
-import { ChangeEvent, MouseEvent, useMemo, useRef, useState } from "react";
+import { ChangeEvent, MouseEvent, useCallback, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
   Download,
   Image as ImageIcon,
+  Loader2,
   PencilRuler,
   Plus,
+  ScanSearch,
   SquareDashedMousePointer,
   Tag,
   Trash2,
@@ -15,11 +17,11 @@ import {
 } from "lucide-react";
 
 const SPECIES_CLASSES = [
-  "Acacia nilotica",
+  "Vachellia nilotica",
   "Ageratum conyzoides",
-  "Chromolaena odorata",
+  "Clitoria ternatea",
   "Lantana camara",
-  "Mikania micrantha",
+  "Merremia hederacea",
   "Unknown",
 ];
 
@@ -35,6 +37,19 @@ interface BoundingBox {
   height: number;
 }
 
+interface DetectionResult {
+  name: string;
+  confidence: number;
+  box?: {
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+    width: number;
+    height: number;
+  } | null;
+}
+
 interface AnnotationItem {
   id: number;
   filename: string;
@@ -46,6 +61,9 @@ interface AnnotationItem {
   status: ItemStatus;
   validatedBy?: string;
   validatedAt?: string;
+  aiDetected?: boolean;
+  aiSpecies?: string;
+  aiConfidence?: number;
 }
 
 interface AnnotationBatch {
@@ -131,6 +149,8 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
   const [draftBox, setDraftBox] = useState<DraftBox | null>(null);
   const [selectedBoxId, setSelectedBoxId] = useState<number | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [detectionError, setDetectionError] = useState<string | null>(null);
 
   const stageRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -198,6 +218,119 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
     );
   };
 
+  // AI Detection function — sends image to /api/v1/plants/detect
+  const detectPlant = useCallback(async (item: AnnotationItem) => {
+    // Skip if already detected
+    if (item.aiDetected) return;
+
+    setIsDetecting(true);
+    setDetectionError(null);
+
+    try {
+      let blob: Blob;
+
+      if (item.file) {
+        blob = item.file;
+      } else {
+        const response = await fetch(item.src);
+        blob = await response.blob();
+      }
+
+      const formData = new FormData();
+      formData.append("image", blob, item.filename);
+
+      const res = await fetch("/api/v1/plants/detect", {
+        method: "POST",
+        body: formData,
+      });
+
+      const json = await res.json();
+
+      if (json.success && json.data?.plants?.length > 0) {
+        const detections: DetectionResult[] = json.data.plants;
+        const topDetection = detections[0];
+
+        // Create bounding boxes only for detections with a valid box
+        const newBoxes: BoundingBox[] = detections
+          .filter(
+            (det) =>
+              det.box &&
+              det.box.width > 0 &&
+              det.box.height > 0
+          )
+          .map((det, idx) => {
+            // Map detected name to one of the known SPECIES_CLASSES
+            const matchedClass = SPECIES_CLASSES.find(
+              (cls) => cls.toLowerCase() === det.name.toLowerCase()
+            ) || det.name;
+
+            return {
+              id: Date.now() + idx,
+              className: matchedClass,
+              x: det.box.x1,
+              y: det.box.y1,
+              width: det.box.width,
+              height: det.box.height,
+            };
+          });
+
+        // Update the item with AI detection results
+        setItemValue(item.id, (prev) => ({
+          ...prev,
+          boxes: newBoxes.length > 0 ? newBoxes : prev.boxes,
+          aiDetected: true,
+          aiSpecies: topDetection.name,
+          aiConfidence: topDetection.confidence,
+          status: newBoxes.length > 0 ? "annotated" : prev.status,
+        }));
+
+        // Auto-select detected species in class dropdown
+        const matchedTopClass = SPECIES_CLASSES.find(
+          (cls) => cls.toLowerCase() === topDetection.name.toLowerCase()
+        );
+        if (matchedTopClass) {
+          setSelectedClass(matchedTopClass);
+        }
+
+        if (newBoxes.length > 0) {
+          setSelectedBoxId(newBoxes[0].id);
+        }
+
+        onLog?.("info", "AI Detection", `Detected ${topDetection.name} (${Math.round(topDetection.confidence * 100)}%) in ${item.filename}`);
+      } else {
+        // No detection — mark as detected but with no results
+        setItemValue(item.id, (prev) => ({
+          ...prev,
+          aiDetected: true,
+          aiSpecies: undefined,
+          aiConfidence: undefined,
+        }));
+        onLog?.("warning", "AI Detection", `No plant detected in ${item.filename}`);
+      }
+    } catch (err) {
+      console.error("AI detection failed:", err);
+      setDetectionError("AI detection gagal. Silakan coba lagi.");
+      onLog?.("error", "AI Detection", `Detection failed for ${item.filename}`);
+    } finally {
+      setIsDetecting(false);
+    }
+  }, [onLog, setItemValue]);
+
+  // Clear AI prediction — removes all AI-generated boxes and resets detection state
+  const clearAiPrediction = (itemId: number) => {
+    setItemValue(itemId, (item) => ({
+      ...item,
+      boxes: [],
+      aiDetected: false,
+      aiSpecies: undefined,
+      aiConfidence: undefined,
+      status: "pending",
+    }));
+    setSelectedBoxId(null);
+    setDetectionError(null);
+    onLog?.("info", "Annotation", `Cleared AI prediction for item`);
+  };
+
   const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     if (!files.length) return;
@@ -215,7 +348,8 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
           imageWidth: size.width,
           imageHeight: size.height,
           boxes: [],
-          status: "pending",
+          status: "pending" as ItemStatus,
+          aiDetected: false,
         };
       }),
     );
@@ -230,6 +364,8 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
     if (newItems.length > 0) {
       setActiveItemId(newItems[0].id);
       setSelectedBoxId(null);
+      // Auto-detect the first uploaded image
+      detectPlant(newItems[0]);
     }
 
     event.target.value = "";
@@ -532,6 +668,10 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                     setActiveItemId(item.id);
                     setSelectedBoxId(null);
                     setDraftBox(null);
+                    // Auto-detect when selecting an image that hasn't been detected
+                    if (!item.aiDetected) {
+                      detectPlant(item);
+                    }
                   }}
                   className={`w-full rounded-md border px-2 py-2 text-left text-xs transition-colors ${
                     activeItemId === item.id ? "border-primary bg-primary/5" : "hover:bg-muted"
@@ -544,6 +684,13 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                     </span>
                     <span className="text-[10px] text-muted-foreground">{item.boxes.length} box</span>
                   </div>
+                  {item.aiDetected && item.aiSpecies && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <ScanSearch className="h-3 w-3 text-primary" />
+                      <span className="text-[10px] text-primary font-medium truncate">{item.aiSpecies}</span>
+                      <span className="text-[10px] text-muted-foreground">{Math.round((item.aiConfidence ?? 0) * 100)}%</span>
+                    </div>
+                  )}
                 </button>
               ))}
               {!activeBatch?.items.length && (
@@ -640,6 +787,45 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                     className="h-full w-full object-contain"
                     draggable={false}
                   />
+
+                  {/* AI Detection overlay */}
+                  {isDetecting && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-20">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+                      <span className="text-sm font-medium animate-pulse">AI sedang mendeteksi tanaman...</span>
+                      <span className="text-xs text-muted-foreground mt-1">Menghubungi AI detection service</span>
+                    </div>
+                  )}
+
+                  {/* AI Detection result badge */}
+                  {activeItem.aiDetected && activeItem.aiSpecies && !isDetecting && (
+                    <div className="absolute top-3 left-3 z-10 flex items-center gap-2 rounded-lg bg-background/90 backdrop-blur-md px-3 py-1.5 shadow-lg border">
+                      <ScanSearch className="h-4 w-4 text-primary" />
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-foreground">{activeItem.aiSpecies}</span>
+                        <span className="text-[10px] text-muted-foreground">{Math.round((activeItem.aiConfidence ?? 0) * 100)}% confidence</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          clearAiPrediction(activeItem.id);
+                        }}
+                        className="ml-1 rounded-full p-0.5 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                        title="Hapus prediksi AI"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Detection error */}
+                  {detectionError && !isDetecting && (
+                    <div className="absolute top-3 left-3 z-10 flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/30 px-3 py-1.5">
+                      <AlertCircle className="h-4 w-4 text-destructive" />
+                      <span className="text-xs text-destructive">{detectionError}</span>
+                    </div>
+                  )}
 
                   {activeItem.boxes.map((box) => {
                     const { scaleX, scaleY } = getScale();
