@@ -250,22 +250,29 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
         const detections: DetectionResult[] = json.data.plants;
         const topDetection = detections[0];
 
-        // Create bounding boxes from detection results
-        const newBoxes: BoundingBox[] = detections.map((det, idx) => {
-          // Map detected name to one of the known SPECIES_CLASSES
-          const matchedClass = SPECIES_CLASSES.find(
-            (cls) => cls.toLowerCase() === det.name.toLowerCase()
-          ) || det.name;
+        // Create bounding boxes only for detections with a valid box
+        const newBoxes: BoundingBox[] = detections
+          .filter(
+            (det) =>
+              det.box &&
+              det.box.width > 0 &&
+              det.box.height > 0
+          )
+          .map((det, idx) => {
+            // Map detected name to one of the known SPECIES_CLASSES
+            const matchedClass = SPECIES_CLASSES.find(
+              (cls) => cls.toLowerCase() === det.name.toLowerCase()
+            ) || det.name;
 
-          return {
-            id: Date.now() + idx,
-            className: matchedClass,
-            x: det.box?.x1 ?? 0,
-            y: det.box?.y1 ?? 0,
-            width: det.box?.width ?? item.imageWidth,
-            height: det.box?.height ?? item.imageHeight,
-          };
-        });
+            return {
+              id: Date.now() + idx,
+              className: matchedClass,
+              x: det.box.x1,
+              y: det.box.y1,
+              width: det.box.width,
+              height: det.box.height,
+            };
+          });
 
         // Update the item with AI detection results
         setItemValue(item.id, (prev) => ({
