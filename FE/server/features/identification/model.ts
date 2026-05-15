@@ -7,5 +7,9 @@ export class Identification {
     public aiResponse: string,
     public isSuccess: boolean,
     public identifiedAt: Date,
-  ) {}
+  ) {
+    if (confidence < 0 || confidence > 1) {
+      throw new Error("Confidence must be between 0 and 1")
+    }
+  }
 }
