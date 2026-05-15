@@ -3,11 +3,61 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { KeyRound, CheckCircle2, AlertCircle, ArrowLeft, Loader2, Eye, EyeOff } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
+
+const RESET_COPY = {
+  en: {
+    minPassword: "Password must be at least 8 characters",
+    mismatch: "Passwords do not match",
+    resetFailed: "Failed to reset password",
+    genericError: "Something went wrong. Please try again.",
+    validating: "Validating link...",
+    wait: "Please wait a moment",
+    invalidTitle: "Invalid Link",
+    invalidDesc: "The password reset link is invalid or has expired. Please request a new one from the login page.",
+    backLogin: "Back to Login",
+    successTitle: "Password Reset Successfully!",
+    successDesc: "Your password has been updated. Please log in with your new password.",
+    loginNow: "Login Now",
+    title: "Reset Password",
+    desc: "Enter a new password for your account.",
+    newPassword: "New Password",
+    minPlaceholder: "At least 8 characters",
+    confirmPassword: "Confirm Password",
+    confirmPlaceholder: "Repeat new password",
+    processing: "Processing...",
+    loading: "Loading...",
+  },
+  id: {
+    minPassword: "Password minimal 8 karakter",
+    mismatch: "Password tidak cocok",
+    resetFailed: "Gagal mereset password",
+    genericError: "Terjadi kesalahan. Coba lagi.",
+    validating: "Memvalidasi link...",
+    wait: "Mohon tunggu sebentar",
+    invalidTitle: "Link Tidak Valid",
+    invalidDesc: "Link reset password tidak valid atau sudah kedaluwarsa. Silakan request ulang dari halaman login.",
+    backLogin: "Kembali ke Login",
+    successTitle: "Password Berhasil Direset!",
+    successDesc: "Password Anda telah diperbarui. Silakan login dengan password baru.",
+    loginNow: "Login Sekarang",
+    title: "Reset Password",
+    desc: "Masukkan password baru untuk akun Anda.",
+    newPassword: "Password Baru",
+    minPlaceholder: "Minimal 8 karakter",
+    confirmPassword: "Konfirmasi Password",
+    confirmPlaceholder: "Ulangi password baru",
+    processing: "Memproses...",
+    loading: "Loading...",
+  },
+} as const;
 
 function ResetPasswordContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get("token");
+  const { language } = useLanguage();
+  const copy = RESET_COPY[language];
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -15,14 +65,11 @@ function ResetPasswordContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const [isValidToken, setIsValidToken] = useState<boolean | null>(null);
+  const [isValidToken, setIsValidToken] = useState<boolean | null>(() => (token ? null : false));
 
   // Validate token on mount
   useEffect(() => {
-    if (!token) {
-      setIsValidToken(false);
-      return;
-    }
+    if (!token) return;
     fetch(`/api/v1/auth/reset-password?token=${token}`)
       .then((res) => res.json())
       .then((data) => setIsValidToken(data.valid === true))
@@ -34,11 +81,11 @@ function ResetPasswordContent() {
     setError("");
 
     if (password.length < 8) {
-      setError("Password minimal 8 karakter");
+      setError(copy.minPassword);
       return;
     }
     if (password !== confirmPassword) {
-      setError("Password tidak cocok");
+      setError(copy.mismatch);
       return;
     }
 
@@ -51,12 +98,12 @@ function ResetPasswordContent() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error?.message || "Gagal mereset password");
+        setError(data.error?.message || copy.resetFailed);
       } else {
         setSuccess(true);
       }
     } catch {
-      setError("Terjadi kesalahan. Coba lagi.");
+      setError(copy.genericError);
     }
     setIsSubmitting(false);
   };
@@ -69,8 +116,8 @@ function ResetPasswordContent() {
           <div style={styles.iconWrapper}>
             <Loader2 className="animate-spin" style={{ width: 40, height: 40, color: "#1a5632" }} />
           </div>
-          <h2 style={styles.title}>Memvalidasi link...</h2>
-          <p style={styles.desc}>Mohon tunggu sebentar</p>
+          <h2 style={styles.title}>{copy.validating}</h2>
+          <p style={styles.desc}>{copy.wait}</p>
         </div>
       </div>
     );
@@ -84,13 +131,13 @@ function ResetPasswordContent() {
           <div style={{ ...styles.iconWrapper, background: "#fef2f2" }}>
             <AlertCircle style={{ width: 40, height: 40, color: "#dc2626" }} />
           </div>
-          <h2 style={styles.title}>Link Tidak Valid</h2>
+          <h2 style={styles.title}>{copy.invalidTitle}</h2>
           <p style={styles.desc}>
-            Link reset password tidak valid atau sudah kedaluwarsa. Silakan request ulang dari halaman login.
+            {copy.invalidDesc}
           </p>
           <button onClick={() => router.push("/admin")} style={styles.btn}>
             <ArrowLeft style={{ width: 16, height: 16 }} />
-            Kembali ke Login
+            {copy.backLogin}
           </button>
         </div>
       </div>
@@ -105,12 +152,12 @@ function ResetPasswordContent() {
           <div style={{ ...styles.iconWrapper, background: "#f0fdf4" }}>
             <CheckCircle2 style={{ width: 40, height: 40, color: "#16a34a" }} />
           </div>
-          <h2 style={styles.title}>Password Berhasil Direset!</h2>
+          <h2 style={styles.title}>{copy.successTitle}</h2>
           <p style={styles.desc}>
-            Password Anda telah diperbarui. Silakan login dengan password baru.
+            {copy.successDesc}
           </p>
           <button onClick={() => router.push("/admin")} style={styles.btn}>
-            Login Sekarang
+            {copy.loginNow}
           </button>
         </div>
       </div>
@@ -124,18 +171,18 @@ function ResetPasswordContent() {
         <div style={styles.iconWrapper}>
           <KeyRound style={{ width: 40, height: 40, color: "#1a5632" }} />
         </div>
-        <h2 style={styles.title}>Reset Password</h2>
-        <p style={styles.desc}>Masukkan password baru untuk akun Anda.</p>
+        <h2 style={styles.title}>{copy.title}</h2>
+        <p style={styles.desc}>{copy.desc}</p>
 
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.field}>
-            <label style={styles.label}>Password Baru</label>
+            <label style={styles.label}>{copy.newPassword}</label>
             <div style={styles.inputWrapper}>
               <input
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Minimal 8 karakter"
+                placeholder={copy.minPlaceholder}
                 required
                 style={styles.input}
               />
@@ -150,12 +197,12 @@ function ResetPasswordContent() {
           </div>
 
           <div style={styles.field}>
-            <label style={styles.label}>Konfirmasi Password</label>
+            <label style={styles.label}>{copy.confirmPassword}</label>
             <input
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Ulangi password baru"
+              placeholder={copy.confirmPlaceholder}
               required
               style={styles.input}
             />
@@ -172,17 +219,17 @@ function ResetPasswordContent() {
             {isSubmitting ? (
               <>
                 <Loader2 className="animate-spin" style={{ width: 16, height: 16 }} />
-                Memproses...
+                {copy.processing}
               </>
             ) : (
-              "Reset Password"
+              copy.title
             )}
           </button>
         </form>
 
         <button onClick={() => router.push("/admin")} style={styles.backLink}>
           <ArrowLeft style={{ width: 14, height: 14 }} />
-          Kembali ke Login
+          {copy.backLogin}
         </button>
       </div>
     </div>
@@ -190,6 +237,9 @@ function ResetPasswordContent() {
 }
 
 export default function ResetPasswordPage() {
+  const { language } = useLanguage();
+  const copy = RESET_COPY[language];
+
   return (
     <Suspense fallback={
       <div style={styles.container}>
@@ -197,7 +247,7 @@ export default function ResetPasswordPage() {
           <div style={styles.iconWrapper}>
             <Loader2 className="animate-spin" style={{ width: 40, height: 40, color: "#1a5632" }} />
           </div>
-          <h2 style={styles.title}>Loading...</h2>
+          <h2 style={styles.title}>{copy.loading}</h2>
         </div>
       </div>
     }>

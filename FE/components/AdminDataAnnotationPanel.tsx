@@ -16,6 +16,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const SPECIES_CLASSES = [
   "Vachellia nilotica",
@@ -98,6 +99,137 @@ const statusStyles: Record<ItemStatus, string> = {
   validated: "bg-green-100 text-green-700",
 };
 
+const ANNOTATION_COPY = {
+  en: {
+    stats: {
+      totalBatch: "Total Batch",
+      pending: "Pending Annotation",
+      validated: "Validated Ready",
+    },
+    quickTitle: "Quick Guide",
+    quickDesc: "Follow the sequence below so annotations stay easy to read and review.",
+    steps: [
+      "1. Choose the batch and image you want to work on.",
+      "2. Draw a box around a clearly visible object.",
+      "3. Click Save Annotation to save changes.",
+      "4. Click Validate when the data is correct.",
+    ],
+    batchTitle: "Dataset Batch",
+    batchDesc: "Choose a batch, then continue annotation.",
+    exporting: "Exporting...",
+    exportYolo: "Export YOLO",
+    imageCount: "image",
+    validatedCount: "validated",
+    uploadImages: "Upload Images to Batch",
+    images: "Images",
+    box: "box",
+    emptyBatch: "There are no images in this batch yet.",
+    editorTitle: "Interactive Bounding Box Editor",
+    editorDesc: "1) Choose a mode. 2) Draw a box. 3) Save. 4) Validate.",
+    draw: "Draw",
+    selectEdit: "Select/Edit",
+    saveAnnotation: "Save Annotation",
+    validate: "Validate",
+    emptyEditorTitle: "Choose an image on the left to start annotation.",
+    emptyEditorDesc: "After selecting an image, draw a box around the object and press Save Annotation.",
+    aiDetecting: "AI is detecting plants...",
+    contactingAi: "Contacting AI detection service",
+    confidence: "confidence",
+    deleteAiPrediction: "Delete AI prediction",
+    boxProperties: "Box Properties",
+    boxHelp: "Select a bounding box to edit coordinates, class, or delete the box.",
+    class: "Class",
+    itemStatus: "Item status",
+    validatedBy: "validated by",
+    deleteBox: "Delete Box",
+    status: { pending: "pending", annotated: "annotated", validated: "validated" },
+    detectionFailed: "AI detection failed. Please try again.",
+    noValidated: "No validated items with bounding boxes yet.",
+    exportFailed: "Failed to export ZIP. Please try again.",
+    savedTitle: "Annotation Saved Successfully",
+    savedMessage: (filename: string) => `Changes for ${filename} have been saved. You can continue drawing boxes or choose another image.`,
+    savedButton: "Continue Annotation",
+    validatedTitle: "Annotation Validated Successfully",
+    validatedMessage: (filename: string) => `Data for ${filename} has been validated and is ready to export.`,
+    done: "Done",
+    logs: {
+      aiSource: "AI Detection",
+      annotationSource: "Annotation",
+      verificationSource: "Verification",
+      detected: (name: string, confidence: number, filename: string) => `Detected ${name} (${confidence}%) in ${filename}`,
+      noPlant: (filename: string) => `No plant detected in ${filename}`,
+      failed: (filename: string) => `Detection failed for ${filename}`,
+      cleared: "Cleared AI prediction for item",
+      saved: (filename: string) => `Saved annotation for image ${filename}`,
+      validated: (filename: string) => `Validated annotation for image ${filename}`,
+    },
+  },
+  id: {
+    stats: {
+      totalBatch: "Total Batch",
+      pending: "Pending Anotasi",
+      validated: "Siap Divalidasi",
+    },
+    quickTitle: "Panduan Cepat",
+    quickDesc: "Ikuti urutan di bawah agar anotasi lebih mudah dibaca dan tidak membingungkan.",
+    steps: [
+      "1. Pilih batch dan image yang ingin dikerjakan.",
+      "2. Gambar kotak pada objek yang terlihat jelas.",
+      "3. Klik Save Annotation untuk menyimpan perubahan.",
+      "4. Klik Validate jika data sudah benar.",
+    ],
+    batchTitle: "Batch Dataset",
+    batchDesc: "Pilih batch lalu lanjutkan anotasi.",
+    exporting: "Mengekspor...",
+    exportYolo: "Export YOLO",
+    imageCount: "image",
+    validatedCount: "validated",
+    uploadImages: "Unggah Image ke Batch",
+    images: "Images",
+    box: "box",
+    emptyBatch: "Belum ada image di batch ini.",
+    editorTitle: "Interactive Bounding Box Editor",
+    editorDesc: "1) Pilih mode. 2) Gambar box. 3) Simpan. 4) Validasi.",
+    draw: "Gambar",
+    selectEdit: "Pilih/Edit",
+    saveAnnotation: "Simpan Anotasi",
+    validate: "Validasi",
+    emptyEditorTitle: "Pilih image di sisi kiri untuk mulai anotasi.",
+    emptyEditorDesc: "Setelah image dipilih, gambar kotak pada objek lalu tekan Simpan Anotasi.",
+    aiDetecting: "AI sedang mendeteksi tanaman...",
+    contactingAi: "Menghubungi layanan deteksi AI",
+    confidence: "keyakinan",
+    deleteAiPrediction: "Hapus prediksi AI",
+    boxProperties: "Properti Box",
+    boxHelp: "Pilih bounding box untuk mengedit koordinat, class, atau hapus box.",
+    class: "Class",
+    itemStatus: "Status item",
+    validatedBy: "divalidasi oleh",
+    deleteBox: "Hapus Box",
+    status: { pending: "pending", annotated: "annotated", validated: "validated" },
+    detectionFailed: "AI detection gagal. Silakan coba lagi.",
+    noValidated: "Belum ada item validated dengan bounding box.",
+    exportFailed: "Gagal export ZIP. Coba ulangi lagi.",
+    savedTitle: "Annotation Berhasil Disimpan",
+    savedMessage: (filename: string) => `Perubahan untuk ${filename} sudah disimpan. Anda bisa lanjut menggambar box atau pilih image lain.`,
+    savedButton: "Lanjut Anotasi",
+    validatedTitle: "Annotation Berhasil Divalidasi",
+    validatedMessage: (filename: string) => `Data untuk ${filename} sudah divalidasi dan siap diexport.`,
+    done: "Selesai",
+    logs: {
+      aiSource: "AI Detection",
+      annotationSource: "Annotation",
+      verificationSource: "Verification",
+      detected: (name: string, confidence: number, filename: string) => `Terdeteksi ${name} (${confidence}%) pada ${filename}`,
+      noPlant: (filename: string) => `Tidak ada tanaman terdeteksi pada ${filename}`,
+      failed: (filename: string) => `Deteksi gagal untuk ${filename}`,
+      cleared: "Prediksi AI dihapus dari item",
+      saved: (filename: string) => `Anotasi disimpan untuk image ${filename}`,
+      validated: (filename: string) => `Anotasi divalidasi untuk image ${filename}`,
+    },
+  },
+} as const;
+
 const toDateLabel = () => new Date().toISOString().split("T")[0];
 
 const clamp = (value: number, min: number, max: number) =>
@@ -135,6 +267,8 @@ const readImageSize = (url: string) =>
   });
 
 export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
+  const { language } = useLanguage();
+  const copy = ANNOTATION_COPY[language];
   const [batches, setBatches] = useState<AnnotationBatch[]>([
     {
       id: 1,
@@ -297,7 +431,7 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
           setSelectedBoxId(newBoxes[0].id);
         }
 
-        onLog?.("info", "AI Detection", `Detected ${topDetection.name} (${Math.round(topDetection.confidence * 100)}%) in ${item.filename}`);
+        onLog?.("info", copy.logs.aiSource, copy.logs.detected(topDetection.name, Math.round(topDetection.confidence * 100), item.filename));
       } else {
         // No detection — mark as detected but with no results
         setItemValue(item.id, (prev) => ({
@@ -306,16 +440,16 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
           aiSpecies: undefined,
           aiConfidence: undefined,
         }));
-        onLog?.("warning", "AI Detection", `No plant detected in ${item.filename}`);
+        onLog?.("warning", copy.logs.aiSource, copy.logs.noPlant(item.filename));
       }
     } catch (err) {
       console.error("AI detection failed:", err);
-      setDetectionError("AI detection gagal. Silakan coba lagi.");
-      onLog?.("error", "AI Detection", `Detection failed for ${item.filename}`);
+      setDetectionError(copy.detectionFailed);
+      onLog?.("error", copy.logs.aiSource, copy.logs.failed(item.filename));
     } finally {
       setIsDetecting(false);
     }
-  }, [onLog, setItemValue]);
+  }, [copy, onLog, setItemValue]);
 
   // Clear AI prediction — removes all AI-generated boxes and resets detection state
   const clearAiPrediction = (itemId: number) => {
@@ -329,7 +463,7 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
     }));
     setSelectedBoxId(null);
     setDetectionError(null);
-    onLog?.("info", "Annotation", `Cleared AI prediction for item`);
+    onLog?.("info", copy.logs.annotationSource, copy.logs.cleared);
   };
 
   const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -488,11 +622,11 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
       validatedAt: undefined,
     }));
 
-    onLog?.("success", "Annotation", `Saved annotation for image ${activeItem.filename}`);
+    onLog?.("success", copy.logs.annotationSource, copy.logs.saved(activeItem.filename));
     setSuccessNotice({
-      title: "Annotation Berhasil Disimpan",
-      message: `Perubahan untuk ${activeItem.filename} sudah disimpan. Anda bisa lanjut menggambar box atau pilih image lain.`,
-      buttonLabel: "Lanjut Anotasi",
+      title: copy.savedTitle,
+      message: copy.savedMessage(activeItem.filename),
+      buttonLabel: copy.savedButton,
     });
   };
 
@@ -506,11 +640,11 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
       validatedAt: toDateLabel(),
     }));
 
-    onLog?.("success", "Verification", `Validated annotation for image ${activeItem.filename}`);
+    onLog?.("success", copy.logs.verificationSource, copy.logs.validated(activeItem.filename));
     setSuccessNotice({
-      title: "Annotation Berhasil Divalidasi",
-      message: `Data untuk ${activeItem.filename} sudah divalidasi dan siap diexport.`,
-      buttonLabel: "Selesai",
+      title: copy.validatedTitle,
+      message: copy.validatedMessage(activeItem.filename),
+      buttonLabel: copy.done,
     });
   };
 
@@ -519,7 +653,7 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
 
     const exportItems = activeBatch.items.filter((item) => item.status === "validated" && item.boxes.length > 0);
     if (!exportItems.length) {
-      window.alert("Belum ada item validated dengan bounding box.");
+      window.alert(copy.noValidated);
       return;
     }
 
@@ -565,7 +699,7 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
       anchor.click();
       URL.revokeObjectURL(url);
     } catch {
-      window.alert("Gagal export ZIP. Coba ulangi lagi.");
+      window.alert(copy.exportFailed);
     } finally {
       setIsExporting(false);
     }
@@ -605,15 +739,15 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="stat-card">
-          <p className="text-sm text-muted-foreground">Total Batch</p>
+          <p className="text-sm text-muted-foreground">{copy.stats.totalBatch}</p>
           <p className="text-2xl font-bold mt-1">{batches.length}</p>
         </div>
         <div className="stat-card">
-          <p className="text-sm text-muted-foreground">Pending Annotation</p>
+          <p className="text-sm text-muted-foreground">{copy.stats.pending}</p>
           <p className="text-2xl font-bold mt-1 text-amber-600">{totalPending}</p>
         </div>
         <div className="stat-card">
-          <p className="text-sm text-muted-foreground">Validated Ready</p>
+          <p className="text-sm text-muted-foreground">{copy.stats.validated}</p>
           <p className="text-2xl font-bold mt-1 text-green-600">{totalValidated}</p>
         </div>
       </div>
@@ -622,19 +756,14 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
         <div className="flex items-start gap-3">
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
           <div>
-            <p className="text-base font-semibold text-blue-950">Panduan cepat</p>
+            <p className="text-base font-semibold text-blue-950">{copy.quickTitle}</p>
             <p className="mt-1 text-sm text-blue-800">
-              Ikuti urutan di bawah agar anotasi lebih mudah dibaca dan tidak membingungkan.
+              {copy.quickDesc}
             </p>
           </div>
         </div>
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-4">
-          {[
-            "1. Pilih batch dan image yang ingin dikerjakan.",
-            "2. Gambar kotak pada objek yang terlihat jelas.",
-            "3. Klik Save Annotation untuk menyimpan perubahan.",
-            "4. Klik Validate jika data sudah benar.",
-          ].map((step) => (
+          {copy.steps.map((step) => (
             <div key={step} className="rounded-lg border bg-white px-4 py-3 text-sm leading-relaxed text-slate-700 shadow-sm">
               {step}
             </div>
@@ -647,8 +776,8 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
           <div className="border-b px-5 py-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h3 className="text-base font-semibold">Batch Dataset</h3>
-                <p className="text-xs text-muted-foreground">Pilih batch lalu lanjutkan anotasi.</p>
+                <h3 className="text-base font-semibold">{copy.batchTitle}</h3>
+                <p className="text-xs text-muted-foreground">{copy.batchDesc}</p>
               </div>
               <button
                 onClick={exportBatchYoloZip}
@@ -656,7 +785,7 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                 className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
               >
                 <Download className="h-4 w-4" />
-                {isExporting ? "Exporting..." : "Export YOLO"}
+                {isExporting ? copy.exporting : copy.exportYolo}
               </button>
             </div>
           </div>
@@ -679,7 +808,7 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                 >
                   <p className="text-sm font-semibold">{batch.name}</p>
                   <p className="mt-1 text-sm text-muted-foreground">{batch.period}</p>
-                  <p className="mt-2 text-xs text-muted-foreground">{batch.items.length} image • {countValidated} validated</p>
+                  <p className="mt-2 text-xs text-muted-foreground">{batch.items.length} {copy.imageCount} • {countValidated} {copy.validatedCount}</p>
                 </button>
               );
             })}
@@ -699,12 +828,12 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
               className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
             >
               <Upload className="h-4 w-4" />
-              Upload Images to Batch
+              {copy.uploadImages}
             </button>
           </div>
 
           <div className="border-t px-4 py-4 max-h-80 overflow-y-auto">
-            <p className="mb-3 text-sm font-semibold text-muted-foreground">Images</p>
+            <p className="mb-3 text-sm font-semibold text-muted-foreground">{copy.images}</p>
             <div className="space-y-3">
               {activeBatch?.items.map((item) => (
                 <button
@@ -725,9 +854,9 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                   <p className="font-semibold truncate">{item.filename}</p>
                   <div className="mt-2 flex items-center justify-between gap-2">
                     <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${statusStyles[item.status]}`}>
-                      {item.status}
+                      {copy.status[item.status]}
                     </span>
-                    <span className="text-xs text-muted-foreground">{item.boxes.length} box</span>
+                    <span className="text-xs text-muted-foreground">{item.boxes.length} {copy.box}</span>
                   </div>
                   {item.aiDetected && item.aiSpecies && (
                     <div className="mt-2 flex items-center gap-1.5 text-xs">
@@ -739,7 +868,7 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                 </button>
               ))}
               {!activeBatch?.items.length && (
-                <p className="text-sm text-muted-foreground">Belum ada image di batch ini.</p>
+                <p className="text-sm text-muted-foreground">{copy.emptyBatch}</p>
               )}
             </div>
           </div>
@@ -749,9 +878,9 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
           <div className="rounded-xl border bg-card shadow-sm">
             <div className="flex flex-col gap-4 border-b px-5 py-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <p className="text-base font-semibold">Interactive Bounding Box Editor</p>
+                <p className="text-base font-semibold">{copy.editorTitle}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  1) Pilih mode. 2) Gambar box. 3) Simpan. 4) Validasi.
+                  {copy.editorDesc}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -762,7 +891,7 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                   }`}
                 >
                   <SquareDashedMousePointer className="h-4 w-4" />
-                  Draw
+                  {copy.draw}
                 </button>
                 <button
                   onClick={() => setMode("select")}
@@ -771,7 +900,7 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                   }`}
                 >
                   <PencilRuler className="h-4 w-4" />
-                  Select/Edit
+                  {copy.selectEdit}
                 </button>
                 <div className="flex items-center gap-2 rounded-xl border bg-muted/30 px-3 py-2">
                   <Tag className="h-4 w-4 text-muted-foreground" />
@@ -793,7 +922,7 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                   className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
                 >
                   <Plus className="h-4 w-4" />
-                  Save Annotation
+                  {copy.saveAnnotation}
                 </button>
                 <button
                   onClick={validateAnnotation}
@@ -801,7 +930,7 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                   className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
                 >
                   <CheckCircle2 className="h-4 w-4" />
-                  Validate
+                  {copy.validate}
                 </button>
               </div>
             </div>
@@ -811,9 +940,9 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                 <div className="flex h-[520px] items-center justify-center rounded-xl border border-dashed bg-muted/20">
                   <div className="max-w-md text-center text-muted-foreground">
                     <ImageIcon className="mx-auto mb-3 h-12 w-12" />
-                    <p className="text-base font-medium text-foreground">Pilih image di sisi kiri untuk mulai anotasi.</p>
+                    <p className="text-base font-medium text-foreground">{copy.emptyEditorTitle}</p>
                     <p className="mt-2 text-sm leading-relaxed">
-                      Setelah image dipilih, gambar kotak pada objek lalu tekan Save Annotation.
+                      {copy.emptyEditorDesc}
                     </p>
                   </div>
                 </div>
@@ -840,8 +969,8 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                   {isDetecting && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-20">
                       <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
-                      <span className="text-sm font-medium animate-pulse">AI sedang mendeteksi tanaman...</span>
-                      <span className="text-xs text-muted-foreground mt-1">Menghubungi AI detection service</span>
+                      <span className="text-sm font-medium animate-pulse">{copy.aiDetecting}</span>
+                      <span className="text-xs text-muted-foreground mt-1">{copy.contactingAi}</span>
                     </div>
                   )}
 
@@ -851,7 +980,7 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                       <ScanSearch className="h-4 w-4 text-primary" />
                       <div className="flex flex-col">
                         <span className="text-sm font-semibold text-foreground">{activeItem.aiSpecies}</span>
-                        <span className="text-xs text-muted-foreground">{Math.round((activeItem.aiConfidence ?? 0) * 100)}% confidence</span>
+                        <span className="text-xs text-muted-foreground">{Math.round((activeItem.aiConfidence ?? 0) * 100)}% {copy.confidence}</span>
                       </div>
                       <button
                         type="button"
@@ -860,7 +989,7 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                           clearAiPrediction(activeItem.id);
                         }}
                         className="ml-1 rounded-full p-0.5 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                        title="Hapus prediksi AI"
+                        title={copy.deleteAiPrediction}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -923,17 +1052,17 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
           </div>
 
           <div className="rounded-lg border bg-card shadow-sm p-4">
-            <h4 className="text-base font-semibold">Box Properties</h4>
+            <h4 className="text-base font-semibold">{copy.boxProperties}</h4>
             {!selectedBox && (
               <p className="mt-2 text-sm text-muted-foreground">
-                Pilih bounding box untuk mengedit koordinat, class, atau hapus box.
+                {copy.boxHelp}
               </p>
             )}
 
             {selectedBox && activeItem && (
               <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-5">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Class</label>
+                  <label className="text-sm font-medium text-muted-foreground">{copy.class}</label>
                   <select
                     value={selectedBox.className}
                     onChange={(event) => updateSelectedBoxValue("className", event.target.value)}
@@ -966,9 +1095,9 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
 
                 <div className="md:col-span-5 flex flex-col gap-3 rounded-xl bg-muted/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm text-muted-foreground">
-                    Item status: <span className="font-medium text-foreground">{activeItem.status}</span>
+                    {copy.itemStatus}: <span className="font-medium text-foreground">{copy.status[activeItem.status]}</span>
                     {activeItem.validatedBy && activeItem.validatedAt && (
-                      <span> • validated by {activeItem.validatedBy} ({activeItem.validatedAt})</span>
+                      <span> • {copy.validatedBy} {activeItem.validatedBy} ({activeItem.validatedAt})</span>
                     )}
                   </p>
                   <button
@@ -976,7 +1105,7 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                     className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
                   >
                     <Trash2 className="h-4 w-4" />
-                    Delete Box
+                    {copy.deleteBox}
                   </button>
                 </div>
               </div>

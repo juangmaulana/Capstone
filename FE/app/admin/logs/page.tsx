@@ -2,6 +2,7 @@
 
 import { ScrollText, Filter, Info, AlertTriangle, AlertCircle, CheckCircle2, Server, Database, Wifi } from "lucide-react";
 import { useState } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type LogLevel = "info" | "warning" | "error" | "success";
 
@@ -40,8 +41,29 @@ const systemStatus = [
   { label: "External APIs", status: "Degraded", icon: Wifi, color: "text-amber-600" },
 ];
 
+const LOG_COPY = {
+  en: {
+    title: "Annotation & Verification Logs",
+    by: "by",
+    filters: { all: "all", info: "info", warning: "warning", error: "error", success: "success" },
+    levels: { info: "info", warning: "warning", error: "error", success: "success" },
+    sources: { Annotation: "Annotation", Verification: "Verification" },
+    status: { Online: "Online", Degraded: "Degraded" },
+  },
+  id: {
+    title: "Log Anotasi & Verifikasi",
+    by: "oleh",
+    filters: { all: "semua", info: "info", warning: "peringatan", error: "error", success: "berhasil" },
+    levels: { info: "info", warning: "peringatan", error: "error", success: "berhasil" },
+    sources: { Annotation: "Anotasi", Verification: "Verifikasi" },
+    status: { Online: "Online", Degraded: "Menurun" },
+  },
+} as const;
+
 export default function SystemLogs() {
   const [filter, setFilter] = useState<LogLevel | "all">("all");
+  const { language } = useLanguage();
+  const copy = LOG_COPY[language];
 
   const filteredLogs = filter === "all"
     ? MOCK_LOGS
@@ -56,7 +78,7 @@ export default function SystemLogs() {
             <s.icon className={`h-5 w-5 ${s.color}`} />
             <div>
               <p className="text-sm text-muted-foreground">{s.label}</p>
-              <p className={`text-sm font-semibold ${s.color}`}>{s.status}</p>
+              <p className={`text-sm font-semibold ${s.color}`}>{copy.status[s.status as keyof typeof copy.status] || s.status}</p>
             </div>
           </div>
         ))}
@@ -67,7 +89,7 @@ export default function SystemLogs() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b px-6 py-4">
           <div className="flex items-center gap-2">
             <ScrollText className="h-5 w-5 text-muted-foreground" />
-            <h2 className="text-lg font-semibold">Annotation & Verification Logs</h2>
+            <h2 className="text-lg font-semibold">{copy.title}</h2>
           </div>
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
@@ -81,7 +103,7 @@ export default function SystemLogs() {
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
                 }`}
               >
-                {level}
+                {copy.filters[level]}
               </button>
             ))}
           </div>
@@ -99,13 +121,13 @@ export default function SystemLogs() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${style.bg} ${style.text}`}>
-                      {log.level}
+                      {copy.levels[log.level]}
                     </span>
                     <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                      {log.source}
+                      {copy.sources[log.source as keyof typeof copy.sources] || log.source}
                     </span>
                     {log.user && (
-                      <span className="text-xs text-muted-foreground">by {log.user}</span>
+                      <span className="text-xs text-muted-foreground">{copy.by} {log.user}</span>
                     )}
                   </div>
                   <p className="mt-1 text-sm">{log.message}</p>

@@ -13,6 +13,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const growthData = [
   { month: "Aug", obs: 120 },
@@ -32,33 +33,64 @@ const abundanceData = [
   { species: "S. molesta", count: 67 },
 ];
 
-const diversityData = [
-  { name: "Invasive", value: 35 },
-  { name: "Native", value: 45 },
-  { name: "Unknown", value: 20 },
-];
-
 const PIE_COLORS = [
   "hsl(0, 66%, 47%)",
   "hsl(122, 46%, 33%)",
   "hsl(212, 79%, 42%)",
 ];
 
-const stats = [
-  { label: "Total Observations", value: "1,847", icon: Activity, trend: "+12%" },
-  { label: "Active Spread Zones", value: "24", icon: AlertTriangle, trend: "+3" },
-  { label: "High Risk Species", value: "8", icon: Bug, trend: "-1" },
-  { label: "Growth Rate", value: "14.2%", icon: TrendingUp, trend: "+2.1%" },
-];
+const ANALYTICS_COPY = {
+  en: {
+    title: "Analytics Overview",
+    growthTrend: "Growth Trend",
+    speciesAbundance: "Species Abundance",
+    speciesDiversity: "Species Diversity",
+    overallRisk: "Overall Risk Level",
+    low: "Low",
+    critical: "Critical",
+    moderateHigh: "Moderate-High (68%)",
+    diversity: ["Invasive", "Native", "Unknown"],
+    stats: [
+      { label: "Total Observations", value: "1,847", icon: Activity, trend: "+12%" },
+      { label: "Active Spread Zones", value: "24", icon: AlertTriangle, trend: "+3" },
+      { label: "High Risk Species", value: "8", icon: Bug, trend: "-1" },
+      { label: "Growth Rate", value: "14.2%", icon: TrendingUp, trend: "+2.1%" },
+    ],
+  },
+  id: {
+    title: "Ringkasan Analitik",
+    growthTrend: "Tren Pertumbuhan",
+    speciesAbundance: "Kelimpahan Spesies",
+    speciesDiversity: "Keanekaragaman Spesies",
+    overallRisk: "Tingkat Risiko Keseluruhan",
+    low: "Rendah",
+    critical: "Kritis",
+    moderateHigh: "Sedang-Tinggi (68%)",
+    diversity: ["Invasif", "Asli", "Tidak Diketahui"],
+    stats: [
+      { label: "Total Observasi", value: "1,847", icon: Activity, trend: "+12%" },
+      { label: "Zona Sebaran Aktif", value: "24", icon: AlertTriangle, trend: "+3" },
+      { label: "Spesies Risiko Tinggi", value: "8", icon: Bug, trend: "-1" },
+      { label: "Laju Pertumbuhan", value: "14.2%", icon: TrendingUp, trend: "+2.1%" },
+    ],
+  },
+} as const;
 
 export function AnalyticsPanel() {
+  const { language } = useLanguage();
+  const copy = ANALYTICS_COPY[language];
+  const diversityData = copy.diversity.map((name, index) => ({
+    name,
+    value: [35, 45, 20][index],
+  }));
+
   return (
     <div className="flex h-full flex-col gap-4 overflow-y-auto p-4">
-      <h2 className="panel-header">Analytics Overview</h2>
+      <h2 className="panel-header">{copy.title}</h2>
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 gap-3">
-        {stats.map((s) => (
+        {copy.stats.map((s) => (
           <div key={s.label} className="stat-card">
             <div className="flex items-center gap-2">
               <s.icon className="h-4 w-4 text-primary" />
@@ -74,7 +106,7 @@ export function AnalyticsPanel() {
 
       {/* Growth Trend */}
       <div className="stat-card">
-        <p className="panel-header mb-3 text-xs">Growth Trend</p>
+        <p className="panel-header mb-3 text-xs">{copy.growthTrend}</p>
         <ResponsiveContainer width="100%" height={150}>
           <LineChart data={growthData}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(150,14%,88%)" />
@@ -101,7 +133,7 @@ export function AnalyticsPanel() {
 
       {/* Abundance */}
       <div className="stat-card">
-        <p className="panel-header mb-3 text-xs">Species Abundance</p>
+        <p className="panel-header mb-3 text-xs">{copy.speciesAbundance}</p>
         <ResponsiveContainer width="100%" height={150}>
           <BarChart data={abundanceData} layout="vertical">
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(150,14%,88%)" />
@@ -122,7 +154,7 @@ export function AnalyticsPanel() {
 
       {/* Diversity */}
       <div className="stat-card">
-        <p className="panel-header mb-3 text-xs">Species Diversity</p>
+        <p className="panel-header mb-3 text-xs">{copy.speciesDiversity}</p>
         <ResponsiveContainer width="100%" height={160}>
           <PieChart>
             <Pie
@@ -160,7 +192,7 @@ export function AnalyticsPanel() {
 
       {/* Risk Meter */}
       <div className="stat-card">
-        <p className="panel-header mb-3 text-xs">Overall Risk Level</p>
+        <p className="panel-header mb-3 text-xs">{copy.overallRisk}</p>
         <div className="flex flex-col items-center gap-2">
           <div className="relative h-4 w-full overflow-hidden rounded-full bg-muted">
             <div
@@ -169,9 +201,9 @@ export function AnalyticsPanel() {
             />
           </div>
           <div className="flex w-full justify-between text-[11px] text-muted-foreground">
-            <span>Low</span>
-            <span className="font-semibold text-warning">Moderate-High (68%)</span>
-            <span>Critical</span>
+            <span>{copy.low}</span>
+            <span className="font-semibold text-warning">{copy.moderateHigh}</span>
+            <span>{copy.critical}</span>
           </div>
         </div>
       </div>

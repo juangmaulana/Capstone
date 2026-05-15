@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const MOCK_MARKERS = [
   { lat: -7.838, lng: 114.375, species: "Vachellia nilotica", location: "Savana Bekol, Baluran", date: "2025-12-15", source: "Field Survey", confidence: 96 },
@@ -21,9 +22,22 @@ const speciesColor: Record<string, string> = {
   "Ageratum conyzoides": "#00838F",
 };
 
+const MAP_COPY = {
+  en: {
+    legend: "Species Legend",
+    date: "Date",
+  },
+  id: {
+    legend: "Legenda Spesies",
+    date: "Tanggal",
+  },
+} as const;
+
 export function GISMap() {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<L.Map | null>(null);
+  const { language } = useLanguage();
+  const copy = MAP_COPY[language];
 
   useEffect(() => {
     if (!mapRef.current || mapInstance.current) return;
@@ -56,7 +70,7 @@ export function GISMap() {
         <div style="font-family:Inter,sans-serif;min-width:180px">
           <h3 style="margin:0 0 6px;font-size:14px;font-weight:600">${m.species}</h3>
           <p style="margin:4px 0;font-size:12px;color:#888;font-weight:500">${m.location}</p>
-          <p style="margin:4px 0;font-size:12px;color:#888">Date: ${m.date}</p>
+          <p style="margin:4px 0;font-size:12px;color:#888">${copy.date}: ${m.date}</p>
           <p style="margin:0;font-size:11px;color:#666">${m.lat.toFixed(2)}°, ${m.lng.toFixed(2)}°</p>
         </div>
       `);
@@ -77,7 +91,7 @@ export function GISMap() {
       map.remove();
       mapInstance.current = null;
     };
-  }, []);
+  }, [copy.date]);
 
   return (
     <div className="relative isolate h-full w-full">
@@ -85,7 +99,7 @@ export function GISMap() {
       
       {/* Species Legend */}
       <div className="absolute bottom-6 left-6 z-[1000] bg-background/90 backdrop-blur-md p-3 rounded-lg shadow-lg border border-border">
-        <p className="text-xs font-bold mb-2 text-foreground">Legenda Spesies</p>
+        <p className="text-xs font-bold mb-2 text-foreground">{copy.legend}</p>
         <div className="flex flex-col gap-1.5">
           {Object.entries(speciesColor).map(([species, color]) => (
             <div key={species} className="flex items-center gap-2">

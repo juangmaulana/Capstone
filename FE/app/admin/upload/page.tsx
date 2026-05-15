@@ -2,6 +2,7 @@
 
 import { Upload, FileSpreadsheet, FileText, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 import { useState, useRef } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const RECENT_UPLOADS = [
   { id: 1, filename: "baluran_survey_2026_q1.csv", type: "CSV", size: "2.4 MB", uploadedBy: "Dr. Andi Prasetyo", date: "2026-04-12", status: "Completed" },
@@ -10,9 +11,40 @@ const RECENT_UPLOADS = [
   { id: 4, filename: "field_report_feb.pdf", type: "PDF", size: "3.2 MB", uploadedBy: "Rudi Hermawan", date: "2026-04-05", status: "Failed" },
 ];
 
+const UPLOAD_COPY = {
+  en: {
+    title: "Upload Data Files",
+    drag: "Drag and drop files here, or click to browse",
+    supports: "Supports CSV, Excel, GeoJSON, and PDF files (max 50MB)",
+    formats: [
+      { label: "Spreadsheet", desc: "CSV, XLSX, XLS" },
+      { label: "GeoJSON", desc: "Geographic data" },
+      { label: "Documents", desc: "PDF reports" },
+    ],
+    recent: "Recent Uploads",
+    columns: ["Filename", "Type", "Size", "Uploaded By", "Date", "Status"],
+    status: { Completed: "Completed", Processing: "Processing", Failed: "Failed" },
+  },
+  id: {
+    title: "Unggah File Data",
+    drag: "Tarik dan lepas file di sini, atau klik untuk memilih",
+    supports: "Mendukung file CSV, Excel, GeoJSON, dan PDF (maks 50MB)",
+    formats: [
+      { label: "Spreadsheet", desc: "CSV, XLSX, XLS" },
+      { label: "GeoJSON", desc: "Data geografis" },
+      { label: "Dokumen", desc: "Laporan PDF" },
+    ],
+    recent: "Unggahan Terbaru",
+    columns: ["Nama File", "Tipe", "Ukuran", "Diunggah Oleh", "Tanggal", "Status"],
+    status: { Completed: "Selesai", Processing: "Diproses", Failed: "Gagal" },
+  },
+} as const;
+
 export default function UploadData() {
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { language } = useLanguage();
+  const copy = UPLOAD_COPY[language];
 
   return (
     <div className="p-6 space-y-6">
@@ -32,21 +64,21 @@ export default function UploadData() {
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
           <Upload className="h-8 w-8 text-primary" />
         </div>
-        <h3 className="mb-2 text-lg font-semibold">Upload Data Files</h3>
+        <h3 className="mb-2 text-lg font-semibold">{copy.title}</h3>
         <p className="mb-4 text-sm text-muted-foreground">
-          Drag & drop files here, or click to browse
+          {copy.drag}
         </p>
         <p className="text-xs text-muted-foreground">
-          Supports CSV, Excel, GeoJSON, and PDF files (max 50MB)
+          {copy.supports}
         </p>
       </div>
 
       {/* Supported Formats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { icon: FileSpreadsheet, label: "Spreadsheet", desc: "CSV, XLSX, XLS", color: "text-green-600 bg-green-50" },
-          { icon: FileText, label: "GeoJSON", desc: "Geographic data", color: "text-blue-600 bg-blue-50" },
-          { icon: FileText, label: "Documents", desc: "PDF reports", color: "text-amber-600 bg-amber-50" },
+          { icon: FileSpreadsheet, ...copy.formats[0], color: "text-green-600 bg-green-50" },
+          { icon: FileText, ...copy.formats[1], color: "text-blue-600 bg-blue-50" },
+          { icon: FileText, ...copy.formats[2], color: "text-amber-600 bg-amber-50" },
         ].map((fmt) => (
           <div key={fmt.label} className="stat-card flex items-center gap-3">
             <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${fmt.color}`}>
@@ -63,18 +95,15 @@ export default function UploadData() {
       {/* Recent Uploads Table */}
       <div className="rounded-lg border bg-card shadow-sm">
         <div className="border-b px-6 py-4">
-          <h2 className="text-lg font-semibold">Recent Uploads</h2>
+          <h2 className="text-lg font-semibold">{copy.recent}</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
-                <th className="px-6 py-3 text-left font-medium text-muted-foreground">Filename</th>
-                <th className="px-6 py-3 text-left font-medium text-muted-foreground">Type</th>
-                <th className="px-6 py-3 text-left font-medium text-muted-foreground">Size</th>
-                <th className="px-6 py-3 text-left font-medium text-muted-foreground">Uploaded By</th>
-                <th className="px-6 py-3 text-left font-medium text-muted-foreground">Date</th>
-                <th className="px-6 py-3 text-left font-medium text-muted-foreground">Status</th>
+                {copy.columns.map((column) => (
+                  <th key={column} className="px-6 py-3 text-left font-medium text-muted-foreground">{column}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -94,7 +123,7 @@ export default function UploadData() {
                       {file.status === "Completed" && <CheckCircle2 className="h-3 w-3" />}
                       {file.status === "Processing" && <Clock className="h-3 w-3" />}
                       {file.status === "Failed" && <AlertCircle className="h-3 w-3" />}
-                      {file.status}
+                      {copy.status[file.status as keyof typeof copy.status] || file.status}
                     </span>
                   </td>
                 </tr>
