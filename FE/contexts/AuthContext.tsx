@@ -24,6 +24,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const AUTH_STORAGE_KEY = "biowatch_admin_auth";
 const REGISTERED_USERS_KEY = "biowatch_registered_users";
 
+const getAuthStorage = () => sessionStorage;
+
 /* ─── Hardcoded fallback credentials (used when DB auth fails) ─── */
 const FALLBACK_CREDENTIALS = [
   { email: "admin", password: "admin123", name: "Admin", role: "Super Admin" },
@@ -49,13 +51,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Check for existing session on mount
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(AUTH_STORAGE_KEY);
+      const stored = getAuthStorage().getItem(AUTH_STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         setUser(parsed);
         setIsAuthenticated(true);
       }
     } catch {
+      getAuthStorage().removeItem(AUTH_STORAGE_KEY);
       localStorage.removeItem(AUTH_STORAGE_KEY);
     } finally {
       setIsLoading(false);
@@ -82,7 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           };
           setUser(userData);
           setIsAuthenticated(true);
-          localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(userData));
+          getAuthStorage().setItem(AUTH_STORAGE_KEY, JSON.stringify(userData));
+          localStorage.removeItem(AUTH_STORAGE_KEY);
           return true;
         }
       }
@@ -102,7 +106,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userData = { name: found.name, email: found.email, role: found.role };
       setUser(userData);
       setIsAuthenticated(true);
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(userData));
+      getAuthStorage().setItem(AUTH_STORAGE_KEY, JSON.stringify(userData));
+      localStorage.removeItem(AUTH_STORAGE_KEY);
       return true;
     }
 
@@ -174,6 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setUser(null);
     setIsAuthenticated(false);
+    getAuthStorage().removeItem(AUTH_STORAGE_KEY);
     localStorage.removeItem(AUTH_STORAGE_KEY);
   };
 

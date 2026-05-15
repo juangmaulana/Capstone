@@ -14,6 +14,7 @@ import {
   Tag,
   Trash2,
   Upload,
+  X,
 } from "lucide-react";
 
 const SPECIES_CLASSES = [
@@ -85,6 +86,12 @@ interface Props {
   onLog?: (level: "info" | "warning" | "error" | "success", source: string, message: string) => void;
 }
 
+interface SuccessNotice {
+  title: string;
+  message: string;
+  buttonLabel: string;
+}
+
 const statusStyles: Record<ItemStatus, string> = {
   pending: "bg-gray-100 text-gray-700",
   annotated: "bg-blue-100 text-blue-700",
@@ -151,6 +158,7 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
   const [isExporting, setIsExporting] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
   const [detectionError, setDetectionError] = useState<string | null>(null);
+  const [successNotice, setSuccessNotice] = useState<SuccessNotice | null>(null);
 
   const stageRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -487,9 +495,12 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
       validatedAt: undefined,
     }));
 
-    if (activeItem.boxes.length > 0) {
-      onLog?.("success", "Annotation", `Annotated image ${activeItem.filename}`);
-    }
+    onLog?.("success", "Annotation", `Saved annotation for image ${activeItem.filename}`);
+    setSuccessNotice({
+      title: "Annotation Berhasil Disimpan",
+      message: `Perubahan untuk ${activeItem.filename} sudah disimpan. Anda bisa lanjut menggambar box atau pilih image lain.`,
+      buttonLabel: "Lanjut Anotasi",
+    });
   };
 
   const validateAnnotation = () => {
@@ -502,7 +513,12 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
       validatedAt: toDateLabel(),
     }));
 
-    onLog?.("success", "Annotation", `Validated annotation for image ${activeItem.filename}`);
+    onLog?.("success", "Verification", `Validated annotation for image ${activeItem.filename}`);
+    setSuccessNotice({
+      title: "Annotation Berhasil Divalidasi",
+      message: `Data untuk ${activeItem.filename} sudah divalidasi dan siap diexport.`,
+      buttonLabel: "Selesai",
+    });
   };
 
   const exportBatchYoloZip = async () => {
@@ -575,6 +591,25 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
+      {successNotice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-green-600 shadow-inner">
+              <CheckCircle2 className="h-7 w-7" />
+            </div>
+            <h3 className="mt-4 text-xl font-semibold text-slate-900">{successNotice.title}</h3>
+            <p className="mt-3 text-sm leading-relaxed text-slate-600">{successNotice.message}</p>
+            <button
+              type="button"
+              onClick={() => setSuccessNotice(null)}
+              className="mt-5 inline-flex w-full items-center justify-center rounded-lg bg-green-600 px-4 py-3 text-sm font-semibold text-white hover:bg-green-700"
+            >
+              {successNotice.buttonLabel}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="stat-card">
           <p className="text-sm text-muted-foreground">Total Batch</p>
@@ -590,33 +625,50 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
         </div>
       </div>
 
-      <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4 flex items-start gap-3">
-        <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
-        <div>
-          <p className="text-sm font-medium text-blue-900">Incremental Learning Annotation</p>
-          <p className="text-xs text-blue-700 mt-1">
-            Upload batch image, gambar bounding box, simpan anotasi, validasi oleh admin, lalu export YOLO + ZIP image.
-          </p>
+      <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-5 shadow-sm">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+          <div>
+            <p className="text-base font-semibold text-blue-950">Panduan cepat</p>
+            <p className="mt-1 text-sm text-blue-800">
+              Ikuti urutan di bawah agar anotasi lebih mudah dibaca dan tidak membingungkan.
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-4">
+          {[
+            "1. Pilih batch dan image yang ingin dikerjakan.",
+            "2. Gambar kotak pada objek yang terlihat jelas.",
+            "3. Klik Save Annotation untuk menyimpan perubahan.",
+            "4. Klik Validate jika data sudah benar.",
+          ].map((step) => (
+            <div key={step} className="rounded-lg border bg-white px-4 py-3 text-sm leading-relaxed text-slate-700 shadow-sm">
+              {step}
+            </div>
+          ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
-        <div className="xl:col-span-1 rounded-lg border bg-card shadow-sm">
-          <div className="border-b px-4 py-3">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold">Batch Dataset</h3>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[340px_minmax(0,1fr)]">
+        <div className="rounded-xl border bg-card shadow-sm">
+          <div className="border-b px-5 py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-semibold">Batch Dataset</h3>
+                <p className="text-xs text-muted-foreground">Pilih batch lalu lanjutkan anotasi.</p>
+              </div>
               <button
                 onClick={exportBatchYoloZip}
                 disabled={isExporting || !activeBatch}
-                className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium hover:bg-muted disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
               >
-                <Download className="h-3.5 w-3.5" />
-                {isExporting ? "Export..." : "Export YOLO"}
+                <Download className="h-4 w-4" />
+                {isExporting ? "Exporting..." : "Export YOLO"}
               </button>
             </div>
           </div>
 
-          <div className="p-3 space-y-2 border-b">
+          <div className="border-b p-4 space-y-3">
             {batches.map((batch) => {
               const countValidated = batch.items.filter((item) => item.status === "validated").length;
               const isActive = batch.id === activeBatchId;
@@ -628,19 +680,19 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                     setActiveItemId(batch.items[0]?.id ?? null);
                     setSelectedBoxId(null);
                   }}
-                  className={`w-full rounded-lg border px-3 py-2 text-left transition-colors ${
+                  className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${
                     isActive ? "border-primary bg-primary/5" : "hover:bg-muted"
                   }`}
                 >
-                  <p className="text-sm font-medium">{batch.name}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{batch.period}</p>
-                  <p className="text-[11px] mt-1 text-muted-foreground">{batch.items.length} image • {countValidated} validated</p>
+                  <p className="text-sm font-semibold">{batch.name}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{batch.period}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">{batch.items.length} image • {countValidated} validated</p>
                 </button>
               );
             })}
           </div>
 
-          <div className="p-3">
+          <div className="p-4">
             <input
               ref={fileInputRef}
               type="file"
@@ -651,16 +703,16 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
             />
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
             >
               <Upload className="h-4 w-4" />
               Upload Images to Batch
             </button>
           </div>
 
-          <div className="border-t px-3 py-2 max-h-72 overflow-y-auto">
-            <p className="text-xs font-semibold mb-2 text-muted-foreground">Images</p>
-            <div className="space-y-2">
+          <div className="border-t px-4 py-4 max-h-80 overflow-y-auto">
+            <p className="mb-3 text-sm font-semibold text-muted-foreground">Images</p>
+            <div className="space-y-3">
               {activeBatch?.items.map((item) => (
                 <button
                   key={item.id}
@@ -673,67 +725,67 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                       detectPlant(item);
                     }
                   }}
-                  className={`w-full rounded-md border px-2 py-2 text-left text-xs transition-colors ${
+                  className={`w-full rounded-xl border px-3 py-3 text-left text-sm transition-colors ${
                     activeItemId === item.id ? "border-primary bg-primary/5" : "hover:bg-muted"
                   }`}
                 >
-                  <p className="font-medium truncate">{item.filename}</p>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${statusStyles[item.status]}`}>
+                  <p className="font-semibold truncate">{item.filename}</p>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${statusStyles[item.status]}`}>
                       {item.status}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">{item.boxes.length} box</span>
+                    <span className="text-xs text-muted-foreground">{item.boxes.length} box</span>
                   </div>
                   {item.aiDetected && item.aiSpecies && (
-                    <div className="flex items-center gap-1 mt-1">
-                      <ScanSearch className="h-3 w-3 text-primary" />
-                      <span className="text-[10px] text-primary font-medium truncate">{item.aiSpecies}</span>
-                      <span className="text-[10px] text-muted-foreground">{Math.round((item.aiConfidence ?? 0) * 100)}%</span>
+                    <div className="mt-2 flex items-center gap-1.5 text-xs">
+                      <ScanSearch className="h-3.5 w-3.5 text-primary" />
+                      <span className="font-medium text-primary truncate">{item.aiSpecies}</span>
+                      <span className="text-muted-foreground">{Math.round((item.aiConfidence ?? 0) * 100)}%</span>
                     </div>
                   )}
                 </button>
               ))}
               {!activeBatch?.items.length && (
-                <p className="text-xs text-muted-foreground">Belum ada image di batch ini.</p>
+                <p className="text-sm text-muted-foreground">Belum ada image di batch ini.</p>
               )}
             </div>
           </div>
         </div>
 
         <div className="xl:col-span-3 space-y-4">
-          <div className="rounded-lg border bg-card shadow-sm">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 border-b px-4 py-3">
+          <div className="rounded-xl border bg-card shadow-sm">
+            <div className="flex flex-col gap-4 border-b px-5 py-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <p className="text-sm font-semibold">Interactive Bounding Box Editor</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Mode draw untuk tambah box baru, mode select untuk edit box terpilih.
+                <p className="text-base font-semibold">Interactive Bounding Box Editor</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  1) Pilih mode. 2) Gambar box. 3) Simpan. 4) Validasi.
                 </p>
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => setMode("draw")}
-                  className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium ${
+                  className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium ${
                     mode === "draw" ? "bg-primary text-primary-foreground" : "hover:bg-muted"
                   }`}
                 >
-                  <SquareDashedMousePointer className="h-3.5 w-3.5" />
+                  <SquareDashedMousePointer className="h-4 w-4" />
                   Draw
                 </button>
                 <button
                   onClick={() => setMode("select")}
-                  className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium ${
+                  className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium ${
                     mode === "select" ? "bg-primary text-primary-foreground" : "hover:bg-muted"
                   }`}
                 >
-                  <PencilRuler className="h-3.5 w-3.5" />
+                  <PencilRuler className="h-4 w-4" />
                   Select/Edit
                 </button>
-                <div className="flex items-center gap-2">
-                  <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+                <div className="flex items-center gap-2 rounded-xl border bg-muted/30 px-3 py-2">
+                  <Tag className="h-4 w-4 text-muted-foreground" />
                   <select
                     value={selectedClass}
                     onChange={(event) => setSelectedClass(event.target.value)}
-                    className="h-8 rounded-md border bg-background px-2 text-xs"
+                    className="h-9 rounded-lg border bg-background px-3 text-sm"
                   >
                     {SPECIES_CLASSES.map((label) => (
                       <option key={label} value={label}>
@@ -745,28 +797,31 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                 <button
                   onClick={saveAnnotation}
                   disabled={!activeItem}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
                 >
-                  <Plus className="h-3.5 w-3.5" />
+                  <Plus className="h-4 w-4" />
                   Save Annotation
                 </button>
                 <button
                   onClick={validateAnnotation}
                   disabled={!activeItem || activeItem.boxes.length === 0}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
                 >
-                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <CheckCircle2 className="h-4 w-4" />
                   Validate
                 </button>
               </div>
             </div>
 
-            <div className="p-4">
+            <div className="p-5">
               {!activeItem && (
-                <div className="h-[420px] rounded-lg border border-dashed bg-muted/20 flex items-center justify-center">
-                  <div className="text-center text-muted-foreground">
-                    <ImageIcon className="h-10 w-10 mx-auto mb-2" />
-                    <p className="text-sm">Pilih image di sisi kiri untuk mulai anotasi.</p>
+                <div className="flex h-[520px] items-center justify-center rounded-xl border border-dashed bg-muted/20">
+                  <div className="max-w-md text-center text-muted-foreground">
+                    <ImageIcon className="mx-auto mb-3 h-12 w-12" />
+                    <p className="text-base font-medium text-foreground">Pilih image di sisi kiri untuk mulai anotasi.</p>
+                    <p className="mt-2 text-sm leading-relaxed">
+                      Setelah image dipilih, gambar kotak pada objek lalu tekan Save Annotation.
+                    </p>
                   </div>
                 </div>
               )}
@@ -774,7 +829,7 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
               {activeItem && (
                 <div
                   ref={stageRef}
-                  className="relative w-full h-[420px] rounded-lg border bg-black/5 overflow-hidden select-none"
+                  className="relative h-[520px] w-full overflow-hidden rounded-xl border bg-black/5 select-none"
                   onMouseDown={startDraw}
                   onMouseMove={moveDraw}
                   onMouseUp={finishDraw}
@@ -799,11 +854,11 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
 
                   {/* AI Detection result badge */}
                   {activeItem.aiDetected && activeItem.aiSpecies && !isDetecting && (
-                    <div className="absolute top-3 left-3 z-10 flex items-center gap-2 rounded-lg bg-background/90 backdrop-blur-md px-3 py-1.5 shadow-lg border">
+                    <div className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded-xl border bg-background/90 px-3 py-2 shadow-lg backdrop-blur-md">
                       <ScanSearch className="h-4 w-4 text-primary" />
                       <div className="flex flex-col">
-                        <span className="text-xs font-bold text-foreground">{activeItem.aiSpecies}</span>
-                        <span className="text-[10px] text-muted-foreground">{Math.round((activeItem.aiConfidence ?? 0) * 100)}% confidence</span>
+                        <span className="text-sm font-semibold text-foreground">{activeItem.aiSpecies}</span>
+                        <span className="text-xs text-muted-foreground">{Math.round((activeItem.aiConfidence ?? 0) * 100)}% confidence</span>
                       </div>
                       <button
                         type="button"
@@ -821,9 +876,9 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
 
                   {/* Detection error */}
                   {detectionError && !isDetecting && (
-                    <div className="absolute top-3 left-3 z-10 flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/30 px-3 py-1.5">
+                    <div className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2">
                       <AlertCircle className="h-4 w-4 text-destructive" />
-                      <span className="text-xs text-destructive">{detectionError}</span>
+                      <span className="text-sm text-destructive">{detectionError}</span>
                     </div>
                   )}
 
@@ -875,21 +930,21 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
           </div>
 
           <div className="rounded-lg border bg-card shadow-sm p-4">
-            <h4 className="text-sm font-semibold">Box Properties</h4>
+            <h4 className="text-base font-semibold">Box Properties</h4>
             {!selectedBox && (
-              <p className="text-xs text-muted-foreground mt-2">
+              <p className="mt-2 text-sm text-muted-foreground">
                 Pilih bounding box untuk mengedit koordinat, class, atau hapus box.
               </p>
             )}
 
             {selectedBox && activeItem && (
-              <div className="mt-3 grid grid-cols-1 md:grid-cols-5 gap-3">
+              <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-5">
                 <div>
-                  <label className="text-[11px] font-medium text-muted-foreground">Class</label>
+                  <label className="text-sm font-medium text-muted-foreground">Class</label>
                   <select
                     value={selectedBox.className}
                     onChange={(event) => updateSelectedBoxValue("className", event.target.value)}
-                    className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-sm"
+                    className="mt-1 h-11 w-full rounded-lg border bg-background px-3 text-base"
                   >
                     {SPECIES_CLASSES.map((label) => (
                       <option key={label} value={label}>
@@ -905,19 +960,19 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                   ["height", selectedBox.height],
                 ] as const).map(([field, value]) => (
                   <div key={field}>
-                    <label className="text-[11px] font-medium text-muted-foreground capitalize">{field}</label>
+                    <label className="text-sm font-medium text-muted-foreground capitalize">{field}</label>
                     <input
                       type="number"
                       min={0}
                       value={Math.round(value)}
                       onChange={(event) => updateSelectedBoxValue(field, Number(event.target.value))}
-                      className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-sm"
+                      className="mt-1 h-11 w-full rounded-lg border bg-background px-3 text-base"
                     />
                   </div>
                 ))}
 
-                <div className="md:col-span-5 flex items-center justify-between rounded-md bg-muted/40 px-3 py-2">
-                  <p className="text-xs text-muted-foreground">
+                <div className="md:col-span-5 flex flex-col gap-3 rounded-xl bg-muted/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-muted-foreground">
                     Item status: <span className="font-medium text-foreground">{activeItem.status}</span>
                     {activeItem.validatedBy && activeItem.validatedAt && (
                       <span> • validated by {activeItem.validatedBy} ({activeItem.validatedAt})</span>
@@ -925,9 +980,9 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                   </p>
                   <button
                     onClick={deleteSelectedBox}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                    className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-4 w-4" />
                     Delete Box
                   </button>
                 </div>
