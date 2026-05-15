@@ -1,7 +1,7 @@
-import { db } from '@/server/db'
-import { plantModule } from './module'
-import { createPlantRepo } from './repo'
+import { db } from '@/server/db';
+import { createPlantModule } from './module';
+import { createPlantRepo } from './repo';
 
-export const plant = plantModule({
-  plantRepo: createPlantRepo(db),
+export const plant = createPlantModule({
+  plantRepo: createPlantRepo(db)
 })

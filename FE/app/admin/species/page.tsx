@@ -214,7 +214,7 @@ export default function SpeciesManagement() {
                     <td className="px-6 py-4 text-muted-foreground">{species.family}</td>
                     <td className="px-6 py-4 text-muted-foreground">{species.genus}</td>
                     <td className="px-6 py-4 text-muted-foreground">
-                      {new Date(species.updatedAt).toLocaleDateString()}
+                      {species.updatedAt}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
