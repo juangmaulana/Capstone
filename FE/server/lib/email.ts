@@ -12,7 +12,8 @@ const transporter = nodemailer.createTransport({
 
 const FROM_ADDRESS = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@biowatch.id';
 const APP_NAME = 'BioWatch';
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+const APP_URL = process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_APP_URL ? process.env.NEXT_PUBLIC_APP_URL : 'http://194.233.74.133:3000';
+const ADMIN_LOGIN_URL = `${APP_URL}/admin`;
 
 export interface SendEmailOptions {
   to: string;
@@ -28,10 +29,10 @@ export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
       subject: options.subject,
       html: options.html,
     });
-    console.log(`✅ Email sent to ${options.to}: ${options.subject}`);
+    console.log(`Email sent to ${options.to}: ${options.subject}`);
     return true;
   } catch (error) {
-    console.error('❌ Failed to send email:', error);
+    console.error('Failed to send email:', error);
     return false;
   }
 }
@@ -40,7 +41,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
  * Send welcome email with temporary credentials to a new user
  */
 export async function sendWelcomeEmail(to: string, name: string, tempPassword: string): Promise<boolean> {
-  const loginUrl = `${APP_URL}/admin`;
+  const loginUrl = ADMIN_LOGIN_URL;
 
   const html = `
 <!DOCTYPE html>

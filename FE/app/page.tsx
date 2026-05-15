@@ -14,30 +14,17 @@ export default function Dashboard() {
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Fetch species list from API
+  // Canonical species list
   useEffect(() => {
-    async function fetchSpecies() {
-      try {
-        const res = await fetch("/api/v1/plants?limit=100");
-        const json = await res.json();
-        if (json.success && json.data) {
-          setSpeciesList(json.data.map((p: any) => p.scientificName || p.scientific_name));
-        }
-      } catch (err) {
-        console.error("Failed to fetch species:", err);
-        // Fallback
-        setSpeciesList([
-          "Vachellia nilotica",
-          "Ageratum conyzoides",
-          "Chromolaena odorata",
-          "Lantana camara",
-          "Mikania micrantha",
-        ]);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchSpecies();
+    const CANONICAL_SPECIES = [
+      "Vachellia nilotica",
+      "Ageratum conyzoides",
+      "Lantana camara",
+      "Clitoria ternatea",
+      "Merremia hederacea",
+    ];
+    setSpeciesList(CANONICAL_SPECIES);
+    setIsLoading(false);
   }, []);
 
   const handleSearch = (e?: React.FormEvent, queryOverride?: string) => {

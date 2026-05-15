@@ -15,7 +15,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   registerUser: (email: string, password: string, name: string, role: string) => void;
-  updatePassword: (email: string, currentPassword: string, newPassword: string) => boolean;
+  updatePassword: (email: string, currentPassword: string, newPassword: string) => Promise<boolean>;
   isLoading: boolean;
 }
 
@@ -120,7 +120,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updatePassword = (email: string, currentPassword: string, newPassword: string): boolean => {
+  const updatePassword = async (email: string, currentPassword: string, newPassword: string): Promise<boolean> => {
+    // Try backend API first (for users authenticated via DB)
+    try {
+      const res = await fetch("/api/v1/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, currentPassword, newPassword }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success) return true;
+        // API responded but rejected (e.g., wrong password)
+        return false;
+      }
+      // API route exists but returned error (not 404/network)
+      if (res.status !== 404 && res.status !== 405) {
+        return false;
+      }
+    } catch {
+      // Network error or API unavailable — fall through to local check
+    }
+
+    // Fallback: local credential check (for fallback/offline logins)
     try {
       // Check registered users in localStorage
       const stored = localStorage.getItem(REGISTERED_USERS_KEY);

@@ -24,9 +24,18 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   const input = parseWithZod(createUserSchema, rawBody)
   const data = await user.commands.create(input)
 
-  // Send welcome email with temporary password
-  // We use the raw password from input before it was hashed by the command
-  await sendWelcomeEmail(input.email, input.name, input.password);
+  // Send welcome email with temporary password (non-blocking — don't fail user creation if email fails)
+  sendWelcomeEmail(input.email, input.name, input.password)
+    .then((sent) => {
+      if (sent) {
+        console.log(`Welcome email sent to ${input.email}`);
+      } else {
+        console.warn(`Welcome email could not be sent to ${input.email} — check SMTP configuration`);
+      }
+    })
+    .catch((err) => {
+      console.error(`Welcome email error for ${input.email}:`, err);
+    });
 
   return NextResponse.json({ success: true, data }, { status: 201 })
 })

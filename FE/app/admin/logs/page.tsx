@@ -15,16 +15,16 @@ interface LogEntry {
 }
 
 const MOCK_LOGS: LogEntry[] = [
-  { id: 1, timestamp: "2026-04-15 09:32:14", level: "info", source: "Auth", message: "User login successful", user: "Dr. Andi Prasetyo" },
-  { id: 2, timestamp: "2026-04-15 09:28:05", level: "success", source: "Data", message: "Species observation batch upload completed (142 records)", user: "Siti Nurhaliza" },
-  { id: 3, timestamp: "2026-04-15 09:15:42", level: "warning", source: "System", message: "High memory usage detected on prediction service (87%)" },
-  { id: 4, timestamp: "2026-04-15 08:55:30", level: "error", source: "API", message: "GeoJSON processing failed — invalid coordinate format", user: "Budi Santoso" },
-  { id: 5, timestamp: "2026-04-15 08:40:11", level: "info", source: "Auth", message: "User login successful", user: "Rudi Hermawan" },
-  { id: 6, timestamp: "2026-04-15 08:22:00", level: "success", source: "SDM", message: "Prediction model training completed — Acacia nilotica (2026)" },
-  { id: 7, timestamp: "2026-04-15 07:55:18", level: "info", source: "System", message: "Daily database backup completed successfully" },
-  { id: 8, timestamp: "2026-04-15 07:30:00", level: "warning", source: "API", message: "Rate limit approaching for external GBIF API requests (85%)" },
-  { id: 9, timestamp: "2026-04-14 23:00:00", level: "info", source: "System", message: "Scheduled maintenance window started" },
-  { id: 10, timestamp: "2026-04-14 22:15:33", level: "error", source: "Data", message: "CSV import failed — duplicate species record detected", user: "Maya Putri" },
+  { id: 1, timestamp: "2026-04-15 09:32:14", level: "success", source: "Annotation", message: "Annotated image IMG_20260115_001.jpg — species: Vachellia nilotica", user: "Siti Nurhaliza" },
+  { id: 2, timestamp: "2026-04-15 09:28:05", level: "success", source: "Verification", message: "Validated annotation for IMG_20260115_001.jpg", user: "Dr. Andi Prasetyo" },
+  { id: 3, timestamp: "2026-04-15 09:15:42", level: "success", source: "Annotation", message: "Annotated image IMG_20260118_002.jpg — species: Lantana camara", user: "Budi Santoso" },
+  { id: 4, timestamp: "2026-04-15 08:55:30", level: "success", source: "Verification", message: "Validated annotation for IMG_20260118_002.jpg", user: "Dr. Andi Prasetyo" },
+  { id: 5, timestamp: "2026-04-15 08:40:11", level: "success", source: "Annotation", message: "Annotated image IMG_20260205_003.jpg — species: Ageratum conyzoides (corrected from Clitoria ternatea)", user: "Siti Nurhaliza" },
+  { id: 6, timestamp: "2026-04-15 08:22:00", level: "warning", source: "Annotation", message: "Annotation for IMG_20260305_006.jpg — image too blurry, marked as Unknown", user: "Siti Nurhaliza" },
+  { id: 7, timestamp: "2026-04-15 07:55:18", level: "error", source: "Verification", message: "Rejected annotation for IMG_20260305_006.jpg — image quality insufficient", user: "Dr. Andi Prasetyo" },
+  { id: 8, timestamp: "2026-04-14 23:00:00", level: "success", source: "Annotation", message: "Annotated image IMG_20260222_005.jpg — species: Merremia hederacea", user: "Rudi Hermawan" },
+  { id: 9, timestamp: "2026-04-14 22:15:33", level: "success", source: "Verification", message: "Validated annotation for IMG_20260210_004.jpg", user: "Dr. Andi Prasetyo" },
+  { id: 10, timestamp: "2026-04-14 21:30:00", level: "info", source: "Annotation", message: "Batch Q1 2026 — 2 images remaining for annotation", user: "Dr. Andi Prasetyo" },
 ];
 
 const LEVEL_STYLES: Record<LogLevel, { bg: string; text: string; icon: typeof Info }> = {
@@ -67,7 +67,7 @@ export default function SystemLogs() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b px-6 py-4">
           <div className="flex items-center gap-2">
             <ScrollText className="h-5 w-5 text-muted-foreground" />
-            <h2 className="text-lg font-semibold">Activity Logs</h2>
+            <h2 className="text-lg font-semibold">Annotation & Verification Logs</h2>
           </div>
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />

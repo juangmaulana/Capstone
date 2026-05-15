@@ -77,12 +77,16 @@ interface LogEntry {
 }
 
 const MOCK_LOGS: LogEntry[] = [
-  { id: 1, timestamp: "2026-04-15 09:32:14", level: "info", source: "Auth", message: "User login successful", user: "Dr. Andi Prasetyo" },
-  { id: 2, timestamp: "2026-04-15 09:15:20", level: "info", source: "Auth", message: "User logout successful", user: "Dr. Andi Prasetyo" },
-  { id: 5, timestamp: "2026-04-15 08:40:11", level: "info", source: "Auth", message: "User login successful", user: "Rudi Hermawan" },
-  { id: 6, timestamp: "2026-04-15 08:05:30", level: "info", source: "Auth", message: "User logout successful", user: "Rudi Hermawan" },
-  { id: 9, timestamp: "2026-04-15 07:15:00", level: "warning", source: "Auth", message: "Failed login attempt", user: "Unknown" },
-  { id: 10, timestamp: "2026-04-14 22:10:05", level: "error", source: "Auth", message: "Account locked due to multiple failed attempts", user: "Maya Putri" },
+  { id: 1, timestamp: "2026-04-15 09:32:14", level: "success", source: "Annotation", message: "Annotated image IMG_20260115_001.jpg — species: Vachellia nilotica", user: "Siti Nurhaliza" },
+  { id: 2, timestamp: "2026-04-15 09:28:05", level: "success", source: "Verification", message: "Validated annotation for IMG_20260115_001.jpg", user: "Dr. Andi Prasetyo" },
+  { id: 3, timestamp: "2026-04-15 09:15:42", level: "success", source: "Annotation", message: "Annotated image IMG_20260118_002.jpg — species: Lantana camara", user: "Budi Santoso" },
+  { id: 4, timestamp: "2026-04-15 08:55:30", level: "success", source: "Verification", message: "Validated annotation for IMG_20260118_002.jpg", user: "Dr. Andi Prasetyo" },
+  { id: 5, timestamp: "2026-04-15 08:40:11", level: "success", source: "Annotation", message: "Annotated image IMG_20260205_003.jpg — species: Ageratum conyzoides (corrected from Clitoria ternatea)", user: "Siti Nurhaliza" },
+  { id: 6, timestamp: "2026-04-15 08:22:00", level: "warning", source: "Annotation", message: "Annotation for IMG_20260305_006.jpg — image too blurry, marked as Unknown", user: "Siti Nurhaliza" },
+  { id: 7, timestamp: "2026-04-15 07:55:18", level: "error", source: "Verification", message: "Rejected annotation for IMG_20260305_006.jpg — image quality insufficient", user: "Dr. Andi Prasetyo" },
+  { id: 8, timestamp: "2026-04-14 23:00:00", level: "success", source: "Annotation", message: "Annotated image IMG_20260222_005.jpg — species: Merremia hederacea", user: "Rudi Hermawan" },
+  { id: 9, timestamp: "2026-04-14 22:15:33", level: "success", source: "Verification", message: "Validated annotation for IMG_20260210_004.jpg", user: "Dr. Andi Prasetyo" },
+  { id: 10, timestamp: "2026-04-14 21:30:00", level: "info", source: "Annotation", message: "Batch Q1 2026 — 2 images remaining for annotation", user: "Dr. Andi Prasetyo" },
 ];
 
 const LEVEL_STYLES: Record<LogLevel, { bg: string; text: string; icon: typeof Info }> = {
@@ -143,14 +147,14 @@ const MOCK_ANNOTATION_BATCHES: AnnotationBatch[] = [
     createdBy: "Dr. Andi Prasetyo",
     createdDate: "2026-04-01",
     items: [
-      { id: 101, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260115_001.jpg", capturedDate: "2026-01-15", location: "Savana Bekol, Baluran", coordinates: "-7.8503, 114.3680", predictedSpecies: "Acacia nilotica", confidence: 0.92, annotatedSpecies: "Acacia nilotica", annotatedBy: "Siti Nurhaliza", annotatedDate: "2026-04-02", validatedBy: "Dr. Andi Prasetyo", validatedDate: "2026-04-03", status: "validated", notes: "Clear image, correct identification" },
+      { id: 101, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260115_001.jpg", capturedDate: "2026-01-15", location: "Savana Bekol, Baluran", coordinates: "-7.8503, 114.3680", predictedSpecies: "Vachellia nilotica", confidence: 0.92, annotatedSpecies: "Vachellia nilotica", annotatedBy: "Siti Nurhaliza", annotatedDate: "2026-04-02", validatedBy: "Dr. Andi Prasetyo", validatedDate: "2026-04-03", status: "validated", notes: "Clear image, correct identification" },
       { id: 102, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260118_002.jpg", capturedDate: "2026-01-18", location: "Pantai Bama, Baluran", coordinates: "-7.8215, 114.3842", predictedSpecies: "Lantana camara", confidence: 0.87, annotatedSpecies: "Lantana camara", annotatedBy: "Budi Santoso", annotatedDate: "2026-04-03", validatedBy: "Dr. Andi Prasetyo", validatedDate: "2026-04-04", status: "validated" },
-      { id: 103, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260205_003.jpg", capturedDate: "2026-02-05", location: "Evergreen Forest Trail", coordinates: "-7.8412, 114.3756", predictedSpecies: "Chromolaena odorata", confidence: 0.78, annotatedSpecies: "Ageratum conyzoides", annotatedBy: "Siti Nurhaliza", annotatedDate: "2026-04-05", status: "annotated", notes: "Model predicted wrong — leaves are different" },
-      { id: 104, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260210_004.jpg", capturedDate: "2026-02-10", location: "Savana Balanan", coordinates: "-7.8601, 114.3520", predictedSpecies: "Acacia nilotica", confidence: 0.95, annotatedSpecies: "Acacia nilotica", annotatedBy: "Budi Santoso", annotatedDate: "2026-04-05", validatedBy: "Dr. Andi Prasetyo", validatedDate: "2026-04-06", status: "validated" },
-      { id: 105, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260222_005.jpg", capturedDate: "2026-02-22", location: "Tanjung Sedano", coordinates: "-7.8003, 114.3910", predictedSpecies: "Mikania micrantha", confidence: 0.65, annotatedSpecies: "Mikania micrantha", annotatedBy: "Rudi Hermawan", annotatedDate: "2026-04-06", status: "annotated", notes: "Low confidence — partially occluded by other vegetation" },
+      { id: 103, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260205_003.jpg", capturedDate: "2026-02-05", location: "Evergreen Forest Trail", coordinates: "-7.8412, 114.3756", predictedSpecies: "Clitoria ternatea", confidence: 0.78, annotatedSpecies: "Ageratum conyzoides", annotatedBy: "Siti Nurhaliza", annotatedDate: "2026-04-05", status: "annotated", notes: "Model predicted wrong — leaves are different" },
+      { id: 104, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260210_004.jpg", capturedDate: "2026-02-10", location: "Savana Balanan", coordinates: "-7.8601, 114.3520", predictedSpecies: "Vachellia nilotica", confidence: 0.95, annotatedSpecies: "Vachellia nilotica", annotatedBy: "Budi Santoso", annotatedDate: "2026-04-05", validatedBy: "Dr. Andi Prasetyo", validatedDate: "2026-04-06", status: "validated" },
+      { id: 105, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260222_005.jpg", capturedDate: "2026-02-22", location: "Tanjung Sedano", coordinates: "-7.8003, 114.3910", predictedSpecies: "Merremia hederacea", confidence: 0.65, annotatedSpecies: "Merremia hederacea", annotatedBy: "Rudi Hermawan", annotatedDate: "2026-04-06", status: "annotated", notes: "Low confidence — partially occluded by other vegetation" },
       { id: 106, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260305_006.jpg", capturedDate: "2026-03-05", location: "Watu Numpuk", coordinates: "-7.8320, 114.3615", predictedSpecies: "Lantana camara", confidence: 0.43, annotatedSpecies: "Unknown", annotatedBy: "Siti Nurhaliza", annotatedDate: "2026-04-07", status: "rejected", notes: "Image too blurry — cannot identify species" },
       { id: 107, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260312_007.jpg", capturedDate: "2026-03-12", location: "Kramat Area", coordinates: "-7.8550, 114.3700", predictedSpecies: "Ageratum conyzoides", confidence: 0.81, status: "pending" },
-      { id: 108, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260325_008.jpg", capturedDate: "2026-03-25", location: "Savana Bekol, Baluran", coordinates: "-7.8488, 114.3695", predictedSpecies: "Chromolaena odorata", confidence: 0.73, status: "pending" },
+      { id: 108, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260325_008.jpg", capturedDate: "2026-03-25", location: "Savana Bekol, Baluran", coordinates: "-7.8488, 114.3695", predictedSpecies: "Clitoria ternatea", confidence: 0.73, status: "pending" },
     ],
   },
   {
@@ -250,18 +254,21 @@ export default function AdminPage() {
       rolesData.forEach(r => { roleMap[r.id] = r.name; });
 
       if (usersJson.success && usersJson.data) {
-        setUsers(usersJson.data.map((u: ApiUser) => ({
-          id: u.id,
-          name: u.name,
-          email: u.email,
-          role: roleMap[u.roleId || u.role_id || 0] || "User",
-          roleId: u.roleId || u.role_id || 0,
-          status: "Active", // Default to Active since we don't have a status column yet
-          lastLogin: u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString('id-ID', {
-            dateStyle: 'medium',
-            timeStyle: 'short'
-          }) : "-",
-        })));
+        setUsers(usersJson.data.map((u: ApiUser) => {
+          const roleName = roleMap[u.roleId || u.role_id || 0] || "User";
+          return {
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            role: roleName === "Field Officer" ? "Ranger" : roleName,
+            roleId: u.roleId || u.role_id || 0,
+            status: "Active",
+            lastLogin: u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString('id-ID', {
+              dateStyle: 'medium',
+              timeStyle: 'short'
+            }) : "-",
+          };
+        }));
       }
     } catch (e) { console.error("Failed to fetch users:", e); }
     setIsLoadingUsers(false);
@@ -335,7 +342,9 @@ export default function AdminPage() {
     if (!addUserForm.name.trim()) { setAddUserError("Nama user wajib diisi"); return; }
 
     const tempPassword = generateTempPassword();
-    const selectedRole = roles.find(r => r.name === addUserForm.role);
+    // Handle "Ranger" mapping to "Field Officer" if database hasn't been updated
+    const searchRoleName = addUserForm.role === "Ranger" ? "Field Officer" : addUserForm.role;
+    const selectedRole = roles.find(r => r.name === addUserForm.role) || roles.find(r => r.name === searchRoleName);
     if (!selectedRole) { setAddUserError("Role tidak ditemukan"); return; }
 
     try {
@@ -375,7 +384,8 @@ export default function AdminPage() {
 
   const submitRoleChange = async () => {
     if (!editRoleUser) return;
-    const selectedRole = roles.find(r => r.name === editRoleValue);
+    const searchRoleName = editRoleValue === "Ranger" ? "Field Officer" : editRoleValue;
+    const selectedRole = roles.find(r => r.name === editRoleValue) || roles.find(r => r.name === searchRoleName);
     if (!selectedRole) return;
     try {
       await fetch(`/api/v1/users/${editRoleUser.id}`, {
@@ -435,7 +445,7 @@ export default function AdminPage() {
     setShowProfile(true);
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     const errors = { repeatNewPassword: "", currentPassword: "" };
     let hasError = false;
 
@@ -458,8 +468,8 @@ export default function AdminPage() {
     setPasswordErrors(errors);
     if (hasError) return;
 
-    // Actually update the password in the credential store
-    const success = updatePassword(
+    // Actually update the password via API (or local fallback)
+    const success = await updatePassword(
       user?.email || "",
       passwordForm.currentPassword,
       passwordForm.newPassword
@@ -951,7 +961,7 @@ export default function AdminPage() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b px-6 py-4">
               <div className="flex items-center gap-2">
                 <ScrollText className="h-5 w-5 text-muted-foreground" />
-                <h2 className="text-lg font-semibold">Auth Logs</h2>
+                <h2 className="text-lg font-semibold">Annotation & Verification Logs</h2>
               </div>
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-muted-foreground" />
@@ -1176,19 +1186,22 @@ export default function AdminPage() {
             <div className="space-y-2">
               <label className="block text-sm font-medium">Role</label>
               <div className="flex flex-wrap gap-2">
-                {roles.map((r) => r.name).filter(n => n !== 'Super Admin').map((role) => (
-                  <button
-                    key={role}
-                    onClick={() => setEditRoleValue(role)}
-                    className={`rounded-full px-4 py-1.5 text-sm font-medium border transition-colors ${
-                      editRoleValue === role
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-card text-muted-foreground border-border hover:bg-muted"
-                    }`}
-                  >
-                    {role}
-                  </button>
-                ))}
+                {roles
+                  .filter((r) => r.name === "Researcher" || r.name === "Ranger" || r.name === "Field Officer")
+                  .map((r) => (r.name === "Field Officer" ? "Ranger" : r.name))
+                  .map((role) => (
+                    <button
+                      key={role}
+                      onClick={() => setEditRoleValue(role)}
+                      className={`rounded-full px-4 py-1.5 text-sm font-medium border transition-colors ${
+                        editRoleValue === role
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-card text-muted-foreground border-border hover:bg-muted"
+                      }`}
+                    >
+                      {role}
+                    </button>
+                  ))}
               </div>
             </div>
             <div className="flex justify-end gap-3 pt-2">
@@ -1363,19 +1376,22 @@ export default function AdminPage() {
                   <div className="space-y-2">
                     <label className="block text-sm font-medium">Role</label>
                     <div className="flex flex-wrap gap-2">
-                      {roles.map((r) => r.name).filter(n => n !== 'Super Admin').map((role) => (
-                        <button
-                          key={role}
-                          onClick={() => setAddUserForm(f => ({ ...f, role }))}
-                          className={`rounded-full px-4 py-1.5 text-sm font-medium border transition-colors ${
-                            addUserForm.role === role
-                              ? "bg-primary text-primary-foreground border-primary"
-                              : "bg-card text-muted-foreground border-border hover:bg-muted"
-                          }`}
-                        >
-                          {role}
-                        </button>
-                      ))}
+                      {roles
+                        .filter((r) => r.name === "Researcher" || r.name === "Ranger" || r.name === "Field Officer")
+                        .map((r) => (r.name === "Field Officer" ? "Ranger" : r.name))
+                        .map((role) => (
+                          <button
+                            key={role}
+                            onClick={() => setAddUserForm(f => ({ ...f, role }))}
+                            className={`rounded-full px-4 py-1.5 text-sm font-medium border transition-colors ${
+                              addUserForm.role === role
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-card text-muted-foreground border-border hover:bg-muted"
+                            }`}
+                          >
+                            {role}
+                          </button>
+                        ))}
                     </div>
                   </div>
 

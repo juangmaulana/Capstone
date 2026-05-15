@@ -24,23 +24,23 @@ const TAXONOMY_DB: Record<string, { rank: string; value: string }[]> = {
     { rank: "Genus", value: "Lantana" },
     { rank: "Spesies", value: "L. camara" },
   ],
-  "mikania micrantha": [
+  "merremia hederacea": [
     { rank: "Kerajaan", value: "Plantae" },
     { rank: "Filum", value: "Tracheophyta" },
     { rank: "Kelas", value: "Magnoliopsida" },
-    { rank: "Ordo", value: "Asterales" },
-    { rank: "Famili", value: "Asteraceae" },
-    { rank: "Genus", value: "Mikania" },
-    { rank: "Spesies", value: "M. micrantha" },
+    { rank: "Ordo", value: "Solanales" },
+    { rank: "Famili", value: "Convolvulaceae" },
+    { rank: "Genus", value: "Merremia" },
+    { rank: "Spesies", value: "M. hederacea" },
   ],
-  "chromolaena odorata": [
+  "clitoria ternatea": [
     { rank: "Kerajaan", value: "Plantae" },
     { rank: "Filum", value: "Tracheophyta" },
     { rank: "Kelas", value: "Magnoliopsida" },
-    { rank: "Ordo", value: "Asterales" },
-    { rank: "Famili", value: "Asteraceae" },
-    { rank: "Genus", value: "Chromolaena" },
-    { rank: "Spesies", value: "C. odorata" },
+    { rank: "Ordo", value: "Fabales" },
+    { rank: "Famili", value: "Fabaceae" },
+    { rank: "Genus", value: "Clitoria" },
+    { rank: "Spesies", value: "C. ternatea" },
   ],
   "ageratum conyzoides": [
     { rank: "Kerajaan", value: "Plantae" },
@@ -64,6 +64,32 @@ interface PlantData {
   environmentalImpact: string;
   imagePath: string;
 }
+
+// Fallback data for species not yet in the database
+const FALLBACK_PLANTS: Record<string, PlantData> = {
+  "merremia hederacea": {
+    id: 901,
+    commonName: "Kangkung Pagar",
+    scientificName: "Merremia hederacea",
+    family: "Convolvulaceae",
+    genus: "Merremia",
+    botanicalDescription: "Tanaman merambat herba tahunan dari keluarga Convolvulaceae. Daun berbentuk jantung hingga berlekuk 3-5 jari, tipis, dan berwarna hijau cerah. Bunga berbentuk corong berwarna kuning pucat hingga putih. Buah kapsul membulat berisi biji kecil.",
+    ecologicalInformation: "Tumbuh agresif di tepi hutan, lahan terbuka, dan area terganggu di kawasan tropis. Merremia hederacea merambat cepat menutupi vegetasi bawah dan mampu memanjat pohon hingga menaungi tajuknya.",
+    environmentalImpact: "Menutupi tanaman asli sehingga menghambat fotosintesis, menekan regenerasi alami hutan, dan mengubah struktur vegetasi di sabana dan tepi hutan Taman Nasional Baluran.",
+    imagePath: "/sketsa-herbarium-merremia-hederacea.jpg",
+  },
+  "clitoria ternatea": {
+    id: 902,
+    commonName: "Telang",
+    scientificName: "Clitoria ternatea",
+    family: "Fabaceae",
+    genus: "Clitoria",
+    botanicalDescription: "Tanaman merambat herba perennial dari keluarga Fabaceae. Daun majemuk menyirip ganjil dengan 5-7 anak daun. Bunga berbentuk kupu-kupu berwarna biru tua hingga ungu, kadang putih. Polong pipih berisi biji berbentuk ginjal.",
+    ecologicalInformation: "Tumbuh di daerah tropis dan subtropis, toleran terhadap berbagai jenis tanah. Di Taman Nasional Baluran, tanaman ini menyebar di area sabana dan pinggiran hutan, bersaing dengan vegetasi asli untuk mendapatkan sinar matahari dan nutrisi.",
+    environmentalImpact: "Mampu menekan pertumbuhan rumput asli melalui naungan yang padat, mengubah komposisi vegetasi sabana, dan mengganggu ketersediaan pakan bagi herbivora asli seperti Banteng Jawa.",
+    imagePath: "/sketsa-herbarium-clitoria-ternatea.jpg",
+  },
+};
 
 export default function SpeciesPage() {
   const params = useParams();
@@ -107,11 +133,24 @@ export default function SpeciesPage() {
             imagePath: p.imagePath || p.image_path || "",
           });
         } else {
-          setError("Spesies tidak ditemukan dalam database.");
+          // Try fallback data for species not yet in the database
+          const fallback = FALLBACK_PLANTS[searchTerm.toLowerCase()];
+          if (fallback) {
+            setPlant(fallback);
+          } else {
+            setError("Spesies tidak ditemukan dalam database.");
+          }
         }
       } catch (err) {
         console.error("Failed to fetch plant:", err);
-        setError("Gagal memuat data spesies.");
+        // Try fallback on network error too
+        const searchTerm = id.replace(/-/g, " ").trim();
+        const fallback = FALLBACK_PLANTS[searchTerm.toLowerCase()];
+        if (fallback) {
+          setPlant(fallback);
+        } else {
+          setError("Gagal memuat data spesies.");
+        }
       } finally {
         setIsLoading(false);
       }
@@ -202,12 +241,12 @@ export default function SpeciesPage() {
                 <ImageIcon className="h-4 w-4 text-primary" />
                 <h2 className="font-semibold text-sm">Sketsa Herbarium</h2>
               </div>
-              <div className="relative aspect-[3/4] w-full bg-muted">
+              <div className="relative w-full bg-muted flex items-center justify-center p-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={plant.imagePath}
                   alt={`Herbarium sketch of ${plant.scientificName}`}
-                  className="h-full w-full object-cover"
+                  className="max-w-full max-h-[600px] object-contain"
                 />
               </div>
             </div>
