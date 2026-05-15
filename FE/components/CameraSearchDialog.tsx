@@ -392,12 +392,12 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
           {/* ========== RESULT VIEW ========== */}
           {view === "result" && imageSrc && (
             <div className="flex w-full flex-col items-center space-y-4">
-              <div className="relative h-48 w-full overflow-hidden rounded-md border bg-muted">
+              <div className="relative flex h-64 w-full items-center justify-center overflow-hidden rounded-md border bg-muted p-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={imageSrc}
                   alt="Captured"
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-contain"
                 />
                 
                 {isAnalyzing && (
