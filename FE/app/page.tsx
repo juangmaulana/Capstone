@@ -4,6 +4,62 @@ import { useState, useRef, useEffect } from "react";
 import { Search, Camera, Loader2 } from "lucide-react";
 import { CameraSearchDialog } from "@/components/CameraSearchDialog";
 import { useRouter } from "next/navigation";
+import { useLanguage } from "@/contexts/LanguageContext";
+
+const COPY = {
+  en: {
+    eyebrow: "BioWatch | Invasive Alien Species Monitoring",
+    headline: <>Free and open access to<br />biodiversity data</>,
+    searchPlaceholder: "Search species...",
+    cameraTitle: "Search by image (like Google Lens)",
+    loadingSpecies: "Loading species data...",
+    noSpecies: "No species found",
+    mapSectionTitle: "Baluran National Park Maps",
+    mapItems: [
+      {
+        title: "Fire Hotspot Map",
+        subtitle: "2019 – 2025",
+        description: "Distribution of fire hotspots in Baluran National Park",
+      },
+      {
+        title: "LST Map",
+        subtitle: "2025",
+        description: "Land Surface Temperature — surface temperature distribution",
+      },
+      {
+        title: "Vegetation Index Map",
+        subtitle: "2025",
+        description: "NDVI — vegetation density level in the Baluran area",
+      },
+    ],
+  },
+  id: {
+    eyebrow: "BioWatch | Pemantauan Spesies Asing Invasif",
+    headline: <>Akses bebas dan terbuka untuk<br />data biodiversitas</>,
+    searchPlaceholder: "Cari spesies...",
+    cameraTitle: "Cari dengan gambar (seperti Google Lens)",
+    loadingSpecies: "Memuat data spesies...",
+    noSpecies: "Spesies tidak ditemukan",
+    mapSectionTitle: "Peta Taman Nasional Baluran",
+    mapItems: [
+      {
+        title: "Peta Titik Api",
+        subtitle: "2019 – 2025",
+        description: "Sebaran titik api (hotspot) di kawasan Taman Nasional Baluran",
+      },
+      {
+        title: "Peta LST",
+        subtitle: "2025",
+        description: "Land Surface Temperature — distribusi suhu permukaan tanah",
+      },
+      {
+        title: "Peta Indeks Vegetasi",
+        subtitle: "2025",
+        description: "NDVI — tingkat kerapatan vegetasi di kawasan Baluran",
+      },
+    ],
+  },
+} as const;
 
 export default function Dashboard() {
   const [isCameraDialogOpen, setIsCameraDialogOpen] = useState(false);
@@ -13,6 +69,8 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const { language } = useLanguage();
+  const copy = COPY[language];
 
   // Canonical species list
   useEffect(() => {
@@ -67,10 +125,10 @@ export default function Dashboard() {
         <div className="relative z-10 w-full px-8 md:px-16 lg:px-24 xl:px-32">
           <div className="max-w-4xl">
             <p className="mb-4 text-sm font-semibold tracking-wide text-white drop-shadow-md">
-              BioWatch | Invasive Alien Species Monitoring
+              {copy.eyebrow}
             </p>
             <h1 className="mb-8 text-4xl font-bold leading-tight tracking-tight text-white drop-shadow-md sm:text-5xl lg:text-6xl">
-              Free and open access to<br />biodiversity data
+              {copy.headline}
             </h1>
 
             <div className="w-full max-w-2xl relative" ref={dropdownRef}>
@@ -81,7 +139,7 @@ export default function Dashboard() {
                 </div>
                 <input
                   type="text"
-                  placeholder="Search species..."
+                  placeholder={copy.searchPlaceholder}
                   value={searchQuery}
                   onFocus={() => setIsDropdownOpen(true)}
                   onChange={(e) => {
@@ -95,7 +153,7 @@ export default function Dashboard() {
                   className="flex h-14 w-12 shrink-0 items-center justify-center text-gray-600 hover:text-black transition-colors"
                   aria-label="Upload photo"
                   onClick={() => setIsCameraDialogOpen(true)}
-                  title="Search by image (like Google Lens)"
+                  title={copy.cameraTitle}
                 >
                   <Camera className="h-5 w-5" />
                 </button>
@@ -107,7 +165,7 @@ export default function Dashboard() {
                   {isLoading ? (
                     <div className="flex items-center justify-center px-5 py-3 text-gray-500">
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Memuat data spesies...
+                      {copy.loadingSpecies}
                     </div>
                   ) : filteredSpecies.length > 0 ? (
                     filteredSpecies.map(sp => (
@@ -124,7 +182,7 @@ export default function Dashboard() {
                       </div>
                     ))
                   ) : (
-                    <div className="px-5 py-3 text-gray-500">No species found</div>
+                    <div className="px-5 py-3 text-gray-500">{copy.noSpecies}</div>
                   )}
                 </div>
               )}
@@ -141,28 +199,28 @@ export default function Dashboard() {
       {/* Map Assets Section — below the hero, visible on scroll */}
       <div className="relative z-10 w-full bg-gray-950">
         <div className="px-8 md:px-16 lg:px-24 xl:px-32 pt-12 pb-6">
-          <h2 className="text-2xl font-bold text-white mb-2">Peta Taman Nasional Baluran</h2>
+          <h2 className="text-2xl font-bold text-white mb-2">{copy.mapSectionTitle}</h2>
         </div>
 
         <div className="space-y-8 pb-12">
           {[
             {
-              title: "Peta Titik Api",
-              subtitle: "2019 – 2025",
+              title: copy.mapItems[0].title,
+              subtitle: copy.mapItems[0].subtitle,
               src: "/peta-titik-api-baluran-2019-2025.jpg",
-              description: "Sebaran titik api (hotspot) di kawasan Taman Nasional Baluran",
+              description: copy.mapItems[0].description,
             },
             {
-              title: "Peta LST",
-              subtitle: "2025",
+              title: copy.mapItems[1].title,
+              subtitle: copy.mapItems[1].subtitle,
               src: "/peta-lst-baluran-2025.jpg",
-              description: "Land Surface Temperature — distribusi suhu permukaan tanah",
+              description: copy.mapItems[1].description,
             },
             {
-              title: "Peta Indeks Vegetasi",
-              subtitle: "2025",
+              title: copy.mapItems[2].title,
+              subtitle: copy.mapItems[2].subtitle,
               src: "/peta-indeks-vegetasi-baluran-2025.jpg",
-              description: "NDVI — tingkat kerapatan vegetasi di kawasan Baluran",
+              description: copy.mapItems[2].description,
             },
           ].map((map) => (
             <div key={map.title} className="group relative">

@@ -65,6 +65,14 @@ interface PlantData {
   imagePath: string;
 }
 
+const HERBARIUM_IMAGE_DIMENSIONS: Record<string, { width: number; height: number }> = {
+  "/sketsa-herbarium-acacia-nilotica.gif": { width: 376, height: 563 },
+  "/sketsa-herbarium-lantana-camara.jpg": { width: 1985, height: 2810 },
+  "/sketsa-herbarium-merremia-hederacea.jpg": { width: 1985, height: 2810 },
+  "/sketsa-herbarium-clitoria-ternatea.jpg": { width: 2474, height: 2029 },
+  "/sketsa-herbarium-Ageratum-conyzoides.webp": { width: 850, height: 1109 },
+};
+
 // Fallback data for species not yet in the database
 const FALLBACK_PLANTS: Record<string, PlantData> = {
   "merremia hederacea": {
@@ -241,12 +249,19 @@ export default function SpeciesPage() {
                 <ImageIcon className="h-4 w-4 text-primary" />
                 <h2 className="font-semibold text-sm">Sketsa Herbarium</h2>
               </div>
-              <div className="relative w-full bg-muted flex items-center justify-center p-4">
+              <div
+                className="relative w-full overflow-hidden bg-white"
+                style={{
+                  aspectRatio: HERBARIUM_IMAGE_DIMENSIONS[plant.imagePath]
+                    ? `${HERBARIUM_IMAGE_DIMENSIONS[plant.imagePath].width} / ${HERBARIUM_IMAGE_DIMENSIONS[plant.imagePath].height}`
+                    : "4 / 5",
+                }}
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={plant.imagePath}
                   alt={`Herbarium sketch of ${plant.scientificName}`}
-                  className="max-w-full max-h-[600px] object-contain"
+                  className="block h-full w-full object-contain"
                 />
               </div>
             </div>
