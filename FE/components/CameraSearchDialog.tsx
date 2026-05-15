@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface DetectionResult {
   name: string;
@@ -33,10 +34,72 @@ interface CameraSearchDialogProps {
 
 type DialogView = "menu" | "camera" | "result";
 
+const CAMERA_COPY = {
+  en: {
+    titles: { menu: "Search by Image", camera: "Take Photo", result: "Detection Result" },
+    descriptions: {
+      menu: "Identify invasive alien species by analyzing a photo.",
+      camera: "Point the camera at a plant and capture a photo.",
+      result: "Analyzing your image for invasive alien species.",
+    },
+    cameraDenied: "Camera access was denied. Please allow camera access in your browser settings.",
+    cameraMissing: "No camera was found. Make sure your device has a camera.",
+    cameraFailed: "Could not access the camera. Please try again.",
+    analysisFailed: "Could not analyze the image. Please try again.",
+    uploadImage: "Upload Image",
+    takePhoto: "Take Photo",
+    cameraError: "Camera Error",
+    back: "Back",
+    loadingCamera: "Loading camera...",
+    capturePhoto: "Capture Photo",
+    capturedAlt: "Captured image",
+    analyzing: "Analyzing image...",
+    contacting: "Contacting AI detection service",
+    error: "Error",
+    notDetected: "Not Detected",
+    noDetection: "No invasive plant was detected in this image.",
+    identified: "Identified",
+    confidence: "confidence score",
+    otherDetections: "Other detections:",
+    clear: "Clear",
+    viewDetails: "View Details",
+    viewSdmMap: "View SDM Map",
+  },
+  id: {
+    titles: { menu: "Cari dengan Gambar", camera: "Ambil Foto", result: "Hasil Deteksi" },
+    descriptions: {
+      menu: "Identifikasi spesies asing invasif dengan menganalisis foto.",
+      camera: "Arahkan kamera ke tanaman lalu ambil foto.",
+      result: "Menganalisis gambar untuk spesies asing invasif.",
+    },
+    cameraDenied: "Akses kamera ditolak. Silakan izinkan akses kamera di pengaturan browser Anda.",
+    cameraMissing: "Kamera tidak ditemukan. Pastikan perangkat Anda memiliki kamera.",
+    cameraFailed: "Gagal mengakses kamera. Silakan coba lagi.",
+    analysisFailed: "Gagal menganalisis gambar. Silakan coba lagi.",
+    uploadImage: "Unggah Gambar",
+    takePhoto: "Ambil Foto",
+    cameraError: "Kesalahan Kamera",
+    back: "Kembali",
+    loadingCamera: "Memuat kamera...",
+    capturePhoto: "Ambil Foto",
+    capturedAlt: "Gambar yang diambil",
+    analyzing: "Menganalisis gambar...",
+    contacting: "Menghubungi layanan deteksi AI",
+    error: "Error",
+    notDetected: "Tidak Terdeteksi",
+    noDetection: "Tidak ada tanaman invasif yang terdeteksi pada gambar ini.",
+    identified: "Teridentifikasi",
+    confidence: "skor keyakinan",
+    otherDetections: "Deteksi lainnya:",
+    clear: "Bersihkan",
+    viewDetails: "Lihat Detail",
+    viewSdmMap: "Lihat Peta SDM",
+  },
+} as const;
+
 export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogProps) {
   const [view, setView] = useState<DialogView>("menu");
   const [imageSrc, setImageSrc] = useState<string | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [detectionResults, setDetectionResults] = useState<DetectionResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +107,8 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("environment");
   const router = useRouter();
+  const { language } = useLanguage();
+  const copy = CAMERA_COPY[language];
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -90,17 +155,18 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
           setIsCameraReady(true);
         };
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Camera access error:", err);
-      if (err.name === "NotAllowedError") {
-        setCameraError("Akses kamera ditolak. Silakan izinkan akses kamera di pengaturan browser Anda.");
-      } else if (err.name === "NotFoundError") {
-        setCameraError("Kamera tidak ditemukan. Pastikan perangkat Anda memiliki kamera.");
+      const errorName = err instanceof DOMException ? err.name : "";
+      if (errorName === "NotAllowedError") {
+        setCameraError(copy.cameraDenied);
+      } else if (errorName === "NotFoundError") {
+        setCameraError(copy.cameraMissing);
       } else {
-        setCameraError("Gagal mengakses kamera. Silakan coba lagi.");
+        setCameraError(copy.cameraFailed);
       }
     }
-  }, [facingMode]);
+  }, [copy.cameraDenied, copy.cameraFailed, copy.cameraMissing, facingMode]);
 
   // Handle switching camera facing mode
   const switchCamera = useCallback(async () => {
@@ -108,6 +174,35 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
     setFacingMode(newFacing);
     await startCamera(newFacing);
   }, [facingMode, startCamera]);
+
+  const startAnalysis = useCallback(async (file: File) => {
+    setIsAnalyzing(true);
+    setDetectionResults(null);
+    setError(null);
+    
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const response = await fetch("/api/v1/plants/detect", {
+        method: "POST",
+        body: formData,
+      });
+
+      const json = await response.json();
+
+      if (json.success && json.data?.plants?.length > 0) {
+        setDetectionResults(json.data.plants);
+      } else {
+        setDetectionResults([]);
+      }
+    } catch (err) {
+      console.error("Detection failed:", err);
+      setError(copy.analysisFailed);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [copy.analysisFailed]);
 
   // Capture photo from video stream
   const capturePhoto = useCallback(() => {
@@ -140,7 +235,6 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
           const file = new File([blob], `camera-capture-${Date.now()}.jpg`, {
             type: "image/jpeg",
           });
-          setImageFile(file);
           stopCamera();
           setView("result");
           startAnalysis(file);
@@ -149,13 +243,12 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
       "image/jpeg",
       0.9
     );
-  }, [facingMode, stopCamera]);
+  }, [facingMode, startAnalysis, stopCamera]);
 
   // Handle file upload
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setImageFile(file);
       const reader = new FileReader();
       reader.onload = (event) => {
         setImageSrc(event.target?.result as string);
@@ -166,40 +259,10 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
     }
   };
 
-  const startAnalysis = async (file: File) => {
-    setIsAnalyzing(true);
-    setDetectionResults(null);
-    setError(null);
-    
-    try {
-      const formData = new FormData();
-      formData.append("image", file);
-
-      const response = await fetch("/api/v1/plants/detect", {
-        method: "POST",
-        body: formData,
-      });
-
-      const json = await response.json();
-
-      if (json.success && json.data?.plants?.length > 0) {
-        setDetectionResults(json.data.plants);
-      } else {
-        setDetectionResults([]);
-      }
-    } catch (err) {
-      console.error("Detection failed:", err);
-      setError("Gagal menganalisis gambar. Silakan coba lagi.");
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
   const resetDialog = () => {
     stopCamera();
     setView("menu");
     setImageSrc(null);
-    setImageFile(null);
     setIsAnalyzing(false);
     setDetectionResults(null);
     setError(null);
@@ -255,14 +318,10 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {view === "menu" && "Search by Image"}
-            {view === "camera" && "Take Photo"}
-            {view === "result" && "Detection Result"}
+            {copy.titles[view]}
           </DialogTitle>
           <DialogDescription>
-            {view === "menu" && "Identify invasive alien species by analyzing a photo."}
-            {view === "camera" && "Point the camera at a plant and capture a photo."}
-            {view === "result" && "Analyzing your image for invasive alien species."}
+            {copy.descriptions[view]}
           </DialogDescription>
         </DialogHeader>
 
@@ -283,7 +342,7 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Upload className="h-6 w-6 text-primary" />
-                <span>Upload Image</span>
+                <span>{copy.uploadImage}</span>
               </Button>
 
               <Button
@@ -292,7 +351,7 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
                 onClick={handleTakePhotoClick}
               >
                 <Camera className="h-6 w-6 text-primary" />
-                <span>Take Photo</span>
+                <span>{copy.takePhoto}</span>
               </Button>
             </div>
           )}
@@ -305,7 +364,7 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
                   <div className="w-full flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3">
                     <AlertCircle className="h-5 w-5 shrink-0 text-destructive mt-0.5" />
                     <div className="flex flex-col">
-                      <span className="text-sm font-medium text-destructive">Kamera Error</span>
+                      <span className="text-sm font-medium text-destructive">{copy.cameraError}</span>
                       <span className="text-xs text-destructive/80">{cameraError}</span>
                     </div>
                   </div>
@@ -315,7 +374,7 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
                     onClick={() => { resetDialog(); }}
                   >
                     <ArrowLeft className="mr-2 h-4 w-4" />
-                    Kembali
+                    {copy.back}
                   </Button>
                 </div>
               ) : (
@@ -335,7 +394,7 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
                     {!isCameraReady && (
                       <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80">
                         <Video className="h-8 w-8 animate-pulse text-primary mb-2" />
-                        <span className="text-sm text-white animate-pulse">Memuat kamera...</span>
+                        <span className="text-sm text-white animate-pulse">{copy.loadingCamera}</span>
                       </div>
                     )}
 
@@ -371,7 +430,7 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
                       disabled={!isCameraReady}
                     >
                       <CircleDot className="h-5 w-5" />
-                      Ambil Foto
+                      {copy.capturePhoto}
                     </Button>
 
                     <Button
@@ -396,15 +455,15 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={imageSrc}
-                  alt="Captured"
+                  alt={copy.capturedAlt}
                   className="h-full w-full object-contain"
                 />
                 
                 {isAnalyzing && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
                     <ScanSearch className="h-8 w-8 animate-pulse text-primary mb-2" />
-                    <span className="text-sm font-medium animate-pulse">Menganalisis gambar...</span>
-                    <span className="text-xs text-muted-foreground mt-1">Menghubungi AI detection service</span>
+                    <span className="text-sm font-medium animate-pulse">{copy.analyzing}</span>
+                    <span className="text-xs text-muted-foreground mt-1">{copy.contacting}</span>
                   </div>
                 )}
               </div>
@@ -414,7 +473,7 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
                 <div className="w-full flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3">
                   <AlertCircle className="h-5 w-5 shrink-0 text-destructive mt-0.5" />
                   <div className="flex flex-col">
-                    <span className="text-sm font-medium text-destructive">Error</span>
+                    <span className="text-sm font-medium text-destructive">{copy.error}</span>
                     <span className="text-xs text-destructive/80">{error}</span>
                   </div>
                 </div>
@@ -425,8 +484,8 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
                 <div className="w-full flex items-start gap-3 rounded-lg border bg-muted p-3">
                   <AlertCircle className="h-5 w-5 shrink-0 text-muted-foreground mt-0.5" />
                   <div className="flex flex-col">
-                    <span className="text-sm font-medium">Tidak Terdeteksi</span>
-                    <span className="text-xs text-muted-foreground">Tidak ada tanaman invasif yang terdeteksi pada gambar ini.</span>
+                    <span className="text-sm font-medium">{copy.notDetected}</span>
+                    <span className="text-xs text-muted-foreground">{copy.noDetection}</span>
                   </div>
                 </div>
               )}
@@ -436,9 +495,9 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
                 <div className="w-full flex items-start gap-3 rounded-lg border bg-success/10 p-3 text-success-foreground">
                   <CheckCircle2 className="h-5 w-5 shrink-0 text-success mt-0.5" />
                   <div className="flex flex-col">
-                    <span className="text-sm font-medium">Teridentifikasi</span>
+                    <span className="text-sm font-medium">{copy.identified}</span>
                     <span className="text-lg font-bold">{topResult.name}</span>
-                    <span className="text-xs opacity-80">{Math.round(topResult.confidence * 100)}% confidence score</span>
+                    <span className="text-xs opacity-80">{Math.round(topResult.confidence * 100)}% {copy.confidence}</span>
                   </div>
                 </div>
               )}
@@ -446,7 +505,7 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
               {/* Multiple detections */}
               {detectionResults && detectionResults.length > 1 && (
                 <div className="w-full space-y-1">
-                  <span className="text-xs text-muted-foreground">Deteksi lainnya:</span>
+                  <span className="text-xs text-muted-foreground">{copy.otherDetections}</span>
                   {detectionResults.slice(1, 4).map((result, idx) => (
                     <button
                       key={idx}
@@ -469,11 +528,11 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
                     disabled={isAnalyzing}
                   >
                     <X className="mr-2 h-4 w-4" />
-                    Clear
+                    {copy.clear}
                   </Button>
                   {topResult && (
                     <Button className="w-full bg-primary" onClick={() => handleViewDetails(topResult.name)}>
-                      View Details
+                      {copy.viewDetails}
                     </Button>
                   )}
                 </div>
@@ -484,7 +543,7 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
                     onClick={() => handleViewSDM(topResult.name)}
                   >
                     <MapIcon className="h-4 w-4" />
-                    View SDM Map
+                    {copy.viewSdmMap}
                   </Button>
                 )}
               </div>

@@ -3,9 +3,61 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Leaf, Lock, Mail, Eye, EyeOff, ShieldCheck, AlertCircle, Loader2 } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
+
+const LOGIN_COPY = {
+  en: {
+    subtitle: "Sign in to access the administration panel",
+    emailLabel: "Email Address",
+    emailPlaceholder: "Enter your email address",
+    passwordLabel: "Password",
+    passwordPlaceholder: "Enter your password",
+    locked: "Locked",
+    signingIn: "Signing in...",
+    signIn: "Sign In to Admin Panel",
+    forgot: "Forgot password?",
+    footer: "Protected area - authorized personnel only",
+    lockout: "Account locked after 5 incorrect password attempts. Please wait 1 minute.",
+    invalid: (left: number) => `Invalid email or password. Attempts left: ${left}`,
+    forgotSendError: "An error occurred while sending the email.",
+    forgotNetworkError: "Connection error. Please try again.",
+    checkEmail: "Check Your Email",
+    resetSent: (email: string) => <>A password reset link has been sent to <strong>{email}</strong>. Please check your inbox or spam folder.</>,
+    backLogin: "Back to Login",
+    forgotTitle: "Forgot Password",
+    forgotDesc: "Enter your email address and we will send a link to reset your password.",
+    sending: "Sending...",
+    sendReset: "Send Reset Link",
+  },
+  id: {
+    subtitle: "Masuk untuk mengakses panel administrasi",
+    emailLabel: "Alamat Email",
+    emailPlaceholder: "Masukkan alamat email",
+    passwordLabel: "Password",
+    passwordPlaceholder: "Masukkan password",
+    locked: "Terkunci",
+    signingIn: "Masuk...",
+    signIn: "Masuk ke Panel Admin",
+    forgot: "Lupa password?",
+    footer: "Area terlindungi - hanya untuk personel berwenang",
+    lockout: "Akun terkunci karena 5 kali salah password. Silakan tunggu 1 menit.",
+    invalid: (left: number) => `Email atau password tidak valid. Kesempatan tersisa: ${left}`,
+    forgotSendError: "Terjadi kesalahan saat mengirim email.",
+    forgotNetworkError: "Terjadi kesalahan koneksi. Silakan coba lagi.",
+    checkEmail: "Cek Email Anda",
+    resetSent: (email: string) => <>Link reset password telah dikirim ke <strong>{email}</strong>. Silakan cek inbox atau folder spam Anda.</>,
+    backLogin: "Kembali ke Login",
+    forgotTitle: "Lupa Password",
+    forgotDesc: "Masukkan alamat email Anda dan kami akan mengirimkan link untuk mereset password.",
+    sending: "Mengirim...",
+    sendReset: "Kirim Link Reset",
+  },
+} as const;
 
 export function AdminLoginPage() {
   const { login } = useAuth();
+  const { language } = useLanguage();
+  const copy = LOGIN_COPY[language];
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -56,9 +108,9 @@ export function AdminLoginPage() {
         const lockoutEnd = Date.now() + 60000;
         setLockoutUntil(lockoutEnd);
         setTimeLeft(60);
-        setError("Akun terkunci karena 5 kali salah password. Silakan tunggu 1 menit.");
+        setError(copy.lockout);
       } else {
-        setError(`Invalid email or password. Kesempatan tersisa: ${5 - newAttempts}`);
+        setError(copy.invalid(5 - newAttempts));
       }
       
       setShake(true);
@@ -85,12 +137,12 @@ export function AdminLoginPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setForgotError(data.error?.message || "Terjadi kesalahan saat mengirim email.");
+        setForgotError(data.error?.message || copy.forgotSendError);
       } else {
         setForgotSuccess(true);
       }
     } catch (err) {
-      setForgotError("Terjadi kesalahan koneksi. Silakan coba lagi.");
+      setForgotError(copy.forgotNetworkError);
     } finally {
       setForgotSubmitting(false);
     }
@@ -123,7 +175,7 @@ export function AdminLoginPage() {
           </div>
           <h1 className="admin-login-title">BioWatch Admin</h1>
           <p className="admin-login-subtitle">
-            Sign in to access the administration panel
+            {copy.subtitle}
           </p>
         </div>
 
@@ -139,7 +191,7 @@ export function AdminLoginPage() {
         <form onSubmit={handleSubmit} className="admin-login-form">
           <div className="admin-login-field">
             <label htmlFor="admin-email" className="admin-login-label">
-              Email Address
+              {copy.emailLabel}
             </label>
             <div className="admin-login-input-wrapper">
               <Mail className="admin-login-input-icon" />
@@ -148,7 +200,7 @@ export function AdminLoginPage() {
                 type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email address"
+                placeholder={copy.emailPlaceholder}
                 required
                 autoComplete="email"
                 className="admin-login-input"
@@ -159,7 +211,7 @@ export function AdminLoginPage() {
 
           <div className="admin-login-field">
             <label htmlFor="admin-password" className="admin-login-label">
-              Password
+              {copy.passwordLabel}
             </label>
             <div className="admin-login-input-wrapper">
               <Lock className="admin-login-input-icon" />
@@ -168,7 +220,7 @@ export function AdminLoginPage() {
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
+                placeholder={copy.passwordPlaceholder}
                 required
                 autoComplete="current-password"
                 className="admin-login-input admin-login-input-password"
@@ -197,17 +249,17 @@ export function AdminLoginPage() {
             {lockoutUntil ? (
               <>
                 <Lock className="h-4 w-4" />
-                Terkunci ({timeLeft}s)
+                {copy.locked} ({timeLeft}s)
               </>
             ) : isSubmitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Signing in...
+                {copy.signingIn}
               </>
             ) : (
               <>
                 <ShieldCheck className="h-4 w-4" />
-                Sign In to Admin Panel
+                {copy.signIn}
               </>
             )}
           </button>
@@ -218,7 +270,7 @@ export function AdminLoginPage() {
               onClick={openForgot}
               className="admin-login-forgot-link"
             >
-              Forgot password?
+              {copy.forgot}
             </button>
           </div>
 
@@ -227,7 +279,7 @@ export function AdminLoginPage() {
         {/* Footer hint */}
         <div className="admin-login-footer">
           <ShieldCheck className="h-3.5 w-3.5" />
-          <span>Protected area — authorized personnel only</span>
+          <span>{copy.footer}</span>
         </div>
       </div>
 
@@ -697,23 +749,23 @@ export function AdminLoginPage() {
                 <div className="admin-forgot-success-icon">
                   <Mail className="h-6 w-6 text-white" />
                 </div>
-                <h2 className="admin-forgot-title">Cek Email Anda</h2>
+                <h2 className="admin-forgot-title">{copy.checkEmail}</h2>
                 <p className="admin-forgot-desc">
-                  Link reset password telah dikirim ke <strong>{forgotEmail}</strong>. Silakan cek inbox atau folder spam Anda.
+                  {copy.resetSent(forgotEmail)}
                 </p>
                 <button
                   onClick={() => setShowForgot(false)}
                   className="admin-forgot-submit"
                 >
-                  Kembali ke Login
+                  {copy.backLogin}
                 </button>
               </div>
             ) : (
               <>
                 <div className="admin-forgot-header">
-                  <h2 className="admin-forgot-title">Forgot Password</h2>
+                  <h2 className="admin-forgot-title">{copy.forgotTitle}</h2>
                   <p className="admin-forgot-desc">
-                    Masukkan alamat email Anda dan kami akan mengirimkan link untuk mereset password.
+                    {copy.forgotDesc}
                   </p>
                 </div>
                 {forgotError && (
@@ -725,7 +777,7 @@ export function AdminLoginPage() {
                 <form onSubmit={handleForgotSubmit} className="admin-forgot-form">
                   <div className="admin-login-field">
                     <label htmlFor="forgot-email" className="admin-login-label">
-                      Email Address
+                      {copy.emailLabel}
                     </label>
                     <div className="admin-login-input-wrapper">
                       <Mail className="admin-login-input-icon" />
@@ -734,7 +786,7 @@ export function AdminLoginPage() {
                         type="email"
                         value={forgotEmail}
                         onChange={(e) => setForgotEmail(e.target.value)}
-                        placeholder="Enter your email address"
+                        placeholder={copy.emailPlaceholder}
                         required
                         autoComplete="email"
                         className="admin-login-input"
@@ -750,10 +802,10 @@ export function AdminLoginPage() {
                     {forgotSubmitting ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Mengirim...
+                        {copy.sending}
                       </>
                     ) : (
-                      <>Kirim Link Reset</>
+                      <>{copy.sendReset}</>
                     )}
                   </button>
                   <button
@@ -761,7 +813,7 @@ export function AdminLoginPage() {
                     onClick={() => setShowForgot(false)}
                     className="admin-forgot-back"
                   >
-                    Kembali ke Login
+                    {copy.backLogin}
                   </button>
                 </form>
               </>

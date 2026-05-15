@@ -4,6 +4,7 @@ import { Users, UserPlus, ShieldCheck, Activity, Bug, Upload, ScrollText, Databa
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminDataAnnotationPanel } from "@/components/AdminDataAnnotationPanel";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 /* ───────────── TYPES ───────────── */
 
@@ -205,12 +206,271 @@ const BATCH_STATUS_STYLES: Record<string, { bg: string; text: string; label: str
 
 type Tab = "users" | "species" | "logs" | "annotation";
 
-const TABS: { key: Tab; label: string; icon: typeof Users }[] = [
-  { key: "users", label: "User Management", icon: Users },
-  { key: "species", label: "Species Management", icon: Bug },
-  { key: "annotation", label: "Data Annotation", icon: Tag },
-  { key: "logs", label: "System Logs", icon: ScrollText },
+const TABS: { key: Tab; icon: typeof Users }[] = [
+  { key: "users", icon: Users },
+  { key: "species", icon: Bug },
+  { key: "annotation", icon: Tag },
+  { key: "logs", icon: ScrollText },
 ];
+
+const ADMIN_COPY = {
+  en: {
+    fallbackAdmin: "Administrator",
+    profile: "Profile",
+    logout: "Logout",
+    tabs: {
+      users: "User Management",
+      species: "Species Management",
+      annotation: "Data Annotation",
+      logs: "System Logs",
+    },
+    users: {
+      total: "Total Users",
+      active: "Active Users",
+      admins: "Admins",
+      roles: "Roles",
+      title: "Users",
+      add: "Add User",
+      superAdminOnlyTitle: "Only Super Admin can add users",
+      columns: ["Name", "Email", "Role", "Status", "Last Login", "Actions"],
+      editRole: "Edit Role",
+      deleteUser: "Delete User",
+      activeStatus: "Active",
+      inactiveStatus: "Inactive",
+    },
+    species: {
+      total: "Total Species",
+      families: "Families",
+      lastUpdated: "Last Updated",
+      today: "Today",
+      records: "Species Records",
+      search: "Search species...",
+      add: "Add Species",
+      columns: ["Scientific Name", "Common Name", "Family", "Genus", "Last Updated", "Actions"],
+      edit: "Edit",
+      delete: "Delete",
+      addTitle: "Add New Species",
+      editTitle: "Edit Species",
+      scientificName: "Scientific Name",
+      commonName: "Common Name",
+      family: "Family",
+      genus: "Genus",
+      botanicalDescription: "Botanical Description",
+      ecologicalInformation: "Ecological Information",
+      environmentalImpact: "Environmental Impact",
+      botanicalPlaceholder: "Describe the plant's physical characteristics...",
+      ecologicalPlaceholder: "Describe its habitat and ecological role...",
+      impactPlaceholder: "Describe its impact on the environment...",
+      save: "Save Species",
+      deleteTitle: "Delete Species?",
+      deleteDesc: "Are you sure you want to delete",
+      cannotUndo: "This action cannot be undone.",
+      yesDelete: "Yes, Delete",
+    },
+    logs: {
+      title: "Annotation & Verification Logs",
+      by: "by",
+      filters: { all: "all", info: "info", warning: "warning", error: "error", success: "success" },
+      levels: { info: "info", warning: "warning", error: "error", success: "success" },
+      sources: { Annotation: "Annotation", Verification: "Verification" },
+    },
+    profileModal: {
+      start: "Start editing",
+      stop: "Stop editing",
+      firstName: "First Name",
+      lastName: "Last Name",
+      email: "Email",
+      country: "Country",
+      save: "Save",
+      newPassword: "New Password",
+      repeatPassword: "Repeat New Password",
+      currentPassword: "Current Password",
+      changePassword: "Change Password",
+      repeatRequired: "Repeat New Password is required",
+      mismatch: "Passwords do not match",
+      currentRequired: "Current Password is required",
+      currentWrong: "Current password is incorrect",
+    },
+    roleModal: {
+      title: "Edit Role",
+      user: "User",
+      role: "Role",
+    },
+    deleteModal: {
+      title: "Delete User",
+      desc: "This action cannot be undone",
+      confirmPrefix: "Are you sure you want to delete",
+      confirmSuffix: "from the system?",
+      delete: "Delete",
+    },
+    addUser: {
+      successTitle: "User Added Successfully",
+      title: "Add New User",
+      successSubtitle: "Save the credentials below",
+      subtitle: "Invite a new user with an email address",
+      addedAs: "was added as",
+      loginCredentials: "Login Credentials",
+      temporaryPassword: "Temporary Password",
+      copied: "Copied!",
+      copyCredentials: "Copy Credentials",
+      important: "Important!",
+      warning: "Send these credentials to the user through a secure channel. The user should change the password after the first login.",
+      emailLabel: "Email Address",
+      emailPlaceholder: "example@biowatch.id",
+      emailHelp: "Enter the active email of the user you want to add to the system",
+      fullName: "Full Name",
+      namePlaceholder: "Enter full name",
+      role: "Role",
+      passwordInfo: <>A temporary password will be <strong>generated automatically</strong> by the system and shown after the user is added.</>,
+      superAdminOnly: "Only Super Admin can add users",
+      done: "Done",
+      add: "Add User",
+      emailRequired: "Email is required",
+      emailInvalid: "Email format is invalid",
+      nameRequired: "User name is required",
+      roleMissing: "Role was not found",
+      serverFailed: "Failed to contact server",
+      createFailed: "Failed to add user",
+      passwordLabel: "Temporary Password",
+    },
+    common: {
+      cancel: "Cancel",
+      save: "Save",
+      done: "Done",
+      unknownError: "Unknown error",
+      saveSpeciesFailed: "Failed to save species",
+      contactServerError: "An error occurred while contacting the server",
+    },
+  },
+  id: {
+    fallbackAdmin: "Administrator",
+    profile: "Profil",
+    logout: "Keluar",
+    tabs: {
+      users: "Manajemen User",
+      species: "Manajemen Spesies",
+      annotation: "Anotasi Data",
+      logs: "Log Sistem",
+    },
+    users: {
+      total: "Total User",
+      active: "User Aktif",
+      admins: "Admin",
+      roles: "Role",
+      title: "User",
+      add: "Tambah User",
+      superAdminOnlyTitle: "Hanya Super Admin yang dapat menambahkan user",
+      columns: ["Nama", "Email", "Role", "Status", "Login Terakhir", "Aksi"],
+      editRole: "Edit Role",
+      deleteUser: "Hapus User",
+      activeStatus: "Aktif",
+      inactiveStatus: "Tidak Aktif",
+    },
+    species: {
+      total: "Total Spesies",
+      families: "Famili",
+      lastUpdated: "Terakhir Diperbarui",
+      today: "Hari Ini",
+      records: "Catatan Spesies",
+      search: "Cari spesies...",
+      add: "Tambah Spesies",
+      columns: ["Nama Ilmiah", "Nama Umum", "Famili", "Genus", "Terakhir Diperbarui", "Aksi"],
+      edit: "Edit",
+      delete: "Hapus",
+      addTitle: "Tambah Spesies Baru",
+      editTitle: "Edit Spesies",
+      scientificName: "Nama Ilmiah",
+      commonName: "Nama Umum",
+      family: "Famili",
+      genus: "Genus",
+      botanicalDescription: "Deskripsi Botani",
+      ecologicalInformation: "Informasi Ekologi",
+      environmentalImpact: "Dampak Lingkungan",
+      botanicalPlaceholder: "Jelaskan karakteristik fisik tanaman...",
+      ecologicalPlaceholder: "Jelaskan habitat dan peran ekologinya...",
+      impactPlaceholder: "Jelaskan dampaknya terhadap lingkungan...",
+      save: "Simpan Spesies",
+      deleteTitle: "Hapus Spesies?",
+      deleteDesc: "Apakah Anda yakin ingin menghapus",
+      cannotUndo: "Tindakan ini tidak dapat dibatalkan.",
+      yesDelete: "Ya, Hapus",
+    },
+    logs: {
+      title: "Log Anotasi & Verifikasi",
+      by: "oleh",
+      filters: { all: "semua", info: "info", warning: "peringatan", error: "error", success: "berhasil" },
+      levels: { info: "info", warning: "peringatan", error: "error", success: "berhasil" },
+      sources: { Annotation: "Anotasi", Verification: "Verifikasi" },
+    },
+    profileModal: {
+      start: "Mulai edit",
+      stop: "Berhenti edit",
+      firstName: "Nama Depan",
+      lastName: "Nama Belakang",
+      email: "Email",
+      country: "Negara",
+      save: "Simpan",
+      newPassword: "Password Baru",
+      repeatPassword: "Ulangi Password Baru",
+      currentPassword: "Password Saat Ini",
+      changePassword: "Ubah Password",
+      repeatRequired: "Ulangi Password Baru wajib diisi",
+      mismatch: "Password tidak cocok",
+      currentRequired: "Password Saat Ini wajib diisi",
+      currentWrong: "Password saat ini salah",
+    },
+    roleModal: {
+      title: "Edit Role",
+      user: "User",
+      role: "Role",
+    },
+    deleteModal: {
+      title: "Hapus User",
+      desc: "Tindakan ini tidak dapat dibatalkan",
+      confirmPrefix: "Apakah Anda yakin ingin menghapus",
+      confirmSuffix: "dari sistem?",
+      delete: "Hapus",
+    },
+    addUser: {
+      successTitle: "User Berhasil Ditambahkan",
+      title: "Tambah User Baru",
+      successSubtitle: "Simpan kredensial di bawah ini",
+      subtitle: "Undang user baru dengan alamat email",
+      addedAs: "berhasil ditambahkan sebagai",
+      loginCredentials: "Kredensial Login",
+      temporaryPassword: "Password Sementara",
+      copied: "Tersalin!",
+      copyCredentials: "Salin Kredensial",
+      important: "Penting!",
+      warning: "Kirimkan kredensial ini ke user melalui kanal yang aman. User disarankan segera mengganti password setelah login pertama.",
+      emailLabel: "Alamat Email",
+      emailPlaceholder: "contoh@biowatch.id",
+      emailHelp: "Masukkan email aktif user yang ingin ditambahkan ke sistem",
+      fullName: "Nama Lengkap",
+      namePlaceholder: "Masukkan nama lengkap",
+      role: "Role",
+      passwordInfo: <>Password sementara akan di-<strong>generate otomatis</strong> oleh sistem dan ditampilkan setelah user berhasil ditambahkan.</>,
+      superAdminOnly: "Hanya Super Admin yang dapat menambahkan user",
+      done: "Selesai",
+      add: "Tambah User",
+      emailRequired: "Email wajib diisi",
+      emailInvalid: "Format email tidak valid",
+      nameRequired: "Nama user wajib diisi",
+      roleMissing: "Role tidak ditemukan",
+      serverFailed: "Gagal menghubungi server",
+      createFailed: "Gagal menambahkan user",
+      passwordLabel: "Password Sementara",
+    },
+    common: {
+      cancel: "Batal",
+      save: "Simpan",
+      done: "Selesai",
+      unknownError: "Unknown error",
+      saveSpeciesFailed: "Gagal menyimpan spesies",
+      contactServerError: "Terjadi kesalahan saat menghubungi server",
+    },
+  },
+} as const;
 
 /* ───────────── COMPONENT ───────────── */
 
@@ -219,6 +479,8 @@ export default function AdminPage() {
   const [speciesSearch, setSpeciesSearch] = useState("");
   const [logFilter, setLogFilter] = useState<LogLevel | "all">("all");
   const { user, logout, registerUser, updatePassword } = useAuth();
+  const { language } = useLanguage();
+  const copy = ADMIN_COPY[language];
 
   // Check if current user is Super Admin
   const isSuperAdmin = user?.role === "Super Admin";
@@ -228,6 +490,7 @@ export default function AdminPage() {
   const [roles, setRoles] = useState<ApiRole[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   const [isLoadingSpecies, setIsLoadingSpecies] = useState(true);
+  const [speciesData, setSpeciesData] = useState<DisplaySpecies[]>([]);
 
   // Fetch functions
   const fetchRoles = useCallback(async () => {
@@ -263,7 +526,7 @@ export default function AdminPage() {
             role: roleName === "Field Officer" ? "Ranger" : roleName,
             roleId: u.roleId || u.role_id || 0,
             status: "Active",
-            lastLogin: u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString('id-ID', {
+            lastLogin: u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString(language === "id" ? "id-ID" : "en-US", {
               dateStyle: 'medium',
               timeStyle: 'short'
             }) : "-",
@@ -272,7 +535,7 @@ export default function AdminPage() {
       }
     } catch (e) { console.error("Failed to fetch users:", e); }
     setIsLoadingUsers(false);
-  }, [fetchRoles]);
+  }, [fetchRoles, language]);
 
   const fetchSpecies = useCallback(async () => {
     setIsLoadingSpecies(true);
@@ -299,7 +562,7 @@ export default function AdminPage() {
   useEffect(() => {
     fetchUsers();
     fetchSpecies();
-  }, []);
+  }, [fetchUsers, fetchSpecies]);
   const [editRoleUser, setEditRoleUser] = useState<DisplayUser | null>(null);
   const [editRoleValue, setEditRoleValue] = useState("");
   const [deleteConfirmUser, setDeleteConfirmUser] = useState<DisplayUser | null>(null);
@@ -336,16 +599,16 @@ export default function AdminPage() {
   const handleAddUserSubmit = async () => {
     setAddUserError("");
 
-    if (!addUserForm.email.trim()) { setAddUserError("Email wajib diisi"); return; }
+    if (!addUserForm.email.trim()) { setAddUserError(copy.addUser.emailRequired); return; }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(addUserForm.email.trim())) { setAddUserError("Format email tidak valid"); return; }
-    if (!addUserForm.name.trim()) { setAddUserError("Nama user wajib diisi"); return; }
+    if (!emailRegex.test(addUserForm.email.trim())) { setAddUserError(copy.addUser.emailInvalid); return; }
+    if (!addUserForm.name.trim()) { setAddUserError(copy.addUser.nameRequired); return; }
 
     const tempPassword = generateTempPassword();
     // Handle "Ranger" mapping to "Field Officer" if database hasn't been updated
     const searchRoleName = addUserForm.role === "Ranger" ? "Field Officer" : addUserForm.role;
     const selectedRole = roles.find(r => r.name === addUserForm.role) || roles.find(r => r.name === searchRoleName);
-    if (!selectedRole) { setAddUserError("Role tidak ditemukan"); return; }
+    if (!selectedRole) { setAddUserError(copy.addUser.roleMissing); return; }
 
     try {
       const res = await fetch("/api/v1/users", {
@@ -360,16 +623,16 @@ export default function AdminPage() {
         }),
       });
       const json = await res.json();
-      if (!res.ok) { setAddUserError(json.error?.message || "Gagal menambahkan user"); return; }
+      if (!res.ok) { setAddUserError(json.error?.message || copy.addUser.createFailed); return; }
 
       setAddUserCreatedCreds({ email: addUserForm.email.trim(), password: tempPassword, name: addUserForm.name.trim(), role: addUserForm.role });
       fetchUsers();
-    } catch { setAddUserError("Gagal menghubungi server"); }
+    } catch { setAddUserError(copy.addUser.serverFailed); }
   };
 
   const handleCopyCredentials = () => {
     if (!addUserCreatedCreds) return;
-    const text = `Email: ${addUserCreatedCreds.email}\nPassword Sementara: ${addUserCreatedCreds.password}`;
+    const text = `Email: ${addUserCreatedCreds.email}\n${copy.addUser.passwordLabel}: ${addUserCreatedCreds.password}`;
     navigator.clipboard.writeText(text).then(() => {
       setCopiedCreds(true);
       setTimeout(() => setCopiedCreds(false), 2000);
@@ -454,14 +717,14 @@ export default function AdminPage() {
       // No error for new password field itself, but we need it filled
     }
     if (!passwordForm.repeatNewPassword.trim()) {
-      errors.repeatNewPassword = "Repeat New Password wajib diisi";
+      errors.repeatNewPassword = copy.profileModal.repeatRequired;
       hasError = true;
     } else if (passwordForm.newPassword !== passwordForm.repeatNewPassword) {
-      errors.repeatNewPassword = "Password tidak cocok";
+      errors.repeatNewPassword = copy.profileModal.mismatch;
       hasError = true;
     }
     if (!passwordForm.currentPassword.trim()) {
-      errors.currentPassword = "Current Password wajib diisi";
+      errors.currentPassword = copy.profileModal.currentRequired;
       hasError = true;
     }
 
@@ -476,7 +739,7 @@ export default function AdminPage() {
     );
 
     if (!success) {
-      setPasswordErrors({ repeatNewPassword: "", currentPassword: "Current password salah" });
+      setPasswordErrors({ repeatNewPassword: "", currentPassword: copy.profileModal.currentWrong });
       return;
     }
 
@@ -489,7 +752,6 @@ export default function AdminPage() {
   };
 
   // Species management state
-  const [speciesData, setSpeciesData] = useState<DisplaySpecies[]>([]);
   const [showAddSpecies, setShowAddSpecies] = useState(false);
   const [speciesForm, setSpeciesForm] = useState({ 
     id: 0, 
@@ -572,11 +834,11 @@ export default function AdminPage() {
       } else {
         const err = await res?.json();
         console.error("Failed to save species:", err);
-        alert(`Gagal menyimpan spesies: ${err?.error?.message || "Unknown error"}`);
+        alert(`${copy.common.saveSpeciesFailed}: ${err?.error?.message || copy.common.unknownError}`);
       }
     } catch (e) { 
       console.error("Failed to save species:", e); 
-      alert("Terjadi kesalahan saat menghubungi server");
+      alert(copy.common.contactServerError);
     }
   };
 
@@ -742,7 +1004,7 @@ export default function AdminPage() {
             <User className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <p className="text-sm font-semibold">{user?.name || "Administrator"}</p>
+            <p className="text-sm font-semibold">{user?.name || copy.fallbackAdmin}</p>
             <p className="text-xs text-muted-foreground">{user?.email} • {user?.role}</p>
           </div>
         </div>
@@ -752,14 +1014,14 @@ export default function AdminPage() {
             className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"
           >
             <User className="h-4 w-4" />
-            Profile
+            {copy.profile}
           </button>
           <button
             onClick={logout}
             className="inline-flex items-center gap-2 rounded-lg border border-destructive/30 px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive hover:text-white transition-colors"
           >
             <LogOut className="h-4 w-4" />
-            Logout
+            {copy.logout}
           </button>
         </div>
       </div>
@@ -776,7 +1038,7 @@ export default function AdminPage() {
               }`}
           >
             <tab.icon className="h-4 w-4" />
-            {tab.label}
+            {copy.tabs[tab.key]}
           </button>
         ))}
       </div>
@@ -787,10 +1049,10 @@ export default function AdminPage() {
           {/* Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { label: "Total Users", value: String(users.length), icon: Users, color: "text-blue-600 bg-blue-50" },
-              { label: "Active Users", value: String(users.filter(u => u.status === "Active").length), icon: Activity, color: "text-green-600 bg-green-50" },
-              { label: "Admins", value: String(users.filter(u => u.role.includes("Admin")).length), icon: ShieldCheck, color: "text-purple-600 bg-purple-50" },
-              { label: "Roles", value: String(roles.length), icon: UserPlus, color: "text-amber-600 bg-amber-50" },
+              { label: copy.users.total, value: String(users.length), icon: Users, color: "text-blue-600 bg-blue-50" },
+              { label: copy.users.active, value: String(users.filter(u => u.status === "Active").length), icon: Activity, color: "text-green-600 bg-green-50" },
+              { label: copy.users.admins, value: String(users.filter(u => u.role.includes("Admin")).length), icon: ShieldCheck, color: "text-purple-600 bg-purple-50" },
+              { label: copy.users.roles, value: String(roles.length), icon: UserPlus, color: "text-amber-600 bg-amber-50" },
             ].map((stat) => (
               <div key={stat.label} className="stat-card flex items-center gap-4">
                 <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${stat.color}`}>
@@ -807,19 +1069,19 @@ export default function AdminPage() {
           {/* Table */}
           <div className="rounded-lg border bg-card shadow-sm">
             <div className="flex items-center justify-between border-b px-6 py-4">
-              <h2 className="text-lg font-semibold">Users</h2>
+              <h2 className="text-lg font-semibold">{copy.users.title}</h2>
               {isSuperAdmin ? (
                 <button
                   onClick={handleOpenAddUser}
                   className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
                 >
                   <UserPlus className="h-4 w-4" />
-                  Add User
+                  {copy.users.add}
                 </button>
               ) : (
-                <div className="inline-flex items-center gap-2 rounded-lg bg-muted px-4 py-2 text-sm font-medium text-muted-foreground cursor-not-allowed" title="Hanya Super Admin yang dapat menambahkan user">
+                <div className="inline-flex items-center gap-2 rounded-lg bg-muted px-4 py-2 text-sm font-medium text-muted-foreground cursor-not-allowed" title={copy.users.superAdminOnlyTitle}>
                   <Lock className="h-4 w-4" />
-                  Add User
+                  {copy.users.add}
                 </div>
               )}
             </div>
@@ -827,12 +1089,9 @@ export default function AdminPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="px-6 py-3 text-left font-medium text-muted-foreground">Name</th>
-                    <th className="px-6 py-3 text-left font-medium text-muted-foreground">Email</th>
-                    <th className="px-6 py-3 text-left font-medium text-muted-foreground">Role</th>
-                    <th className="px-6 py-3 text-left font-medium text-muted-foreground">Status</th>
-                    <th className="px-6 py-3 text-left font-medium text-muted-foreground">Last Login</th>
-                    {isSuperAdmin && <th className="px-6 py-3 text-left font-medium text-muted-foreground">Actions</th>}
+                    {copy.users.columns.slice(0, isSuperAdmin ? 6 : 5).map((column) => (
+                      <th key={column} className="px-6 py-3 text-left font-medium text-muted-foreground">{column}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -850,7 +1109,7 @@ export default function AdminPage() {
                         <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${u.status === "Active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
                           }`}>
                           <span className={`h-1.5 w-1.5 rounded-full ${u.status === "Active" ? "bg-green-500" : "bg-gray-400"}`} />
-                          {u.status}
+                          {u.status === "Active" ? copy.users.activeStatus : copy.users.inactiveStatus}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-muted-foreground">{u.lastLogin}</td>
@@ -860,14 +1119,14 @@ export default function AdminPage() {
                             <button
                               onClick={() => handleEditRole(u)}
                               className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-                              title="Edit Role"
+                              title={copy.users.editRole}
                             >
                               <Pencil className="h-4 w-4" />
                             </button>
                             <button
                               onClick={() => handleDeleteUser(u)}
                               className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive"
-                              title="Delete User"
+                              title={copy.users.deleteUser}
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -888,9 +1147,9 @@ export default function AdminPage() {
         <div className="space-y-6 animate-in fade-in duration-300">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
-              { label: "Total Species", value: isLoadingSpecies ? "..." : String(speciesData.length), color: "text-emerald-600" },
-              { label: "Families", value: isLoadingSpecies ? "..." : String(new Set(speciesData.map(s => s.family)).size), color: "text-blue-600" },
-              { label: "Last Updated", value: "Today", color: "text-amber-600" },
+              { label: copy.species.total, value: isLoadingSpecies ? "..." : String(speciesData.length), color: "text-emerald-600" },
+              { label: copy.species.families, value: isLoadingSpecies ? "..." : String(new Set(speciesData.map(s => s.family)).size), color: "text-blue-600" },
+              { label: copy.species.lastUpdated, value: copy.species.today, color: "text-amber-600" },
             ].map((stat) => (
               <div key={stat.label} className="stat-card">
                 <p className="text-sm text-muted-foreground">{stat.label}</p>
@@ -901,13 +1160,13 @@ export default function AdminPage() {
 
           <div className="rounded-lg border bg-card shadow-sm">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b px-6 py-4">
-              <h2 className="text-lg font-semibold">Species Records</h2>
+              <h2 className="text-lg font-semibold">{copy.species.records}</h2>
               <div className="flex items-center gap-3">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <input
                     type="text"
-                    placeholder="Search species..."
+                    placeholder={copy.species.search}
                     value={speciesSearch}
                     onChange={(e) => setSpeciesSearch(e.target.value)}
                     className="h-9 w-56 rounded-lg border bg-background pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition"
@@ -915,7 +1174,7 @@ export default function AdminPage() {
                 </div>
                 <button onClick={handleOpenAddSpecies} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
                   <Plus className="h-4 w-4" />
-                  Add Species
+                  {copy.species.add}
                 </button>
               </div>
             </div>
@@ -923,12 +1182,9 @@ export default function AdminPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="px-6 py-3 text-left font-medium text-muted-foreground">Scientific Name</th>
-                    <th className="px-6 py-3 text-left font-medium text-muted-foreground">Common Name</th>
-                    <th className="px-6 py-3 text-left font-medium text-muted-foreground">Family</th>
-                    <th className="px-6 py-3 text-left font-medium text-muted-foreground">Genus</th>
-                    <th className="px-6 py-3 text-left font-medium text-muted-foreground">Last Updated</th>
-                    <th className="px-6 py-3 text-left font-medium text-muted-foreground">Actions</th>
+                    {copy.species.columns.map((column) => (
+                      <th key={column} className="px-6 py-3 text-left font-medium text-muted-foreground">{column}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -938,11 +1194,11 @@ export default function AdminPage() {
                       <td className="px-6 py-4 text-muted-foreground">{species.commonName}</td>
                       <td className="px-6 py-4 text-muted-foreground">{species.family}</td>
                       <td className="px-6 py-4 text-muted-foreground">{species.genus}</td>
-                      <td className="px-6 py-4 text-muted-foreground text-xs">{species.lastUpdated ? new Date(species.lastUpdated).toLocaleDateString('id-ID') : '-'}</td>
+                      <td className="px-6 py-4 text-muted-foreground text-xs">{species.lastUpdated ? new Date(species.lastUpdated).toLocaleDateString(language === "id" ? "id-ID" : "en-US") : '-'}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                          <button onClick={() => handleEditSpecies(species)} className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground" title="Edit"><Pencil className="h-4 w-4" /></button>
-                          <button onClick={() => handleDeleteSpecies(species)} className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive" title="Delete"><Trash2 className="h-4 w-4" /></button>
+                          <button onClick={() => handleEditSpecies(species)} className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground" title={copy.species.edit}><Pencil className="h-4 w-4" /></button>
+                          <button onClick={() => handleDeleteSpecies(species)} className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive" title={copy.species.delete}><Trash2 className="h-4 w-4" /></button>
                         </div>
                       </td>
                     </tr>
@@ -961,7 +1217,7 @@ export default function AdminPage() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b px-6 py-4">
               <div className="flex items-center gap-2">
                 <ScrollText className="h-5 w-5 text-muted-foreground" />
-                <h2 className="text-lg font-semibold">Annotation & Verification Logs</h2>
+                <h2 className="text-lg font-semibold">{copy.logs.title}</h2>
               </div>
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-muted-foreground" />
@@ -974,7 +1230,7 @@ export default function AdminPage() {
                       : "bg-muted text-muted-foreground hover:bg-muted/80"
                       }`}
                   >
-                    {level}
+                    {copy.logs.filters[level]}
                   </button>
                 ))}
               </div>
@@ -990,9 +1246,9 @@ export default function AdminPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${style.bg} ${style.text}`}>{log.level}</span>
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{log.source}</span>
-                        {log.user && <span className="text-xs text-muted-foreground">by {log.user}</span>}
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${style.bg} ${style.text}`}>{copy.logs.levels[log.level]}</span>
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{copy.logs.sources[log.source as keyof typeof copy.logs.sources] || log.source}</span>
+                        {log.user && <span className="text-xs text-muted-foreground">{copy.logs.by} {log.user}</span>}
                       </div>
                       <p className="mt-1 text-sm">{log.message}</p>
                     </div>
@@ -1030,7 +1286,7 @@ export default function AdminPage() {
               <div className="flex items-center gap-3">
                 <span className={`text-sm font-medium ${profileEditing ? "text-primary-foreground" : "text-muted-foreground"
                   }`}>
-                  {profileEditing ? "Stop editing" : "Start editing"}
+                  {profileEditing ? copy.profileModal.stop : copy.profileModal.start}
                 </span>
                 <button
                   onClick={() => setProfileEditing(!profileEditing)}
@@ -1047,7 +1303,7 @@ export default function AdminPage() {
             <div className="px-8 py-8 space-y-8">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-6">
                 <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">First Name</label>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">{copy.profileModal.firstName}</label>
                   <input
                     type="text"
                     value={profileForm.firstName}
@@ -1057,7 +1313,7 @@ export default function AdminPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Last Name</label>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">{copy.profileModal.lastName}</label>
                   <input
                     type="text"
                     value={profileForm.lastName}
@@ -1067,7 +1323,7 @@ export default function AdminPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Email</label>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">{copy.profileModal.email}</label>
                   <input
                     type="email"
                     value={profileForm.email}
@@ -1077,7 +1333,7 @@ export default function AdminPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Country</label>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">{copy.profileModal.country}</label>
                   <input
                     type="text"
                     value={profileForm.country}
@@ -1095,7 +1351,7 @@ export default function AdminPage() {
                     onClick={() => { setProfileEditing(false); setShowProfile(false); setActiveTab("users"); }}
                     className="text-sm font-semibold uppercase tracking-wider text-primary hover:text-primary/80 transition-colors"
                   >
-                    Save
+                    {copy.profileModal.save}
                   </button>
                 </div>
               )}
@@ -1108,7 +1364,7 @@ export default function AdminPage() {
                   {/* Change Password */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-6">
                     <div>
-                      <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">New Password</label>
+                      <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">{copy.profileModal.newPassword}</label>
                       <input
                         type="password"
                         value={passwordForm.newPassword}
@@ -1118,7 +1374,7 @@ export default function AdminPage() {
                     </div>
                     <div>
                       <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                        Repeat New Password <span className="text-destructive">*</span>
+                        {copy.profileModal.repeatPassword} <span className="text-destructive">*</span>
                       </label>
                       <input
                         type="password"
@@ -1136,7 +1392,7 @@ export default function AdminPage() {
                     </div>
                     <div>
                       <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                        Current Password <span className="text-destructive">*</span>
+                        {copy.profileModal.currentPassword} <span className="text-destructive">*</span>
                       </label>
                       <input
                         type="password"
@@ -1159,7 +1415,7 @@ export default function AdminPage() {
                       onClick={handleChangePassword}
                       className="text-sm font-semibold uppercase tracking-wider text-primary hover:text-primary/80 transition-colors"
                     >
-                      Change Password
+                      {copy.profileModal.changePassword}
                     </button>
                   </div>
                 </>
@@ -1174,17 +1430,17 @@ export default function AdminPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-md rounded-2xl bg-card shadow-2xl border p-6 space-y-5 animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Edit Role</h3>
+              <h3 className="text-lg font-semibold">{copy.roleModal.title}</h3>
               <button onClick={() => setEditRoleUser(null)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">User</p>
+              <p className="text-sm text-muted-foreground">{copy.roleModal.user}</p>
               <p className="text-sm font-medium">{editRoleUser.name} ({editRoleUser.email})</p>
             </div>
             <div className="space-y-2">
-              <label className="block text-sm font-medium">Role</label>
+              <label className="block text-sm font-medium">{copy.roleModal.role}</label>
               <div className="flex flex-wrap gap-2">
                 {roles
                   .filter((r) => r.name === "Researcher" || r.name === "Ranger" || r.name === "Field Officer")
@@ -1209,13 +1465,13 @@ export default function AdminPage() {
                 onClick={() => setEditRoleUser(null)}
                 className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
               >
-                Batal
+                {copy.common.cancel}
               </button>
               <button
                 onClick={submitRoleChange}
                 className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
               >
-                Simpan
+                {copy.common.save}
               </button>
             </div>
           </div>
@@ -1231,25 +1487,25 @@ export default function AdminPage() {
                 <AlertTriangle className="h-5 w-5 text-destructive" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold">Hapus User</h3>
-                <p className="text-sm text-muted-foreground">Tindakan ini tidak dapat dibatalkan</p>
+                <h3 className="text-lg font-semibold">{copy.deleteModal.title}</h3>
+                <p className="text-sm text-muted-foreground">{copy.deleteModal.desc}</p>
               </div>
             </div>
             <p className="text-sm">
-              Apakah Anda yakin ingin menghapus <span className="font-semibold">{deleteConfirmUser.name}</span> ({deleteConfirmUser.email}) dari sistem?
+              {copy.deleteModal.confirmPrefix} <span className="font-semibold">{deleteConfirmUser.name}</span> ({deleteConfirmUser.email}) {copy.deleteModal.confirmSuffix}
             </p>
             <div className="flex justify-end gap-3 pt-2">
               <button
                 onClick={() => setDeleteConfirmUser(null)}
                 className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
               >
-                Batal
+                {copy.common.cancel}
               </button>
               <button
                 onClick={confirmDeleteUser}
                 className="rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-white hover:bg-destructive/90 transition-colors"
               >
-                Hapus
+                {copy.deleteModal.delete}
               </button>
             </div>
           </div>
@@ -1267,8 +1523,8 @@ export default function AdminPage() {
                   {addUserCreatedCreds ? <CheckCircle2 className="h-5 w-5 text-green-600" /> : <UserPlus className="h-5 w-5 text-primary" />}
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold">{addUserCreatedCreds ? "User Berhasil Ditambahkan" : "Tambah User Baru"}</h3>
-                  <p className="text-xs text-muted-foreground">{addUserCreatedCreds ? "Simpan kredensial di bawah ini" : "Undang user baru dengan alamat email"}</p>
+                  <h3 className="text-lg font-semibold">{addUserCreatedCreds ? copy.addUser.successTitle : copy.addUser.title}</h3>
+                  <p className="text-xs text-muted-foreground">{addUserCreatedCreds ? copy.addUser.successSubtitle : copy.addUser.subtitle}</p>
                 </div>
               </div>
               <button
@@ -1287,14 +1543,14 @@ export default function AdminPage() {
                   {/* Success banner */}
                   <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
                     <CheckCircle2 className="h-4 w-4 shrink-0" />
-                    <span><strong>{addUserCreatedCreds.name}</strong> berhasil ditambahkan sebagai <strong>{addUserCreatedCreds.role}</strong></span>
+                    <span><strong>{addUserCreatedCreds.name}</strong> {copy.addUser.addedAs} <strong>{addUserCreatedCreds.role}</strong></span>
                   </div>
 
                   {/* Credential card */}
                   <div className="rounded-xl border-2 border-dashed border-amber-300 bg-amber-50/50 p-5 space-y-4">
                     <div className="flex items-center gap-2 text-amber-700">
                       <KeyRound className="h-4 w-4" />
-                      <span className="text-sm font-semibold">Kredensial Login</span>
+                      <span className="text-sm font-semibold">{copy.addUser.loginCredentials}</span>
                     </div>
 
                     <div className="space-y-3">
@@ -1303,7 +1559,7 @@ export default function AdminPage() {
                         <p className="text-sm font-mono font-medium bg-white rounded-lg border px-3 py-2">{addUserCreatedCreds.email}</p>
                       </div>
                       <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Password Sementara</p>
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">{copy.addUser.temporaryPassword}</p>
                         <p className="text-sm font-mono font-medium bg-white rounded-lg border px-3 py-2 tracking-wide">{addUserCreatedCreds.password}</p>
                       </div>
                     </div>
@@ -1317,9 +1573,9 @@ export default function AdminPage() {
                       }`}
                     >
                       {copiedCreds ? (
-                        <><CheckCircle2 className="h-4 w-4" /> Tersalin!</>
+                        <><CheckCircle2 className="h-4 w-4" /> {copy.addUser.copied}</>
                       ) : (
-                        <><Copy className="h-4 w-4" /> Salin Kredensial</>
+                        <><Copy className="h-4 w-4" /> {copy.addUser.copyCredentials}</>
                       )}
                     </button>
                   </div>
@@ -1328,8 +1584,8 @@ export default function AdminPage() {
                   <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-800">
                     <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-semibold">Penting!</p>
-                      <p>Kirimkan kredensial ini ke user melalui kanal yang aman. User disarankan segera mengganti password setelah login pertama.</p>
+                      <p className="font-semibold">{copy.addUser.important}</p>
+                      <p>{copy.addUser.warning}</p>
                     </div>
                   </div>
                 </div>
@@ -1338,7 +1594,7 @@ export default function AdminPage() {
                 <>
                   {/* Email field */}
                   <div className="space-y-2">
-                    <label className="block text-sm font-medium">Email Address <span className="text-destructive">*</span></label>
+                    <label className="block text-sm font-medium">{copy.addUser.emailLabel} <span className="text-destructive">*</span></label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">@</span>
                       <input
@@ -1348,18 +1604,18 @@ export default function AdminPage() {
                           setAddUserForm(f => ({ ...f, email: e.target.value }));
                           if (addUserError) setAddUserError("");
                         }}
-                        placeholder="contoh@biowatch.id"
+                        placeholder={copy.addUser.emailPlaceholder}
                         className={`w-full h-11 rounded-lg border bg-background pl-9 pr-4 text-sm outline-none transition-all focus:ring-2 focus:ring-primary/20 ${
                           addUserError ? "border-destructive focus:ring-destructive/20" : "border-border"
                         }`}
                       />
                     </div>
-                    <p className="text-xs text-muted-foreground">Masukkan email aktif user yang ingin ditambahkan ke sistem</p>
+                    <p className="text-xs text-muted-foreground">{copy.addUser.emailHelp}</p>
                   </div>
 
                   {/* Name field */}
                   <div className="space-y-2">
-                    <label className="block text-sm font-medium">Nama Lengkap <span className="text-destructive">*</span></label>
+                    <label className="block text-sm font-medium">{copy.addUser.fullName} <span className="text-destructive">*</span></label>
                     <input
                       type="text"
                       value={addUserForm.name}
@@ -1367,14 +1623,14 @@ export default function AdminPage() {
                         setAddUserForm(f => ({ ...f, name: e.target.value }));
                         if (addUserError) setAddUserError("");
                       }}
-                      placeholder="Masukkan nama lengkap"
+                      placeholder={copy.addUser.namePlaceholder}
                       className="w-full h-11 rounded-lg border border-border bg-background px-4 text-sm outline-none transition-all focus:ring-2 focus:ring-primary/20"
                     />
                   </div>
 
                   {/* Role selection */}
                   <div className="space-y-2">
-                    <label className="block text-sm font-medium">Role</label>
+                    <label className="block text-sm font-medium">{copy.addUser.role}</label>
                     <div className="flex flex-wrap gap-2">
                       {roles
                         .filter((r) => r.name === "Researcher" || r.name === "Ranger" || r.name === "Field Officer")
@@ -1398,7 +1654,7 @@ export default function AdminPage() {
                   {/* Password info */}
                   <div className="flex items-start gap-2 rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-xs text-blue-700">
                     <KeyRound className="h-4 w-4 shrink-0 mt-0.5" />
-                    <p>Password sementara akan di-<strong>generate otomatis</strong> oleh sistem dan ditampilkan setelah user berhasil ditambahkan.</p>
+                    <p>{copy.addUser.passwordInfo}</p>
                   </div>
 
                   {/* Error message */}
@@ -1416,7 +1672,7 @@ export default function AdminPage() {
             <div className="flex items-center justify-between border-t px-6 py-4">
               <p className="text-xs text-muted-foreground">
                 <ShieldCheck className="inline h-3.5 w-3.5 mr-1" />
-                Hanya Super Admin yang dapat menambahkan user
+                {copy.addUser.superAdminOnly}
               </p>
               <div className="flex items-center gap-3">
                 {addUserCreatedCreds ? (
@@ -1424,7 +1680,7 @@ export default function AdminPage() {
                     onClick={() => setShowAddUser(false)}
                     className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
                   >
-                    Selesai
+                    {copy.addUser.done}
                   </button>
                 ) : (
                   <>
@@ -1432,14 +1688,14 @@ export default function AdminPage() {
                       onClick={() => setShowAddUser(false)}
                       className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
                     >
-                      Batal
+                      {copy.common.cancel}
                     </button>
                     <button
                       onClick={handleAddUserSubmit}
                       className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
                     >
                       <UserPlus className="inline h-4 w-4 mr-1.5" />
-                      Tambah User
+                      {copy.addUser.add}
                     </button>
                   </>
                 )}
@@ -1453,14 +1709,14 @@ export default function AdminPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-card shadow-2xl border animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between border-b px-6 py-4 bg-muted/30">
-              <h2 className="text-lg font-semibold">{speciesForm.id === 0 ? "Add New Species" : "Edit Species"}</h2>
+              <h2 className="text-lg font-semibold">{speciesForm.id === 0 ? copy.species.addTitle : copy.species.editTitle}</h2>
               <button onClick={() => setShowAddSpecies(false)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="space-y-4 py-4 px-6">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Scientific Name</label>
+                <label className="text-sm font-medium">{copy.species.scientificName}</label>
                 <input
                   type="text"
                   value={speciesForm.scientificName}
@@ -1470,7 +1726,7 @@ export default function AdminPage() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Common Name</label>
+                <label className="text-sm font-medium">{copy.species.commonName}</label>
                 <input
                   type="text"
                   value={speciesForm.commonName}
@@ -1481,7 +1737,7 @@ export default function AdminPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Family</label>
+                  <label className="text-sm font-medium">{copy.species.family}</label>
                   <input
                     type="text"
                     value={speciesForm.family}
@@ -1491,7 +1747,7 @@ export default function AdminPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Genus</label>
+                  <label className="text-sm font-medium">{copy.species.genus}</label>
                   <input
                     type="text"
                     value={speciesForm.genus}
@@ -1503,33 +1759,33 @@ export default function AdminPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Botanical Description</label>
+                <label className="text-sm font-medium">{copy.species.botanicalDescription}</label>
                 <textarea
                   value={speciesForm.botanicalDescription}
                   onChange={(e) => setSpeciesForm({ ...speciesForm, botanicalDescription: e.target.value })}
-                  placeholder="Describe the plant's physical characteristics..."
+                  placeholder={copy.species.botanicalPlaceholder}
                   rows={3}
                   className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 resize-none"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Ecological Information</label>
+                <label className="text-sm font-medium">{copy.species.ecologicalInformation}</label>
                 <textarea
                   value={speciesForm.ecologicalInformation}
                   onChange={(e) => setSpeciesForm({ ...speciesForm, ecologicalInformation: e.target.value })}
-                  placeholder="Describe its habitat and ecological role..."
+                  placeholder={copy.species.ecologicalPlaceholder}
                   rows={3}
                   className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 resize-none"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Environmental Impact</label>
+                <label className="text-sm font-medium">{copy.species.environmentalImpact}</label>
                 <textarea
                   value={speciesForm.environmentalImpact}
                   onChange={(e) => setSpeciesForm({ ...speciesForm, environmentalImpact: e.target.value })}
-                  placeholder="Describe its impact on the environment..."
+                  placeholder={copy.species.impactPlaceholder}
                   rows={3}
                   className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 resize-none"
                 />
@@ -1537,10 +1793,10 @@ export default function AdminPage() {
             </div>
             <div className="flex items-center justify-end gap-3 border-t bg-muted/30 px-6 py-4">
               <button onClick={() => setShowAddSpecies(false)} className="rounded-lg border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors">
-                Cancel
+                {copy.common.cancel}
               </button>
               <button onClick={handleSaveSpecies} disabled={!speciesForm.scientificName.trim() || !speciesForm.family.trim()} className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                Save Species
+                {copy.species.save}
               </button>
             </div>
           </div>
@@ -1555,17 +1811,17 @@ export default function AdminPage() {
               <AlertTriangle className="h-6 w-6 text-destructive" />
             </div>
             <div className="space-y-2">
-              <h3 className="text-lg font-semibold">Delete Species?</h3>
+              <h3 className="text-lg font-semibold">{copy.species.deleteTitle}</h3>
               <p className="text-sm text-muted-foreground">
-                Are you sure you want to delete <span className="font-bold italic text-foreground">{deleteSpeciesConfirm.scientificName}</span>? This action cannot be undone.
+                {copy.species.deleteDesc} <span className="font-bold italic text-foreground">{deleteSpeciesConfirm.scientificName}</span>? {copy.species.cannotUndo}
               </p>
             </div>
             <div className="flex items-center justify-center gap-3">
               <button onClick={() => setDeleteSpeciesConfirm(null)} className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors">
-                Cancel
+                {copy.common.cancel}
               </button>
               <button onClick={confirmDeleteSpecies} className="rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-white hover:bg-destructive/90 transition-colors">
-                Yes, Delete
+                {copy.species.yesDelete}
               </button>
             </div>
           </div>

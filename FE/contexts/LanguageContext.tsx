@@ -12,21 +12,22 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 const LANGUAGE_STORAGE_KEY = "biowatch_language";
 
+
 export function LanguageProvider({ children }: { children: ReactNode }) {
+  // Start with a stable initial state that matches the server (SSR)
   const [language, setLanguageState] = useState<Language>("en");
 
+  // Sync with localStorage/navigator only after mounting on the client
   useEffect(() => {
     try {
       const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
       if (stored === "en" || stored === "id") {
         setLanguageState(stored);
-        return;
+      } else if (navigator.language.toLowerCase().startsWith("id")) {
+        setLanguageState("id");
       }
-
-      const browserLanguage = navigator.language.toLowerCase().startsWith("id") ? "id" : "en";
-      setLanguageState(browserLanguage);
-    } catch {
-      setLanguageState("en");
+    } catch (e) {
+      console.error("Failed to load language from storage:", e);
     }
   }, []);
 
@@ -34,10 +35,15 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setLanguageState(nextLanguage);
     try {
       localStorage.setItem(LANGUAGE_STORAGE_KEY, nextLanguage);
+      document.documentElement.lang = nextLanguage;
     } catch {
-      // Ignore storage errors so the UI remains usable.
+      // Ignore storage errors
     }
   };
+
+  useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
 
   const value = useMemo(() => ({ language, setLanguage }), [language]);
 

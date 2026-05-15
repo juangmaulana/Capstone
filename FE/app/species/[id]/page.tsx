@@ -2,7 +2,8 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Leaf, Network, Map as MapIcon, ThermometerSun, FileText, Image as ImageIcon, Loader2 } from "lucide-react";
+import { ArrowLeft, Network, FileText, Image as ImageIcon, Loader2 } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 // Taxonomy data for the 5 invasive species
 const TAXONOMY_DB: Record<string, { rank: string; value: string }[]> = {
@@ -65,6 +66,55 @@ interface PlantData {
   imagePath: string;
 }
 
+const SPECIES_COPY = {
+  en: {
+    loading: "Loading species data...",
+    notFound: "Species was not found in the database.",
+    loadFailed: "Failed to load species data.",
+    speciesMissing: "Species not found",
+    back: "Back",
+    descriptionTitle: "Species Description",
+    botanicalDescription: "Botanical Description",
+    ecologicalInformation: "Ecological Information",
+    environmentalImpact: "Environmental Impact",
+    herbariumSketch: "Herbarium Sketch",
+    taxonomy: "Plant Taxonomy",
+    herbariumAlt: "Herbarium sketch of",
+    ranks: {
+      Kerajaan: "Kingdom",
+      Filum: "Phylum",
+      Kelas: "Class",
+      Ordo: "Order",
+      Famili: "Family",
+      Genus: "Genus",
+      Spesies: "Species",
+    },
+  },
+  id: {
+    loading: "Memuat data spesies...",
+    notFound: "Spesies tidak ditemukan dalam database.",
+    loadFailed: "Gagal memuat data spesies.",
+    speciesMissing: "Spesies tidak ditemukan",
+    back: "Kembali",
+    descriptionTitle: "Keterangan Spesies",
+    botanicalDescription: "Deskripsi Botani",
+    ecologicalInformation: "Informasi Ekologi",
+    environmentalImpact: "Dampak Lingkungan",
+    herbariumSketch: "Sketsa Herbarium",
+    taxonomy: "Taksonomi Tanaman",
+    herbariumAlt: "Sketsa herbarium",
+    ranks: {
+      Kerajaan: "Kerajaan",
+      Filum: "Filum",
+      Kelas: "Kelas",
+      Ordo: "Ordo",
+      Famili: "Famili",
+      Genus: "Genus",
+      Spesies: "Spesies",
+    },
+  },
+} as const;
+
 const HERBARIUM_IMAGE_DIMENSIONS: Record<string, { width: number; height: number }> = {
   "/sketsa-herbarium-acacia-nilotica.gif": { width: 376, height: 563 },
   "/sketsa-herbarium-lantana-camara.jpg": { width: 1985, height: 2810 },
@@ -103,6 +153,8 @@ export default function SpeciesPage() {
   const params = useParams();
   const router = useRouter();
   const id = typeof params?.id === "string" ? params.id : "lantana-camara";
+  const { language } = useLanguage();
+  const copy = SPECIES_COPY[language];
 
   const [plant, setPlant] = useState<PlantData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -146,7 +198,7 @@ export default function SpeciesPage() {
           if (fallback) {
             setPlant(fallback);
           } else {
-            setError("Spesies tidak ditemukan dalam database.");
+            setError(copy.notFound);
           }
         }
       } catch (err) {
@@ -157,14 +209,14 @@ export default function SpeciesPage() {
         if (fallback) {
           setPlant(fallback);
         } else {
-          setError("Gagal memuat data spesies.");
+          setError(copy.loadFailed);
         }
       } finally {
         setIsLoading(false);
       }
     }
     fetchPlant();
-  }, [id]);
+  }, [copy.loadFailed, copy.notFound, id]);
 
   // Get taxonomy for the species
   const taxonomy = plant
@@ -181,7 +233,7 @@ export default function SpeciesPage() {
       <div className="flex h-full items-center justify-center bg-muted/20 p-8">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Memuat data spesies...</p>
+          <p className="text-sm text-muted-foreground">{copy.loading}</p>
         </div>
       </div>
     );
@@ -190,12 +242,12 @@ export default function SpeciesPage() {
   if (error || !plant) {
     return (
       <div className="flex h-full flex-col items-center justify-center bg-muted/20 p-8">
-        <p className="text-lg font-semibold text-muted-foreground">{error || "Spesies tidak ditemukan"}</p>
+        <p className="text-lg font-semibold text-muted-foreground">{error || copy.speciesMissing}</p>
         <button
           onClick={() => router.back()}
           className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
         >
-          Kembali
+          {copy.back}
         </button>
       </div>
     );
@@ -224,19 +276,19 @@ export default function SpeciesPage() {
           <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
             <div className="flex items-center gap-2 border-b bg-muted/50 px-4 py-3">
               <FileText className="h-4 w-4 text-primary" />
-              <h2 className="font-semibold text-sm">Keterangan Spesies</h2>
+              <h2 className="font-semibold text-sm">{copy.descriptionTitle}</h2>
             </div>
             <div className="p-4 space-y-4">
               <div>
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Deskripsi Botani</h3>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{copy.botanicalDescription}</h3>
                 <p className="text-sm leading-relaxed text-muted-foreground">{plant.botanicalDescription}</p>
               </div>
               <div>
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Informasi Ekologi</h3>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{copy.ecologicalInformation}</h3>
                 <p className="text-sm leading-relaxed text-muted-foreground">{plant.ecologicalInformation}</p>
               </div>
               <div>
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Dampak Lingkungan</h3>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{copy.environmentalImpact}</h3>
                 <p className="text-sm leading-relaxed text-muted-foreground">{plant.environmentalImpact}</p>
               </div>
             </div>
@@ -247,7 +299,7 @@ export default function SpeciesPage() {
             <div className="rounded-xl border bg-card text-card-foreground shadow-sm overflow-hidden flex flex-col">
               <div className="flex items-center gap-2 border-b bg-muted/50 px-4 py-3">
                 <ImageIcon className="h-4 w-4 text-primary" />
-                <h2 className="font-semibold text-sm">Sketsa Herbarium</h2>
+                <h2 className="font-semibold text-sm">{copy.herbariumSketch}</h2>
               </div>
               <div
                 className="relative w-full overflow-hidden bg-white"
@@ -260,7 +312,7 @@ export default function SpeciesPage() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={plant.imagePath}
-                  alt={`Herbarium sketch of ${plant.scientificName}`}
+                  alt={`${copy.herbariumAlt} ${plant.scientificName}`}
                   className="block h-full w-full object-contain"
                 />
               </div>
@@ -271,13 +323,13 @@ export default function SpeciesPage() {
           <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
             <div className="flex items-center gap-2 border-b bg-muted/50 px-4 py-3">
               <Network className="h-4 w-4 text-primary" />
-              <h2 className="font-semibold text-sm">Taksonomi Tanaman</h2>
+              <h2 className="font-semibold text-sm">{copy.taxonomy}</h2>
             </div>
             <div className="p-4">
               <div className="flex flex-col space-y-2">
                 {taxonomy.map((item, idx) => (
                   <div key={idx} className="flex justify-between text-sm py-1 border-b last:border-0 border-muted">
-                    <span className="text-muted-foreground">{item.rank}</span>
+                    <span className="text-muted-foreground">{copy.ranks[item.rank as keyof typeof copy.ranks] || item.rank}</span>
                     <span className="font-medium">{item.value}</span>
                   </div>
                 ))}
