@@ -14,6 +14,12 @@ export const createPlant = (deps: {
       botanical_description: input.botanicalDescription,
       ecological_information: input.ecologicalInformation,
       environmental_impact: input.environmentalImpact,
+      botanical_description_en: input.botanicalDescriptionEn ?? input.botanicalDescription,
+      botanical_description_id: input.botanicalDescriptionId ?? input.botanicalDescription,
+      ecological_information_en: input.ecologicalInformationEn ?? input.ecologicalInformation,
+      ecological_information_id: input.ecologicalInformationId ?? input.ecologicalInformation,
+      environmental_impact_en: input.environmentalImpactEn ?? input.environmentalImpact,
+      environmental_impact_id: input.environmentalImpactId ?? input.environmentalImpact,
       image_path: input.imagePath,
     })
   } catch (err) {

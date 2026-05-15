@@ -61,8 +61,14 @@ interface PlantData {
   family: string;
   genus: string;
   botanicalDescription: string;
+  botanicalDescriptionEn?: string;
+  botanicalDescriptionId?: string;
   ecologicalInformation: string;
+  ecologicalInformationEn?: string;
+  ecologicalInformationId?: string;
   environmentalImpact: string;
+  environmentalImpactEn?: string;
+  environmentalImpactId?: string;
   imagePath: string;
 }
 
@@ -132,8 +138,14 @@ const FALLBACK_PLANTS: Record<string, PlantData> = {
     family: "Convolvulaceae",
     genus: "Merremia",
     botanicalDescription: "Tanaman merambat herba tahunan dari keluarga Convolvulaceae. Daun berbentuk jantung hingga berlekuk 3-5 jari, tipis, dan berwarna hijau cerah. Bunga berbentuk corong berwarna kuning pucat hingga putih. Buah kapsul membulat berisi biji kecil.",
+    botanicalDescriptionEn: "Merremia hederacea is an annual herbaceous climber in the Convolvulaceae family. It has thin bright-green leaves that are heart-shaped to 3-5 lobed, pale yellow to white funnel-shaped flowers, and rounded capsules containing small seeds.",
+    botanicalDescriptionId: "Tanaman merambat herba tahunan dari keluarga Convolvulaceae. Daun berbentuk jantung hingga berlekuk 3-5 jari, tipis, dan berwarna hijau cerah. Bunga berbentuk corong berwarna kuning pucat hingga putih. Buah kapsul membulat berisi biji kecil.",
     ecologicalInformation: "Tumbuh agresif di tepi hutan, lahan terbuka, dan area terganggu di kawasan tropis. Merremia hederacea merambat cepat menutupi vegetasi bawah dan mampu memanjat pohon hingga menaungi tajuknya.",
+    ecologicalInformationEn: "Grows aggressively along forest edges, open land, and disturbed tropical areas. Merremia hederacea spreads rapidly over understory vegetation and can climb trees, shading their crowns.",
+    ecologicalInformationId: "Tumbuh agresif di tepi hutan, lahan terbuka, dan area terganggu di kawasan tropis. Merremia hederacea merambat cepat menutupi vegetasi bawah dan mampu memanjat pohon hingga menaungi tajuknya.",
     environmentalImpact: "Menutupi tanaman asli sehingga menghambat fotosintesis, menekan regenerasi alami hutan, dan mengubah struktur vegetasi di sabana dan tepi hutan Taman Nasional Baluran.",
+    environmentalImpactEn: "Covers native plants and reduces photosynthesis, suppresses natural forest regeneration, and changes vegetation structure in savannas and forest edges of Baluran National Park.",
+    environmentalImpactId: "Menutupi tanaman asli sehingga menghambat fotosintesis, menekan regenerasi alami hutan, dan mengubah struktur vegetasi di sabana dan tepi hutan Taman Nasional Baluran.",
     imagePath: "/sketsa-herbarium-merremia-hederacea.jpg",
   },
   "clitoria ternatea": {
@@ -143,8 +155,14 @@ const FALLBACK_PLANTS: Record<string, PlantData> = {
     family: "Fabaceae",
     genus: "Clitoria",
     botanicalDescription: "Tanaman merambat herba perennial dari keluarga Fabaceae. Daun majemuk menyirip ganjil dengan 5-7 anak daun. Bunga berbentuk kupu-kupu berwarna biru tua hingga ungu, kadang putih. Polong pipih berisi biji berbentuk ginjal.",
+    botanicalDescriptionEn: "Clitoria ternatea is a perennial herbaceous climber in the Fabaceae family. It has odd-pinnate compound leaves with 5-7 leaflets, butterfly-shaped deep blue to purple flowers that are sometimes white, and flat pods with kidney-shaped seeds.",
+    botanicalDescriptionId: "Tanaman merambat herba perennial dari keluarga Fabaceae. Daun majemuk menyirip ganjil dengan 5-7 anak daun. Bunga berbentuk kupu-kupu berwarna biru tua hingga ungu, kadang putih. Polong pipih berisi biji berbentuk ginjal.",
     ecologicalInformation: "Tumbuh di daerah tropis dan subtropis, toleran terhadap berbagai jenis tanah. Di Taman Nasional Baluran, tanaman ini menyebar di area sabana dan pinggiran hutan, bersaing dengan vegetasi asli untuk mendapatkan sinar matahari dan nutrisi.",
+    ecologicalInformationEn: "Grows in tropical and subtropical areas and tolerates many soil types. In Baluran National Park, it spreads through savanna areas and forest margins, competing with native vegetation for sunlight and nutrients.",
+    ecologicalInformationId: "Tumbuh di daerah tropis dan subtropis, toleran terhadap berbagai jenis tanah. Di Taman Nasional Baluran, tanaman ini menyebar di area sabana dan pinggiran hutan, bersaing dengan vegetasi asli untuk mendapatkan sinar matahari dan nutrisi.",
     environmentalImpact: "Mampu menekan pertumbuhan rumput asli melalui naungan yang padat, mengubah komposisi vegetasi sabana, dan mengganggu ketersediaan pakan bagi herbivora asli seperti Banteng Jawa.",
+    environmentalImpactEn: "Can suppress native grasses through dense shading, alter savanna vegetation composition, and disrupt forage availability for native herbivores such as the Javan banteng.",
+    environmentalImpactId: "Mampu menekan pertumbuhan rumput asli melalui naungan yang padat, mengubah komposisi vegetasi sabana, dan mengganggu ketersediaan pakan bagi herbivora asli seperti Banteng Jawa.",
     imagePath: "/sketsa-herbarium-clitoria-ternatea.jpg",
   },
 };
@@ -188,8 +206,14 @@ export default function SpeciesPage() {
             family: p.family || "",
             genus: p.genus || "",
             botanicalDescription: p.botanicalDescription || p.botanical_description || "",
+            botanicalDescriptionEn: p.botanicalDescriptionEn || p.botanical_description_en || "",
+            botanicalDescriptionId: p.botanicalDescriptionId || p.botanical_description_id || "",
             ecologicalInformation: p.ecologicalInformation || p.ecological_information || "",
+            ecologicalInformationEn: p.ecologicalInformationEn || p.ecological_information_en || "",
+            ecologicalInformationId: p.ecologicalInformationId || p.ecological_information_id || "",
             environmentalImpact: p.environmentalImpact || p.environmental_impact || "",
+            environmentalImpactEn: p.environmentalImpactEn || p.environmental_impact_en || "",
+            environmentalImpactId: p.environmentalImpactId || p.environmental_impact_id || "",
             imagePath: p.imagePath || p.image_path || "",
           });
         } else {
@@ -227,6 +251,15 @@ export default function SpeciesPage() {
         { rank: "Spesies", value: plant.scientificName },
       ]
     : [];
+  const botanicalDescription = language === "id"
+    ? plant?.botanicalDescriptionId || plant?.botanicalDescription
+    : plant?.botanicalDescriptionEn || plant?.botanicalDescription;
+  const ecologicalInformation = language === "id"
+    ? plant?.ecologicalInformationId || plant?.ecologicalInformation
+    : plant?.ecologicalInformationEn || plant?.ecologicalInformation;
+  const environmentalImpact = language === "id"
+    ? plant?.environmentalImpactId || plant?.environmentalImpact
+    : plant?.environmentalImpactEn || plant?.environmentalImpact;
 
   if (isLoading) {
     return (
@@ -281,15 +314,15 @@ export default function SpeciesPage() {
             <div className="p-4 space-y-4">
               <div>
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{copy.botanicalDescription}</h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">{plant.botanicalDescription}</p>
+                <p className="text-sm leading-relaxed text-muted-foreground">{botanicalDescription}</p>
               </div>
               <div>
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{copy.ecologicalInformation}</h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">{plant.ecologicalInformation}</p>
+                <p className="text-sm leading-relaxed text-muted-foreground">{ecologicalInformation}</p>
               </div>
               <div>
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{copy.environmentalImpact}</h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">{plant.environmentalImpact}</p>
+                <p className="text-sm leading-relaxed text-muted-foreground">{environmentalImpact}</p>
               </div>
             </div>
           </div>

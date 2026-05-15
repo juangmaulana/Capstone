@@ -6,6 +6,11 @@ import { CameraSearchDialog } from "@/components/CameraSearchDialog";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/contexts/LanguageContext";
 
+interface PlantSearchRecord {
+  scientificName?: string;
+  scientific_name?: string;
+}
+
 const COPY = {
   en: {
     eyebrow: "BioWatch | Invasive Alien Species Monitoring",
@@ -72,17 +77,37 @@ export default function Dashboard() {
   const { language } = useLanguage();
   const copy = COPY[language];
 
-  // Canonical species list
   useEffect(() => {
-    const CANONICAL_SPECIES = [
+    const fallbackSpecies = [
       "Vachellia nilotica",
       "Ageratum conyzoides",
       "Lantana camara",
       "Clitoria ternatea",
       "Merremia hederacea",
     ];
-    setSpeciesList(CANONICAL_SPECIES);
-    setIsLoading(false);
+
+    async function fetchSpeciesList() {
+      setIsLoading(true);
+      try {
+        const res = await fetch("/api/v1/plants?limit=100");
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          const names = json.data
+            .map((plant: PlantSearchRecord) => plant.scientificName || plant.scientific_name || "")
+            .filter(Boolean);
+          setSpeciesList(names.length > 0 ? names : fallbackSpecies);
+        } else {
+          setSpeciesList(fallbackSpecies);
+        }
+      } catch (error) {
+        console.error("Failed to fetch species list:", error);
+        setSpeciesList(fallbackSpecies);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchSpeciesList();
   }, []);
 
   const handleSearch = (e?: React.FormEvent, queryOverride?: string) => {

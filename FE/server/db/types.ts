@@ -36,6 +36,12 @@ export interface PlantTable {
   botanical_description: string
   ecological_information: string
   environmental_impact: string
+  botanical_description_en: string
+  botanical_description_id: string
+  ecological_information_en: string
+  ecological_information_id: string
+  environmental_impact_en: string
+  environmental_impact_id: string
   image_path: string
   readonly created_at: Generated<Date>
   readonly updated_at: Generated<Date>

@@ -38,6 +38,12 @@ export const createPlantRepo = (db: DB): PlantRepo => ({
           eb('botanical_description', 'ilike', `%${filter.search}%`),
           eb('ecological_information', 'ilike', `%${filter.search}%`),
           eb('environmental_impact', 'ilike', `%${filter.search}%`),
+          eb('botanical_description_en', 'ilike', `%${filter.search}%`),
+          eb('botanical_description_id', 'ilike', `%${filter.search}%`),
+          eb('ecological_information_en', 'ilike', `%${filter.search}%`),
+          eb('ecological_information_id', 'ilike', `%${filter.search}%`),
+          eb('environmental_impact_en', 'ilike', `%${filter.search}%`),
+          eb('environmental_impact_id', 'ilike', `%${filter.search}%`),
         ])
       )
     }
