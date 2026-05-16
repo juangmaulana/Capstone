@@ -1,26 +1,26 @@
-import { PlantSelect } from '@/server/db/types'
-import { Plant } from '../model'
+import { PlantSelect } from '@/server/db/types';
+import { Plant } from '../model';
 
 export const toModel = (row: PlantSelect): Plant => {
-  return new Plant(
-    row.id,
-    row.common_name,
-    row.scientific_name,
-    row.family,
-    row.genus,
-    row.botanical_description,
-    row.ecological_information,
-    row.environmental_impact,
-    row.botanical_description_en,
-    row.botanical_description_id,
-    row.ecological_information_en,
-    row.ecological_information_id,
-    row.environmental_impact_en,
-    row.environmental_impact_id,
-    row.image_path,
-    row.created_at,
-    row.updated_at,
-  )
+  return {
+    id: row.id,
+    commonName: row.common_name,
+    scientificName: row.scientific_name,
+    family: row.family,
+    genus: row.genus,
+    botanicalDescription: row.botanical_description,
+    botanicalDescriptionEn: row.botanical_description_en,
+    botanicalDescriptionId: row.botanical_description_id,
+    ecologicalInformation: row.ecological_information,
+    ecologicalInformationEn: row.ecological_information_en,
+    ecologicalInformationId: row.ecological_information_id,
+    environmentalImpact: row.environmental_impact,
+    environmentalImpactEn: row.environmental_impact_en,
+    environmentalImpactId: row.environmental_impact_id,
+    imagePath: row.image_path,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
 }
 
 export const toModelOrNull = (

@@ -1,27 +1,15 @@
 import { mapDbError } from '@/lib/db/mappers'
+import { toDbInsert } from '../mappers/to-db'
 import { PlantRepo } from '../repo'
 import { CreatePlantRequest } from '../schemas/create.schema'
+import { Plant } from '../model'
 
 export const createPlant = (deps: {
   plantRepo: PlantRepo,
-}) => async (input: CreatePlantRequest) => {
+}) => async (input: CreatePlantRequest): Promise<Plant> => {
+  const dbInput = toDbInsert(input)
   try {
-    return await deps.plantRepo.create({
-      common_name: input.commonName,
-      scientific_name: input.scientificName,
-      family: input.family,
-      genus: input.genus,
-      botanical_description: input.botanicalDescription,
-      ecological_information: input.ecologicalInformation,
-      environmental_impact: input.environmentalImpact,
-      botanical_description_en: input.botanicalDescriptionEn ?? input.botanicalDescription,
-      botanical_description_id: input.botanicalDescriptionId ?? input.botanicalDescription,
-      ecological_information_en: input.ecologicalInformationEn ?? input.ecologicalInformation,
-      ecological_information_id: input.ecologicalInformationId ?? input.ecologicalInformation,
-      environmental_impact_en: input.environmentalImpactEn ?? input.environmentalImpact,
-      environmental_impact_id: input.environmentalImpactId ?? input.environmentalImpact,
-      image_path: input.imagePath,
-    })
+    return await deps.plantRepo.create(dbInput)
   } catch (err) {
     throw mapDbError(err)
   }
