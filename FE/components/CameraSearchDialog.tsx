@@ -492,8 +492,8 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
 
               {/* Detection results */}
               {topResult && (
-                <div className="w-full flex items-start gap-3 rounded-lg border bg-success/10 p-3 text-success-foreground">
-                  <CheckCircle2 className="h-5 w-5 shrink-0 text-success mt-0.5" />
+                <div className="w-full flex items-start gap-3 rounded-lg border border-success/20 bg-success p-4 text-success-foreground shadow-md transition-all">
+                  <CheckCircle2 className="h-6 w-6 shrink-0 text-success-foreground mt-0.5" />
                   <div className="flex flex-col">
                     <span className="text-sm font-medium">{copy.identified}</span>
                     <span className="text-lg font-bold">{topResult.name}</span>

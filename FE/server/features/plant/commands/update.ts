@@ -1,8 +1,8 @@
+import { mapDbError } from '@/lib/db/mappers'
 import { PlantRepo } from '../repo'
 import { UpdatePlantRequest } from '../schemas/update.schema'
 import { toDbUpdate } from '../mappers/to-db'
 import { notFound } from '@/lib/api/errors/http.error'
-import { mapDbError } from '@/lib/db/mappers'
 import { Plant } from '../model'
 
 export const updatePlant = (deps: {

@@ -38,6 +38,12 @@ export async function up(db: Kysely<any>) {
     .addColumn('botanical_description', 'text', (col) => col.notNull())
     .addColumn('ecological_information', 'text', (col) => col.notNull())
     .addColumn('environmental_impact', 'text', (col) => col.notNull())
+    .addColumn('botanical_description_en', 'text', (col) => col.notNull().defaultTo(''))
+    .addColumn('botanical_description_id', 'text', (col) => col.notNull().defaultTo(''))
+    .addColumn('ecological_information_en', 'text', (col) => col.notNull().defaultTo(''))
+    .addColumn('ecological_information_id', 'text', (col) => col.notNull().defaultTo(''))
+    .addColumn('environmental_impact_en', 'text', (col) => col.notNull().defaultTo(''))
+    .addColumn('environmental_impact_id', 'text', (col) => col.notNull().defaultTo(''))
     .addColumn('image_path', 'text', (col) => col.notNull())
     .addColumn('created_at', 'timestamp', (col) =>
       col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))

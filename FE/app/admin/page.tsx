@@ -2,6 +2,7 @@
 
 import { Users, UserPlus, ShieldCheck, Activity, Bug, Upload, ScrollText, Database, Plus, Pencil, Trash2, Search, FileSpreadsheet, FileText, CheckCircle2, Clock, AlertCircle, AlertTriangle, Info, Server, Wifi, Filter, LogOut, User, Tag, Download, Eye, X, ChevronDown, ChevronRight, Image as ImageIcon, MapPin, Calendar, ThumbsUp, ThumbsDown, FileDown, BarChart3, Lock, Copy, KeyRound } from "lucide-react";
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminDataAnnotationPanel } from "@/components/AdminDataAnnotationPanel";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -36,10 +37,22 @@ interface ApiPlant {
   genus: string;
   botanicalDescription?: string;
   botanical_description?: string;
+  botanicalDescriptionEn?: string;
+  botanical_description_en?: string;
+  botanicalDescriptionId?: string;
+  botanical_description_id?: string;
   ecologicalInformation?: string;
   ecological_information?: string;
+  ecologicalInformationEn?: string;
+  ecological_information_en?: string;
+  ecologicalInformationId?: string;
+  ecological_information_id?: string;
   environmentalImpact?: string;
   environmental_impact?: string;
+  environmentalImpactEn?: string;
+  environmental_impact_en?: string;
+  environmentalImpactId?: string;
+  environmental_impact_id?: string;
   updatedAt?: string;
   updated_at?: string;
 }
@@ -61,10 +74,19 @@ interface DisplaySpecies {
   family: string;
   genus: string;
   botanicalDescription: string;
+  botanicalDescriptionEn: string;
+  botanicalDescriptionId: string;
   ecologicalInformation: string;
+  ecologicalInformationEn: string;
+  ecologicalInformationId: string;
   environmentalImpact: string;
+  environmentalImpactEn: string;
+  environmentalImpactId: string;
   lastUpdated: string;
 }
+
+const createSpeciesSlug = (scientificName: string) =>
+  scientificName.trim().toLowerCase().replace(/\s+/g, "-");
 
 type LogLevel = "info" | "warning" | "error" | "success";
 
@@ -258,10 +280,15 @@ const ADMIN_COPY = {
       botanicalDescription: "Botanical Description",
       ecologicalInformation: "Ecological Information",
       environmentalImpact: "Environmental Impact",
+      scientificPlaceholder: "e.g., Vachellia nilotica",
+      commonPlaceholder: "e.g., Babul",
+      familyPlaceholder: "e.g., Fabaceae",
+      genusPlaceholder: "e.g., Vachellia",
       botanicalPlaceholder: "Describe the plant's physical characteristics...",
       ecologicalPlaceholder: "Describe its habitat and ecological role...",
       impactPlaceholder: "Describe its impact on the environment...",
       save: "Save Species",
+      viewDetail: "View species page",
       deleteTitle: "Delete Species?",
       deleteDesc: "Are you sure you want to delete",
       cannotUndo: "This action cannot be undone.",
@@ -386,10 +413,15 @@ const ADMIN_COPY = {
       botanicalDescription: "Deskripsi Botani",
       ecologicalInformation: "Informasi Ekologi",
       environmentalImpact: "Dampak Lingkungan",
+      scientificPlaceholder: "contoh: Vachellia nilotica",
+      commonPlaceholder: "contoh: Babul",
+      familyPlaceholder: "contoh: Fabaceae",
+      genusPlaceholder: "contoh: Vachellia",
       botanicalPlaceholder: "Jelaskan karakteristik fisik tanaman...",
       ecologicalPlaceholder: "Jelaskan habitat dan peran ekologinya...",
       impactPlaceholder: "Jelaskan dampaknya terhadap lingkungan...",
       save: "Simpan Spesies",
+      viewDetail: "Lihat halaman spesies",
       deleteTitle: "Hapus Spesies?",
       deleteDesc: "Apakah Anda yakin ingin menghapus",
       cannotUndo: "Tindakan ini tidak dapat dibatalkan.",
@@ -550,8 +582,14 @@ export default function AdminPage() {
           family: p.family || "",
           genus: p.genus || "",
           botanicalDescription: p.botanicalDescription || p.botanical_description || "",
+          botanicalDescriptionEn: p.botanicalDescriptionEn || p.botanical_description_en || p.botanicalDescription || p.botanical_description || "",
+          botanicalDescriptionId: p.botanicalDescriptionId || p.botanical_description_id || p.botanicalDescription || p.botanical_description || "",
           ecologicalInformation: p.ecologicalInformation || p.ecological_information || "",
+          ecologicalInformationEn: p.ecologicalInformationEn || p.ecological_information_en || p.ecologicalInformation || p.ecological_information || "",
+          ecologicalInformationId: p.ecologicalInformationId || p.ecological_information_id || p.ecologicalInformation || p.ecological_information || "",
           environmentalImpact: p.environmentalImpact || p.environmental_impact || "",
+          environmentalImpactEn: p.environmentalImpactEn || p.environmental_impact_en || p.environmentalImpact || p.environmental_impact || "",
+          environmentalImpactId: p.environmentalImpactId || p.environmental_impact_id || p.environmentalImpact || p.environmental_impact || "",
           lastUpdated: p.updatedAt || p.updated_at || "-",
         })));
       }
@@ -760,8 +798,14 @@ export default function AdminPage() {
     family: "", 
     genus: "",
     botanicalDescription: "",
+    botanicalDescriptionEn: "",
+    botanicalDescriptionId: "",
     ecologicalInformation: "",
-    environmentalImpact: ""
+    ecologicalInformationEn: "",
+    ecologicalInformationId: "",
+    environmentalImpact: "",
+    environmentalImpactEn: "",
+    environmentalImpactId: "",
   });
   const [deleteSpeciesConfirm, setDeleteSpeciesConfirm] = useState<DisplaySpecies | null>(null);
 
@@ -773,8 +817,14 @@ export default function AdminPage() {
       family: "", 
       genus: "",
       botanicalDescription: "",
+      botanicalDescriptionEn: "",
+      botanicalDescriptionId: "",
       ecologicalInformation: "",
-      environmentalImpact: ""
+      ecologicalInformationEn: "",
+      ecologicalInformationId: "",
+      environmentalImpact: "",
+      environmentalImpactEn: "",
+      environmentalImpactId: "",
     });
     setShowAddSpecies(true);
   };
@@ -787,14 +837,61 @@ export default function AdminPage() {
       family: s.family, 
       genus: s.genus || "",
       botanicalDescription: s.botanicalDescription || "",
+      botanicalDescriptionEn: s.botanicalDescriptionEn || s.botanicalDescription || "",
+      botanicalDescriptionId: s.botanicalDescriptionId || s.botanicalDescription || "",
       ecologicalInformation: s.ecologicalInformation || "",
-      environmentalImpact: s.environmentalImpact || ""
+      ecologicalInformationEn: s.ecologicalInformationEn || s.ecologicalInformation || "",
+      ecologicalInformationId: s.ecologicalInformationId || s.ecologicalInformation || "",
+      environmentalImpact: s.environmentalImpact || "",
+      environmentalImpactEn: s.environmentalImpactEn || s.environmentalImpact || "",
+      environmentalImpactId: s.environmentalImpactId || s.environmentalImpact || "",
     });
     setShowAddSpecies(true);
   };
 
+  const displayedBotanicalDescription = language === "id"
+    ? speciesForm.botanicalDescriptionId
+    : speciesForm.botanicalDescriptionEn;
+  const displayedEcologicalInformation = language === "id"
+    ? speciesForm.ecologicalInformationId
+    : speciesForm.ecologicalInformationEn;
+  const displayedEnvironmentalImpact = language === "id"
+    ? speciesForm.environmentalImpactId
+    : speciesForm.environmentalImpactEn;
+
+  const updateLocalizedSpeciesText = (
+    field: "botanicalDescription" | "ecologicalInformation" | "environmentalImpact",
+    value: string,
+  ) => {
+    setSpeciesForm((prev) => {
+      if (field === "botanicalDescription") {
+        return language === "id"
+          ? { ...prev, botanicalDescription: value, botanicalDescriptionId: value }
+          : { ...prev, botanicalDescription: value, botanicalDescriptionEn: value };
+      }
+      if (field === "ecologicalInformation") {
+        return language === "id"
+          ? { ...prev, ecologicalInformation: value, ecologicalInformationId: value }
+          : { ...prev, ecologicalInformation: value, ecologicalInformationEn: value };
+      }
+      return language === "id"
+        ? { ...prev, environmentalImpact: value, environmentalImpactId: value }
+        : { ...prev, environmentalImpact: value, environmentalImpactEn: value };
+    });
+  };
+
   const handleSaveSpecies = async () => {
     if (!speciesForm.scientificName.trim() || !speciesForm.family.trim()) return;
+    const botanicalDescriptionEn = speciesForm.botanicalDescriptionEn.trim();
+    const botanicalDescriptionId = speciesForm.botanicalDescriptionId.trim();
+    const ecologicalInformationEn = speciesForm.ecologicalInformationEn.trim();
+    const ecologicalInformationId = speciesForm.ecologicalInformationId.trim();
+    const environmentalImpactEn = speciesForm.environmentalImpactEn.trim();
+    const environmentalImpactId = speciesForm.environmentalImpactId.trim();
+    const botanicalDescription = botanicalDescriptionId || botanicalDescriptionEn || speciesForm.botanicalDescription.trim() || "-";
+    const ecologicalInformation = ecologicalInformationId || ecologicalInformationEn || speciesForm.ecologicalInformation.trim() || "-";
+    const environmentalImpact = environmentalImpactId || environmentalImpactEn || speciesForm.environmentalImpact.trim() || "-";
+
     try {
       let res;
       if (speciesForm.id === 0) {
@@ -806,9 +903,15 @@ export default function AdminPage() {
             scientificName: speciesForm.scientificName.trim(),
             family: speciesForm.family.trim(),
             genus: speciesForm.genus.trim() || speciesForm.family.trim(),
-            botanicalDescription: speciesForm.botanicalDescription.trim() || "-",
-            ecologicalInformation: speciesForm.ecologicalInformation.trim() || "-",
-            environmentalImpact: speciesForm.environmentalImpact.trim() || "-",
+            botanicalDescription,
+            botanicalDescriptionEn: botanicalDescriptionEn || botanicalDescription,
+            botanicalDescriptionId: botanicalDescriptionId || botanicalDescription,
+            ecologicalInformation,
+            ecologicalInformationEn: ecologicalInformationEn || ecologicalInformation,
+            ecologicalInformationId: ecologicalInformationId || ecologicalInformation,
+            environmentalImpact,
+            environmentalImpactEn: environmentalImpactEn || environmentalImpact,
+            environmentalImpactId: environmentalImpactId || environmentalImpact,
             imagePath: "",
           }),
         });
@@ -821,9 +924,15 @@ export default function AdminPage() {
             scientificName: speciesForm.scientificName.trim(),
             family: speciesForm.family.trim(),
             genus: speciesForm.genus.trim(),
-            botanicalDescription: speciesForm.botanicalDescription.trim(),
-            ecologicalInformation: speciesForm.ecologicalInformation.trim(),
-            environmentalImpact: speciesForm.environmentalImpact.trim(),
+            botanicalDescription,
+            botanicalDescriptionEn,
+            botanicalDescriptionId,
+            ecologicalInformation,
+            ecologicalInformationEn,
+            ecologicalInformationId,
+            environmentalImpact,
+            environmentalImpactEn,
+            environmentalImpactId,
           }),
         });
       }
@@ -1052,7 +1161,7 @@ export default function AdminPage() {
               { label: copy.users.total, value: String(users.length), icon: Users, color: "text-blue-600 bg-blue-50" },
               { label: copy.users.active, value: String(users.filter(u => u.status === "Active").length), icon: Activity, color: "text-green-600 bg-green-50" },
               { label: copy.users.admins, value: String(users.filter(u => u.role.includes("Admin")).length), icon: ShieldCheck, color: "text-purple-600 bg-purple-50" },
-              { label: copy.users.roles, value: String(roles.length), icon: UserPlus, color: "text-amber-600 bg-amber-50" },
+              { label: copy.users.roles, value: String(roles.filter(r => r.name !== 'Super Admin').length), icon: UserPlus, color: "text-amber-600 bg-amber-50" },
             ].map((stat) => (
               <div key={stat.label} className="stat-card flex items-center gap-4">
                 <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${stat.color}`}>
@@ -1197,6 +1306,13 @@ export default function AdminPage() {
                       <td className="px-6 py-4 text-muted-foreground text-xs">{species.lastUpdated ? new Date(species.lastUpdated).toLocaleDateString(language === "id" ? "id-ID" : "en-US") : '-'}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
+                          <Link
+                            href={`/species/${createSpeciesSlug(species.scientificName)}`}
+                            className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                            title={copy.species.viewDetail}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Link>
                           <button onClick={() => handleEditSpecies(species)} className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground" title={copy.species.edit}><Pencil className="h-4 w-4" /></button>
                           <button onClick={() => handleDeleteSpecies(species)} className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive" title={copy.species.delete}><Trash2 className="h-4 w-4" /></button>
                         </div>
@@ -1707,21 +1823,21 @@ export default function AdminPage() {
       {/* ─── ADD/EDIT SPECIES MODAL ─── */}
       {showAddSpecies && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-card shadow-2xl border animate-in zoom-in-95 duration-200">
+          <div className="relative flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-card shadow-2xl border animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between border-b px-6 py-4 bg-muted/30">
               <h2 className="text-lg font-semibold">{speciesForm.id === 0 ? copy.species.addTitle : copy.species.editTitle}</h2>
               <button onClick={() => setShowAddSpecies(false)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="space-y-4 py-4 px-6">
+            <div className="space-y-4 overflow-y-auto py-4 px-6">
               <div className="space-y-2">
                 <label className="text-sm font-medium">{copy.species.scientificName}</label>
                 <input
                   type="text"
                   value={speciesForm.scientificName}
                   onChange={(e) => setSpeciesForm({ ...speciesForm, scientificName: e.target.value })}
-                  placeholder="e.g., Acacia nilotica"
+                  placeholder={copy.species.scientificPlaceholder}
                   className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
@@ -1731,7 +1847,7 @@ export default function AdminPage() {
                   type="text"
                   value={speciesForm.commonName}
                   onChange={(e) => setSpeciesForm({ ...speciesForm, commonName: e.target.value })}
-                  placeholder="e.g., Babul"
+                  placeholder={copy.species.commonPlaceholder}
                   className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
@@ -1742,7 +1858,7 @@ export default function AdminPage() {
                     type="text"
                     value={speciesForm.family}
                     onChange={(e) => setSpeciesForm({ ...speciesForm, family: e.target.value })}
-                    placeholder="e.g., Fabaceae"
+                    placeholder={copy.species.familyPlaceholder}
                     className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
@@ -1752,7 +1868,7 @@ export default function AdminPage() {
                     type="text"
                     value={speciesForm.genus}
                     onChange={(e) => setSpeciesForm({ ...speciesForm, genus: e.target.value })}
-                    placeholder="e.g., Vachellia"
+                    placeholder={copy.species.genusPlaceholder}
                     className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
@@ -1761,8 +1877,8 @@ export default function AdminPage() {
               <div className="space-y-2">
                 <label className="text-sm font-medium">{copy.species.botanicalDescription}</label>
                 <textarea
-                  value={speciesForm.botanicalDescription}
-                  onChange={(e) => setSpeciesForm({ ...speciesForm, botanicalDescription: e.target.value })}
+                  value={displayedBotanicalDescription}
+                  onChange={(e) => updateLocalizedSpeciesText("botanicalDescription", e.target.value)}
                   placeholder={copy.species.botanicalPlaceholder}
                   rows={3}
                   className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 resize-none"
@@ -1772,8 +1888,8 @@ export default function AdminPage() {
               <div className="space-y-2">
                 <label className="text-sm font-medium">{copy.species.ecologicalInformation}</label>
                 <textarea
-                  value={speciesForm.ecologicalInformation}
-                  onChange={(e) => setSpeciesForm({ ...speciesForm, ecologicalInformation: e.target.value })}
+                  value={displayedEcologicalInformation}
+                  onChange={(e) => updateLocalizedSpeciesText("ecologicalInformation", e.target.value)}
                   placeholder={copy.species.ecologicalPlaceholder}
                   rows={3}
                   className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 resize-none"
@@ -1783,8 +1899,8 @@ export default function AdminPage() {
               <div className="space-y-2">
                 <label className="text-sm font-medium">{copy.species.environmentalImpact}</label>
                 <textarea
-                  value={speciesForm.environmentalImpact}
-                  onChange={(e) => setSpeciesForm({ ...speciesForm, environmentalImpact: e.target.value })}
+                  value={displayedEnvironmentalImpact}
+                  onChange={(e) => updateLocalizedSpeciesText("environmentalImpact", e.target.value)}
                   placeholder={copy.species.impactPlaceholder}
                   rows={3}
                   className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 resize-none"

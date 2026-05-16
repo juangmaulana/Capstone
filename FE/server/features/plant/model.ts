@@ -4,9 +4,16 @@ export type Plant = {
   scientificName: string
   family: string
   genus: string
-  description: string
-  ecology: string
+  botanicalDescription: string
+  botanicalDescriptionEn: string
+  botanicalDescriptionId: string
+  ecologicalInformation: string
+  ecologicalInformationEn: string
+  ecologicalInformationId: string
   environmentalImpact: string
+  environmentalImpactEn: string
+  environmentalImpactId: string
   imagePath: string
+  createdAt: Date
   updatedAt: Date
 }
