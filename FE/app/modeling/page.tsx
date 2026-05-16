@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -180,7 +180,7 @@ const IUCN_STYLE = {
 
 const RISK_KEYS = ["critical", "high", "medium", "low"] as const;
 
-export default function Modeling() {
+function ModelingContent() {
   const searchParams = useSearchParams();
   const [species, setSpecies] = useState(() => {
     const speciesParam = searchParams.get("species");
@@ -197,20 +197,16 @@ export default function Modeling() {
     setIsSimulating(true);
     setPredictionResult(null);
 
-    // Simulate API call to Google Colab trained model
     setTimeout(() => {
       setIsSimulating(false);
-      // Using placeholder heatmap/prediction image
       setPredictionResult({
         species,
         year: horizon,
-        mapUrl: `https://images.unsplash.com/photo-1524661135-423995f22d0b?q=80&w=1000&auto=format&fit=crop&sepia=1&hue-rotate=${Math.floor(Math.random() * 90)
-          }deg` // just rotating hue slightly based on "prediction"
+        mapUrl: `https://images.unsplash.com/photo-1524661135-423995f22d0b?q=80&w=1000&auto=format&fit=crop&sepia=1&hue-rotate=${Math.floor(Math.random() * 90)}deg`
       });
     }, 2500);
   };
 
-  // Fake slight variation in metrics based on year
   const baseAcc = 89;
   const accMod = parseInt(horizon) === 2025 ? 2 : parseInt(horizon) > 2050 ? -4 : 0;
 
@@ -221,7 +217,6 @@ export default function Modeling() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Parameters */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">{copy.modelParameters}</CardTitle>
@@ -264,7 +259,6 @@ export default function Modeling() {
           </CardContent>
         </Card>
 
-        {/* Map placeholder */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-base flex items-center justify-between">
@@ -288,7 +282,6 @@ export default function Modeling() {
                   <div className="absolute inset-0 z-0">
                     <SDMMap species={predictionResult.species} year={predictionResult.year} />
                   </div>
-                  {/* Legend overlay on map */}
                   <div className="absolute bottom-4 right-4 z-10 bg-background/90 backdrop-blur-md p-3 rounded-lg shadow-lg border">
                     <p className="text-xs font-bold mb-2 text-foreground">{copy.riskLevel}</p>
                     <div className="flex flex-col gap-1.5">
@@ -312,7 +305,6 @@ export default function Modeling() {
         </Card>
       </div>
 
-      {/* IUCN Risk Assessment Suitability Panel */}
       {predictionResult && (
         <Card className="animate-in fade-in slide-in-from-bottom-4 duration-500">
           <CardHeader>
@@ -364,7 +356,6 @@ export default function Modeling() {
         </Card>
       )}
 
-      {/* Model Metrics */}
       {predictionResult && (
         <Card className="animate-in fade-in slide-in-from-bottom-4 duration-500">
           <CardHeader>
@@ -391,12 +382,25 @@ export default function Modeling() {
         </Card>
       )}
 
-      {/* Export */}
       <div className="flex gap-3 mt-2">
         <Button variant="outline" className="gap-2" disabled={!predictionResult}><Download className="h-4 w-4" /> GeoTIFF</Button>
         <Button variant="outline" className="gap-2" disabled={!predictionResult}><Download className="h-4 w-4" /> {copy.reportCsv}</Button>
         <Button variant="outline" className="gap-2" disabled={!predictionResult}><Download className="h-4 w-4" /> {copy.reportPdf}</Button>
       </div>
     </div>
+  );
+}
+
+export default function Modeling() {
+  return (
+    <Suspense 
+      fallback={
+        <div className="flex h-[80vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
+      <ModelingContent />
+    </Suspense>
   );
 }
