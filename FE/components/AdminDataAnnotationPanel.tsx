@@ -409,10 +409,10 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
             return {
               id: Date.now() + idx,
               className: matchedClass,
-              x: det.box.x1,
-              y: det.box.y1,
-              width: det.box.width,
-              height: det.box.height,
+              x: det.box?.x1 ?? 0,
+              y: det.box?.y1 ?? 0,
+              width: det.box?.width ?? 0,
+              height: det.box?.height ?? 0,
             };
           });
 
