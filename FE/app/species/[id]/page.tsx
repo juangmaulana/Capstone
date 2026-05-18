@@ -2,8 +2,14 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Network, FileText, Image as ImageIcon, Loader2 } from "lucide-react";
+import { ArrowLeft, Network, FileText, Image as ImageIcon, Loader2, Pencil } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 // Taxonomy data for the 5 invasive species
 const TAXONOMY_DB: Record<string, { rank: string; value: string }[]> = {
@@ -72,6 +78,79 @@ interface PlantData {
   imagePath: string;
 }
 
+interface PlantApiRecord {
+  id: number;
+  commonName?: string;
+  common_name?: string;
+  scientificName?: string;
+  scientific_name?: string;
+  family?: string;
+  genus?: string;
+  botanicalDescription?: string;
+  botanical_description?: string;
+  botanicalDescriptionEn?: string;
+  botanical_description_en?: string;
+  botanicalDescriptionId?: string;
+  botanical_description_id?: string;
+  ecologicalInformation?: string;
+  ecological_information?: string;
+  ecologicalInformationEn?: string;
+  ecological_information_en?: string;
+  ecologicalInformationId?: string;
+  ecological_information_id?: string;
+  environmentalImpact?: string;
+  environmental_impact?: string;
+  environmentalImpactEn?: string;
+  environmental_impact_en?: string;
+  environmentalImpactId?: string;
+  environmental_impact_id?: string;
+  imagePath?: string;
+  image_path?: string;
+}
+
+const SPECIES_SOURCE_STORAGE_PREFIX = "biowatch_species_source_";
+
+const createSpeciesSlug = (scientificName: string) =>
+  scientificName.trim().toLowerCase().replace(/\s+/g, "-");
+
+const getSpeciesSourceStorageKey = (speciesId: number, scientificName: string) =>
+  speciesId > 0 ? `${SPECIES_SOURCE_STORAGE_PREFIX}${speciesId}` : `${SPECIES_SOURCE_STORAGE_PREFIX}tmp_${createSpeciesSlug(scientificName)}`;
+
+const readStoredSpeciesSourceText = (speciesId: number, scientificName: string) => {
+  if (typeof window === "undefined") return "";
+
+  try {
+    const primaryKey = getSpeciesSourceStorageKey(speciesId, scientificName);
+    const fallbackKey = `${SPECIES_SOURCE_STORAGE_PREFIX}tmp_${createSpeciesSlug(scientificName)}`;
+    const raw = localStorage.getItem(primaryKey) || localStorage.getItem(fallbackKey);
+    if (!raw) return "";
+
+    const parsed = JSON.parse(raw) as string;
+    return typeof parsed === "string" ? parsed : raw;
+  } catch {
+    return "";
+  }
+};
+
+const writeStoredSpeciesSourceText = (speciesId: number, scientificName: string, sourceText: string) => {
+  if (typeof window === "undefined") return;
+
+  const storageKey = getSpeciesSourceStorageKey(speciesId, scientificName);
+  const fallbackKey = `${SPECIES_SOURCE_STORAGE_PREFIX}tmp_${createSpeciesSlug(scientificName)}`;
+  const normalizedText = sourceText.trim();
+
+  if (!normalizedText) {
+    localStorage.removeItem(storageKey);
+    localStorage.removeItem(fallbackKey);
+    return;
+  }
+
+  localStorage.setItem(storageKey, JSON.stringify(normalizedText));
+  if (speciesId > 0) {
+    localStorage.removeItem(fallbackKey);
+  }
+};
+
 const SPECIES_COPY = {
   en: {
     loading: "Loading species data...",
@@ -79,13 +158,24 @@ const SPECIES_COPY = {
     loadFailed: "Failed to load species data.",
     speciesMissing: "Species not found",
     back: "Back",
+    cancel: "Cancel",
+    saveSpecies: "Save Species",
+    saving: "Saving...",
+    editSpecies: "Edit Species",
+    updateDetails: "Update the details for",
+    scientificName: "Scientific Name",
+    commonName: "Common Name",
+    family: "Family",
+    genus: "Genus",
     descriptionTitle: "Species Description",
     botanicalDescription: "Botanical Description",
     ecologicalInformation: "Ecological Information",
     environmentalImpact: "Environmental Impact",
+    source: "Source",
     herbariumSketch: "Herbarium Sketch",
     taxonomy: "Plant Taxonomy",
     herbariumAlt: "Herbarium sketch of",
+    sourceEmpty: "No source available.",
     ranks: {
       Kerajaan: "Kingdom",
       Filum: "Phylum",
@@ -102,13 +192,24 @@ const SPECIES_COPY = {
     loadFailed: "Gagal memuat data spesies.",
     speciesMissing: "Spesies tidak ditemukan",
     back: "Kembali",
+    cancel: "Batal",
+    saveSpecies: "Simpan Spesies",
+    saving: "Menyimpan...",
+    editSpecies: "Edit Spesies",
+    updateDetails: "Perbarui detail untuk",
+    scientificName: "Nama Ilmiah",
+    commonName: "Nama Umum",
+    family: "Famili",
+    genus: "Genus",
     descriptionTitle: "Keterangan Spesies",
     botanicalDescription: "Deskripsi Botani",
     ecologicalInformation: "Informasi Ekologi",
     environmentalImpact: "Dampak Lingkungan",
+    source: "Sumber",
     herbariumSketch: "Sketsa Herbarium",
     taxonomy: "Taksonomi Tanaman",
     herbariumAlt: "Sketsa herbarium",
+    sourceEmpty: "Sumber tidak tersedia.",
     ranks: {
       Kerajaan: "Kerajaan",
       Filum: "Filum",
@@ -177,6 +278,53 @@ export default function SpeciesPage() {
   const [plant, setPlant] = useState<PlantData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [draft, setDraft] = useState({
+    scientificName: "",
+    commonName: "",
+    family: "",
+    genus: "",
+    botanicalDescription: "",
+    ecologicalInformation: "",
+    environmentalImpact: "",
+    source: "",
+  });
+  const [sourceText, setSourceText] = useState("");
+
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem("biowatch_admin_auth");
+      if (!stored) {
+        setIsAdmin(false);
+        return;
+      }
+
+      const parsed = JSON.parse(stored) as { role?: string };
+      setIsAdmin(Boolean(parsed.role && parsed.role.toLowerCase().includes("admin")));
+    } catch {
+      setIsAdmin(false);
+    }
+  }, []);
+
+  const mapPlantRecord = (record: PlantApiRecord): PlantData => ({
+    id: record.id,
+    commonName: record.commonName || record.common_name || "",
+    scientificName: record.scientificName || record.scientific_name || "",
+    family: record.family || "",
+    genus: record.genus || "",
+    botanicalDescription: record.botanicalDescription || record.botanical_description || "",
+    botanicalDescriptionEn: record.botanicalDescriptionEn || record.botanical_description_en || "",
+    botanicalDescriptionId: record.botanicalDescriptionId || record.botanical_description_id || "",
+    ecologicalInformation: record.ecologicalInformation || record.ecological_information || "",
+    ecologicalInformationEn: record.ecologicalInformationEn || record.ecological_information_en || "",
+    ecologicalInformationId: record.ecologicalInformationId || record.ecological_information_id || "",
+    environmentalImpact: record.environmentalImpact || record.environmental_impact || "",
+    environmentalImpactEn: record.environmentalImpactEn || record.environmental_impact_en || "",
+    environmentalImpactId: record.environmentalImpactId || record.environmental_impact_id || "",
+    imagePath: record.imagePath || record.image_path || "",
+  });
 
   useEffect(() => {
     async function fetchPlant() {
@@ -198,24 +346,7 @@ export default function SpeciesPage() {
         }
 
         if (json.success && json.data && json.data.length > 0) {
-          const p = json.data[0];
-          setPlant({
-            id: p.id,
-            commonName: p.commonName || p.common_name || "",
-            scientificName: p.scientificName || p.scientific_name || "",
-            family: p.family || "",
-            genus: p.genus || "",
-            botanicalDescription: p.botanicalDescription || p.botanical_description || "",
-            botanicalDescriptionEn: p.botanicalDescriptionEn || p.botanical_description_en || "",
-            botanicalDescriptionId: p.botanicalDescriptionId || p.botanical_description_id || "",
-            ecologicalInformation: p.ecologicalInformation || p.ecological_information || "",
-            ecologicalInformationEn: p.ecologicalInformationEn || p.ecological_information_en || "",
-            ecologicalInformationId: p.ecologicalInformationId || p.ecological_information_id || "",
-            environmentalImpact: p.environmentalImpact || p.environmental_impact || "",
-            environmentalImpactEn: p.environmentalImpactEn || p.environmental_impact_en || "",
-            environmentalImpactId: p.environmentalImpactId || p.environmental_impact_id || "",
-            imagePath: p.imagePath || p.image_path || "",
-          });
+          setPlant(mapPlantRecord(json.data[0]));
         } else {
           // Try fallback data for species not yet in the database
           const fallback = FALLBACK_PLANTS[searchTerm.toLowerCase()];
@@ -241,6 +372,147 @@ export default function SpeciesPage() {
     }
     fetchPlant();
   }, [copy.loadFailed, copy.notFound, id]);
+
+  useEffect(() => {
+    if (!plant || isEditing) return;
+
+    setDraft({
+      scientificName: plant.scientificName,
+      commonName: plant.commonName,
+      family: plant.family,
+      genus: plant.genus,
+      botanicalDescription: language === "id"
+        ? plant.botanicalDescriptionId || plant.botanicalDescription
+        : plant.botanicalDescriptionEn || plant.botanicalDescription,
+      ecologicalInformation: language === "id"
+        ? plant.ecologicalInformationId || plant.ecologicalInformation
+        : plant.ecologicalInformationEn || plant.ecologicalInformation,
+      environmentalImpact: language === "id"
+        ? plant.environmentalImpactId || plant.environmentalImpact
+        : plant.environmentalImpactEn || plant.environmentalImpact,
+      source: sourceText,
+    });
+  }, [language, isEditing, plant, sourceText]);
+
+  useEffect(() => {
+    if (!plant) {
+      setSourceText("");
+      return;
+    }
+
+    setSourceText(readStoredSpeciesSourceText(plant.id, plant.scientificName));
+  }, [plant]);
+
+  const handleStartEditing = () => {
+    if (!plant) return;
+
+    setDraft({
+      scientificName: plant.scientificName,
+      commonName: plant.commonName,
+      family: plant.family,
+      genus: plant.genus,
+      botanicalDescription: language === "id"
+        ? plant.botanicalDescriptionId || plant.botanicalDescription
+        : plant.botanicalDescriptionEn || plant.botanicalDescription,
+      ecologicalInformation: language === "id"
+        ? plant.ecologicalInformationId || plant.ecologicalInformation
+        : plant.ecologicalInformationEn || plant.ecologicalInformation,
+      environmentalImpact: language === "id"
+        ? plant.environmentalImpactId || plant.environmentalImpact
+        : plant.environmentalImpactEn || plant.environmentalImpact,
+      source: readStoredSpeciesSourceText(plant.id, plant.scientificName),
+    });
+    setIsEditing(true);
+  };
+
+  const handleCancelEditing = () => {
+    setIsEditing(false);
+    if (!plant) return;
+
+    setDraft({
+      scientificName: plant.scientificName,
+      commonName: plant.commonName,
+      family: plant.family,
+      genus: plant.genus,
+      botanicalDescription: language === "id"
+        ? plant.botanicalDescriptionId || plant.botanicalDescription
+        : plant.botanicalDescriptionEn || plant.botanicalDescription,
+      ecologicalInformation: language === "id"
+        ? plant.ecologicalInformationId || plant.ecologicalInformation
+        : plant.ecologicalInformationEn || plant.ecologicalInformation,
+      environmentalImpact: language === "id"
+        ? plant.environmentalImpactId || plant.environmentalImpact
+        : plant.environmentalImpactEn || plant.environmentalImpact,
+      source: sourceText,
+    });
+  };
+
+  const handleSaveSpecies = async () => {
+    if (!plant) return;
+
+    setIsSaving(true);
+    try {
+      const scientificName = draft.scientificName.trim();
+      const commonName = draft.commonName.trim();
+      const family = draft.family.trim();
+      const genus = draft.genus.trim();
+
+      if (!scientificName || !family || !genus) {
+        toast.error(language === "id" ? "Nama ilmiah, famili, dan genus wajib diisi" : "Scientific name, family, and genus are required");
+        return;
+      }
+
+      const payload = language === "id"
+        ? {
+            scientificName,
+            commonName: commonName || scientificName,
+            family,
+            genus,
+            botanicalDescription: draft.botanicalDescription,
+            botanicalDescriptionId: draft.botanicalDescription,
+            ecologicalInformation: draft.ecologicalInformation,
+            ecologicalInformationId: draft.ecologicalInformation,
+            environmentalImpact: draft.environmentalImpact,
+            environmentalImpactId: draft.environmentalImpact,
+          }
+        : {
+            scientificName,
+            commonName: commonName || scientificName,
+            family,
+            genus,
+            botanicalDescription: draft.botanicalDescription,
+            botanicalDescriptionEn: draft.botanicalDescription,
+            ecologicalInformation: draft.ecologicalInformation,
+            ecologicalInformationEn: draft.ecologicalInformation,
+            environmentalImpact: draft.environmentalImpact,
+            environmentalImpactEn: draft.environmentalImpact,
+          };
+
+      const response = await fetch(`/api/v1/plants/${plant.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+      if (!result.success || !result.data) {
+        throw new Error(result.error?.message || "Failed to update species");
+      }
+
+      setPlant(mapPlantRecord(result.data));
+      writeStoredSpeciesSourceText(plant.id, scientificName, draft.source);
+      setSourceText(draft.source.trim());
+      setIsEditing(false);
+      toast.success(language === "id" ? "Detail spesies berhasil diperbarui" : "Species details updated successfully");
+    } catch (err) {
+      console.error("Failed to update plant details:", err);
+      toast.error(language === "id" ? "Gagal memperbarui detail spesies" : "Failed to update species details");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Get taxonomy for the species
   const taxonomy = plant
@@ -307,9 +579,21 @@ export default function SpeciesPage() {
 
           {/* Description */}
           <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
-            <div className="flex items-center gap-2 border-b bg-muted/50 px-4 py-3">
-              <FileText className="h-4 w-4 text-primary" />
-              <h2 className="font-semibold text-sm">{copy.descriptionTitle}</h2>
+            <div className="flex items-center justify-between gap-2 border-b bg-muted/50 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" />
+                <h2 className="font-semibold text-sm">{copy.descriptionTitle}</h2>
+              </div>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={handleStartEditing}
+                  className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Edit
+                </button>
+              )}
             </div>
             <div className="p-4 space-y-4">
               <div>
@@ -369,8 +653,153 @@ export default function SpeciesPage() {
               </div>
             </div>
           </div>
+
+          {/* Source */}
+          <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
+            <div className="flex items-center gap-2 border-b bg-muted/50 px-4 py-3">
+              <FileText className="h-4 w-4 text-primary" />
+              <h2 className="font-semibold text-sm">{copy.source}</h2>
+            </div>
+            <div className="p-4">
+              <div className="rounded-lg border bg-background px-3 py-3">
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                  {sourceText.trim() || copy.sourceEmpty}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+
+      <Dialog open={isEditing} onOpenChange={(open) => (open ? handleStartEditing() : handleCancelEditing())}>
+        <DialogContent className="w-[min(100vw-2rem,44rem)] max-w-none overflow-hidden rounded-lg p-0 shadow-2xl">
+          <div className="border-b bg-muted/40 px-6 py-5">
+            <DialogHeader className="space-y-1 pr-8 text-left">
+              <DialogTitle className="text-xl font-semibold">{copy.editSpecies}</DialogTitle>
+              <DialogDescription className="text-sm">
+                {copy.updateDetails} <span className="italic">({plant.scientificName})</span>
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              handleSaveSpecies();
+            }}
+            className="max-h-[calc(90vh-6.5rem)] space-y-5 overflow-y-auto bg-card px-6 py-5"
+          >
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="edit-scientific-name">{copy.scientificName}</Label>
+                <Input
+                  id="edit-scientific-name"
+                  value={draft.scientificName}
+                  onChange={(event) => setDraft((current) => ({ ...current, scientificName: event.target.value }))}
+                  className="italic"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-common-name">{copy.commonName}</Label>
+                <Input
+                  id="edit-common-name"
+                  value={draft.commonName}
+                  onChange={(event) => setDraft((current) => ({ ...current, commonName: event.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="edit-family">{copy.family}</Label>
+                <Input
+                  id="edit-family"
+                  value={draft.family}
+                  onChange={(event) => setDraft((current) => ({ ...current, family: event.target.value }))}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-genus">{copy.genus}</Label>
+                <Input
+                  id="edit-genus"
+                  value={draft.genus}
+                  onChange={(event) => setDraft((current) => ({ ...current, genus: event.target.value }))}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-botanical-description" className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {copy.botanicalDescription}
+              </Label>
+              <Textarea
+                id="edit-botanical-description"
+                value={draft.botanicalDescription}
+                onChange={(event) => setDraft((current) => ({ ...current, botanicalDescription: event.target.value }))}
+                rows={4}
+                className="min-h-[112px] rounded-xl"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-ecological-information" className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {copy.ecologicalInformation}
+              </Label>
+              <Textarea
+                id="edit-ecological-information"
+                value={draft.ecologicalInformation}
+                onChange={(event) => setDraft((current) => ({ ...current, ecologicalInformation: event.target.value }))}
+                rows={4}
+                className="min-h-[112px] rounded-xl"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-environmental-impact" className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {copy.environmentalImpact}
+              </Label>
+              <Textarea
+                id="edit-environmental-impact"
+                value={draft.environmentalImpact}
+                onChange={(event) => setDraft((current) => ({ ...current, environmentalImpact: event.target.value }))}
+                rows={4}
+                className="min-h-[112px] rounded-xl"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-source" className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {copy.source}
+              </Label>
+              <Textarea
+                id="edit-source"
+                value={draft.source}
+                onChange={(event) => setDraft((current) => ({ ...current, source: event.target.value }))}
+                rows={4}
+                className="min-h-[112px] rounded-xl"
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={handleCancelEditing} disabled={isSaving}>
+                {copy.cancel}
+              </Button>
+              <Button type="submit" disabled={isSaving || !draft.scientificName.trim() || !draft.family.trim() || !draft.genus.trim()}>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {copy.saving}
+                  </>
+                ) : (
+                  copy.saveSpecies
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -10,8 +10,8 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const FROM_ADDRESS = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@biowatch.id';
-const APP_NAME = 'BioWatch';
+const FROM_ADDRESS = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@bio-inspector.id';
+const APP_NAME = 'Bio-Inspector';
 const DEFAULT_APP_URL = 'http://194.233.74.133:3000';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || DEFAULT_APP_URL;
 const ADMIN_LOGIN_URL = `${APP_URL}/admin`;

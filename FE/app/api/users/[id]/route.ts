@@ -6,7 +6,7 @@ import { updateUserSchema } from '@/server/features/user/schemas/update-user.sch
 import { NextRequest, NextResponse } from 'next/server';
 
 export const GET = withErrorHandling(async (
-  req: NextRequest, 
+  req: NextRequest,
   { params }: { params: { id: string } },
 ) => {
   const { id } = parseWithZod(paramNumberIdSchema, await params)
@@ -27,7 +27,7 @@ export const PATCH = withErrorHandling(async (
 })
 
 export const DELETE = withErrorHandling(async (
-  req: NextRequest, 
+  req: NextRequest,
   { params }: { params: { id: string } },
 ) => {
   const { id } = parseWithZod(paramNumberIdSchema, await params)

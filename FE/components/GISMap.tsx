@@ -4,14 +4,14 @@ import "leaflet/dist/leaflet.css";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const MOCK_MARKERS = [
-  { lat: -7.838, lng: 114.375, species: "Vachellia nilotica", location: "Savana Bekol, Baluran", date: "2025-12-15", source: "Field Survey", confidence: 96 },
-  { lat: -7.842, lng: 114.391, species: "Lantana camara", location: "Pantai Bama, Baluran", date: "2025-11-20", source: "GBIF Import", confidence: 88 },
-  { lat: -7.815, lng: 114.368, species: "Merremia hederacea", location: "Gunung Baluran, Baluran", date: "2026-01-05", source: "Citizen Science", confidence: 78 },
-  { lat: -7.855, lng: 114.410, species: "Clitoria ternatea", location: "Hutan Tropis, Baluran", date: "2026-02-10", source: "Remote Sensing", confidence: 95 },
-  { lat: -7.820, lng: 114.385, species: "Ageratum conyzoides", location: "Pos Sumber Batang, Baluran", date: "2026-01-28", source: "Field Survey", confidence: 75 },
-  { lat: -7.805, lng: 114.355, species: "Lantana camara", location: "Savana Bekol, Baluran", date: "2025-10-14", source: "GBIF Import", confidence: 91 },
-  { lat: -7.840, lng: 114.360, species: "Vachellia nilotica", location: "Gunung Baluran, Baluran", date: "2025-09-03", source: "Field Survey", confidence: 92 },
-  { lat: -7.845, lng: 114.395, species: "Clitoria ternatea", location: "Kawasan Bama, Baluran", date: "2026-02-20", source: "Citizen Science", confidence: 84 },
+  { lat: -7.838, lng: 114.375, elevation: 78, species: "Vachellia nilotica", location: "Savana Bekol, Baluran", date: "2025-12-15", source: "Field Survey", confidence: 96 },
+  { lat: -7.842, lng: 114.391, elevation: 14, species: "Lantana camara", location: "Pantai Bama, Baluran", date: "2025-11-20", source: "GBIF Import", confidence: 88 },
+  { lat: -7.815, lng: 114.368, elevation: 247, species: "Merremia hederacea", location: "Gunung Baluran, Baluran", date: "2026-01-05", source: "Citizen Science", confidence: 78 },
+  { lat: -7.855, lng: 114.410, elevation: 22, species: "Clitoria ternatea", location: "Hutan Tropis, Baluran", date: "2026-02-10", source: "Remote Sensing", confidence: 95 },
+  { lat: -7.820, lng: 114.385, elevation: 61, species: "Ageratum conyzoides", location: "Pos Sumber Batang, Baluran", date: "2026-01-28", source: "Field Survey", confidence: 75 },
+  { lat: -7.805, lng: 114.355, elevation: 132, species: "Lantana camara", location: "Savana Bekol, Baluran", date: "2025-10-14", source: "GBIF Import", confidence: 91 },
+  { lat: -7.840, lng: 114.360, elevation: 214, species: "Vachellia nilotica", location: "Gunung Baluran, Baluran", date: "2025-09-03", source: "Field Survey", confidence: 92 },
+  { lat: -7.845, lng: 114.395, elevation: 33, species: "Clitoria ternatea", location: "Kawasan Bama, Baluran", date: "2026-02-20", source: "Citizen Science", confidence: 84 },
 ];
 
 const speciesColor: Record<string, string> = {
@@ -26,10 +26,12 @@ const MAP_COPY = {
   en: {
     legend: "Species Legend",
     date: "Date",
+    elevation: "Elevation",
   },
   id: {
     legend: "Legenda Spesies",
     date: "Tanggal",
+    elevation: "Elevasi",
   },
 } as const;
 
@@ -70,6 +72,7 @@ export function GISMap() {
         <div style="font-family:Inter,sans-serif;min-width:180px">
           <h3 style="margin:0 0 6px;font-size:14px;font-weight:600">${m.species}</h3>
           <p style="margin:4px 0;font-size:12px;color:#888;font-weight:500">${m.location}</p>
+          <p style="margin:4px 0;font-size:12px;color:#888">${copy.elevation}: ${m.elevation} m dpl</p>
           <p style="margin:4px 0;font-size:12px;color:#888">${copy.date}: ${m.date}</p>
           <p style="margin:0;font-size:11px;color:#666">${m.lat.toFixed(2)}°, ${m.lng.toFixed(2)}°</p>
         </div>

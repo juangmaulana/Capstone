@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BioWatch",
+  title: "Bio-Inspector",
   description: "Invasive Alien Species Monitoring",
 };
 

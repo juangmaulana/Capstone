@@ -160,7 +160,7 @@ export default function DataExplorer() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "biowatch_plants_export.csv";
+    a.download = "bio-inspector_plants_export.csv";
     a.click();
     URL.revokeObjectURL(url);
   };

@@ -13,7 +13,7 @@ interface PlantSearchRecord {
 
 const COPY = {
   en: {
-    eyebrow: "BioWatch | Invasive Alien Species Monitoring",
+    eyebrow: "Bio-Inspector | Invasive Alien Species Monitoring",
     headline: <>Free and open access to<br />biodiversity data</>,
     searchPlaceholder: "Search species...",
     cameraTitle: "Search by image (like Google Lens)",
@@ -39,7 +39,7 @@ const COPY = {
     ],
   },
   id: {
-    eyebrow: "BioWatch | Pemantauan Spesies Asing Invasif",
+    eyebrow: "Bio-Inspector | Pemantauan Spesies Asing Invasif",
     headline: <>Akses bebas dan terbuka untuk<br />data biodiversitas</>,
     searchPlaceholder: "Cari spesies...",
     cameraTitle: "Cari dengan gambar (seperti Google Lens)",

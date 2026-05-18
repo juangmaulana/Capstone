@@ -392,22 +392,29 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
         const detections: DetectionResult[] = json.data.plants;
         const topDetection = detections[0];
 
-        // Create bounding boxes from detection results
-        const newBoxes: BoundingBox[] = detections.map((det, idx) => {
-          // Map detected name to one of the known SPECIES_CLASSES
-          const matchedClass = SPECIES_CLASSES.find(
-            (cls) => cls.toLowerCase() === det.name.toLowerCase()
-          ) || det.name;
+        // Create bounding boxes only for detections with a valid box
+        const newBoxes: BoundingBox[] = detections
+          .filter(
+            (det) =>
+              det.box &&
+              det.box.width > 0 &&
+              det.box.height > 0
+          )
+          .map((det, idx) => {
+            // Map detected name to one of the known SPECIES_CLASSES
+            const matchedClass = SPECIES_CLASSES.find(
+              (cls) => cls.toLowerCase() === det.name.toLowerCase()
+            ) || det.name;
 
-          return {
-            id: Date.now() + idx,
-            className: matchedClass,
-            x: det.box?.x1 ?? 0,
-            y: det.box?.y1 ?? 0,
-            width: det.box?.width ?? item.imageWidth,
-            height: det.box?.height ?? item.imageHeight,
-          };
-        });
+            return {
+              id: Date.now() + idx,
+              className: matchedClass,
+              x: det.box?.x1 ?? 0,
+              y: det.box?.y1 ?? 0,
+              width: det.box?.width ?? 0,
+              height: det.box?.height ?? 0,
+            };
+          });
 
         // Update the item with AI detection results
         setItemValue(item.id, (prev) => ({
@@ -802,9 +809,8 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                     setActiveItemId(batch.items[0]?.id ?? null);
                     setSelectedBoxId(null);
                   }}
-                  className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${
-                    isActive ? "border-primary bg-primary/5" : "hover:bg-muted"
-                  }`}
+                  className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${isActive ? "border-primary bg-primary/5" : "hover:bg-muted"
+                    }`}
                 >
                   <p className="text-sm font-semibold">{batch.name}</p>
                   <p className="mt-1 text-sm text-muted-foreground">{batch.period}</p>
@@ -847,9 +853,8 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                       detectPlant(item);
                     }
                   }}
-                  className={`w-full rounded-xl border px-3 py-3 text-left text-sm transition-colors ${
-                    activeItemId === item.id ? "border-primary bg-primary/5" : "hover:bg-muted"
-                  }`}
+                  className={`w-full rounded-xl border px-3 py-3 text-left text-sm transition-colors ${activeItemId === item.id ? "border-primary bg-primary/5" : "hover:bg-muted"
+                    }`}
                 >
                   <p className="font-semibold truncate">{item.filename}</p>
                   <div className="mt-2 flex items-center justify-between gap-2">
@@ -886,18 +891,16 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => setMode("draw")}
-                  className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium ${
-                    mode === "draw" ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-                  }`}
+                  className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium ${mode === "draw" ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+                    }`}
                 >
                   <SquareDashedMousePointer className="h-4 w-4" />
                   {copy.draw}
                 </button>
                 <button
                   onClick={() => setMode("select")}
-                  className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium ${
-                    mode === "select" ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-                  }`}
+                  className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium ${mode === "select" ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+                    }`}
                 >
                   <PencilRuler className="h-4 w-4" />
                   {copy.selectEdit}
@@ -1018,9 +1021,8 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                           setMode("select");
                           setSelectedClass(box.className);
                         }}
-                        className={`absolute border-2 text-left ${
-                          isSelected ? "border-yellow-400" : "border-lime-400"
-                        } bg-lime-400/15`}
+                        className={`absolute border-2 text-left ${isSelected ? "border-yellow-400" : "border-lime-400"
+                          } bg-lime-400/15`}
                         style={{
                           left: box.x * scaleX,
                           top: box.y * scaleY,

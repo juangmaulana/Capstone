@@ -6,6 +6,11 @@ import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminDataAnnotationPanel } from "@/components/AdminDataAnnotationPanel";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 /* ───────────── TYPES ───────────── */
 
@@ -86,7 +91,61 @@ interface DisplaySpecies {
 }
 
 const createSpeciesSlug = (scientificName: string) =>
-  scientificName.trim().toLowerCase().replace(/\s+/g, "-");
+  scientificName.trim().toLowerCase().replace(/\s+/g, "-").replace(/--+/g, "-");
+
+const SPECIES_SOURCE_STORAGE_PREFIX = "biowatch_species_source_";
+
+const getSpeciesSourceStorageKey = (speciesId: number, scientificName: string) =>
+  speciesId > 0 ? `${SPECIES_SOURCE_STORAGE_PREFIX}${speciesId}` : `${SPECIES_SOURCE_STORAGE_PREFIX}tmp_${createSpeciesSlug(scientificName)}`.replace(/--+/g, "-");
+
+const readStoredSpeciesSourceText = (speciesId: number, scientificName: string) => {
+  if (typeof window === "undefined") return "";
+
+  try {
+    const primaryKey = getSpeciesSourceStorageKey(speciesId, scientificName);
+    const fallbackKey = `${SPECIES_SOURCE_STORAGE_PREFIX}tmp_${createSpeciesSlug(scientificName)}`;
+    const raw = localStorage.getItem(primaryKey) || localStorage.getItem(fallbackKey);
+    if (!raw) return "";
+
+    const parsed = JSON.parse(raw) as string | Array<{ source?: string; detail?: string }>;
+    if (typeof parsed === "string") return parsed;
+    if (Array.isArray(parsed)) {
+      return parsed
+        .map((row) => {
+          const source = row.source?.trim() || "";
+          const detail = row.detail?.trim() || "";
+          if (source && detail) return `${source}: ${detail}`;
+          return source || detail;
+        })
+        .filter(Boolean)
+        .join("\n");
+    }
+
+    return "";
+  } catch {
+    return "";
+  }
+};
+
+const writeStoredSpeciesSourceText = (speciesId: number, scientificName: string, sourceText: string) => {
+  if (typeof window === "undefined") return;
+
+  const normalizedText = sourceText.trim();
+
+  const storageKey = getSpeciesSourceStorageKey(speciesId, scientificName);
+  const fallbackKey = `${SPECIES_SOURCE_STORAGE_PREFIX}tmp_${createSpeciesSlug(scientificName)}`;
+
+  if (!normalizedText) {
+    localStorage.removeItem(storageKey);
+    localStorage.removeItem(fallbackKey);
+    return;
+  }
+
+  localStorage.setItem(storageKey, JSON.stringify(normalizedText));
+  if (speciesId > 0) {
+    localStorage.removeItem(fallbackKey);
+  }
+};
 
 type LogLevel = "info" | "warning" | "error" | "success";
 
@@ -273,6 +332,7 @@ const ADMIN_COPY = {
       delete: "Delete",
       addTitle: "Add New Species",
       editTitle: "Edit Species",
+      updateDetails: "Update the details for",
       scientificName: "Scientific Name",
       commonName: "Common Name",
       family: "Family",
@@ -280,6 +340,7 @@ const ADMIN_COPY = {
       botanicalDescription: "Botanical Description",
       ecologicalInformation: "Ecological Information",
       environmentalImpact: "Environmental Impact",
+      source: "Source",
       scientificPlaceholder: "e.g., Vachellia nilotica",
       commonPlaceholder: "e.g., Babul",
       familyPlaceholder: "e.g., Fabaceae",
@@ -287,6 +348,7 @@ const ADMIN_COPY = {
       botanicalPlaceholder: "Describe the plant's physical characteristics...",
       ecologicalPlaceholder: "Describe its habitat and ecological role...",
       impactPlaceholder: "Describe its impact on the environment...",
+      sourcePlaceholder: "Add references, links, or source notes...",
       save: "Save Species",
       viewDetail: "View species page",
       deleteTitle: "Delete Species?",
@@ -343,7 +405,7 @@ const ADMIN_COPY = {
       important: "Important!",
       warning: "Send these credentials to the user through a secure channel. The user should change the password after the first login.",
       emailLabel: "Email Address",
-      emailPlaceholder: "example@biowatch.id",
+      emailPlaceholder: "example@bio-inspector.id",
       emailHelp: "Enter the active email of the user you want to add to the system",
       fullName: "Full Name",
       namePlaceholder: "Enter full name",
@@ -406,6 +468,7 @@ const ADMIN_COPY = {
       delete: "Hapus",
       addTitle: "Tambah Spesies Baru",
       editTitle: "Edit Spesies",
+      updateDetails: "Perbarui detail untuk",
       scientificName: "Nama Ilmiah",
       commonName: "Nama Umum",
       family: "Famili",
@@ -413,6 +476,7 @@ const ADMIN_COPY = {
       botanicalDescription: "Deskripsi Botani",
       ecologicalInformation: "Informasi Ekologi",
       environmentalImpact: "Dampak Lingkungan",
+      source: "Sumber",
       scientificPlaceholder: "contoh: Vachellia nilotica",
       commonPlaceholder: "contoh: Babul",
       familyPlaceholder: "contoh: Fabaceae",
@@ -420,6 +484,7 @@ const ADMIN_COPY = {
       botanicalPlaceholder: "Jelaskan karakteristik fisik tanaman...",
       ecologicalPlaceholder: "Jelaskan habitat dan peran ekologinya...",
       impactPlaceholder: "Jelaskan dampaknya terhadap lingkungan...",
+      sourcePlaceholder: "Tambahkan referensi, tautan, atau catatan sumber...",
       save: "Simpan Spesies",
       viewDetail: "Lihat halaman spesies",
       deleteTitle: "Hapus Spesies?",
@@ -476,7 +541,7 @@ const ADMIN_COPY = {
       important: "Penting!",
       warning: "Kirimkan kredensial ini ke user melalui kanal yang aman. User disarankan segera mengganti password setelah login pertama.",
       emailLabel: "Alamat Email",
-      emailPlaceholder: "contoh@biowatch.id",
+      emailPlaceholder: "contoh@bio-inspector.id",
       emailHelp: "Masukkan email aktif user yang ingin ditambahkan ke sistem",
       fullName: "Nama Lengkap",
       namePlaceholder: "Masukkan nama lengkap",
@@ -806,6 +871,7 @@ export default function AdminPage() {
     environmentalImpact: "",
     environmentalImpactEn: "",
     environmentalImpactId: "",
+    source: readStoredSpeciesSourceText(0, ""),
   });
   const [deleteSpeciesConfirm, setDeleteSpeciesConfirm] = useState<DisplaySpecies | null>(null);
 
@@ -825,6 +891,7 @@ export default function AdminPage() {
       environmentalImpact: "",
       environmentalImpactEn: "",
       environmentalImpactId: "",
+      source: readStoredSpeciesSourceText(0, ""),
     });
     setShowAddSpecies(true);
   };
@@ -845,6 +912,7 @@ export default function AdminPage() {
       environmentalImpact: s.environmentalImpact || "",
       environmentalImpactEn: s.environmentalImpactEn || s.environmentalImpact || "",
       environmentalImpactId: s.environmentalImpactId || s.environmentalImpact || "",
+      source: readStoredSpeciesSourceText(s.id, s.scientificName) || "",
     });
     setShowAddSpecies(true);
   };
@@ -891,6 +959,7 @@ export default function AdminPage() {
     const botanicalDescription = botanicalDescriptionId || botanicalDescriptionEn || speciesForm.botanicalDescription.trim() || "-";
     const ecologicalInformation = ecologicalInformationId || ecologicalInformationEn || speciesForm.ecologicalInformation.trim() || "-";
     const environmentalImpact = environmentalImpactId || environmentalImpactEn || speciesForm.environmentalImpact.trim() || "-";
+    const sourceText = speciesForm.source?.trim() || "";
 
     try {
       let res;
@@ -936,14 +1005,17 @@ export default function AdminPage() {
           }),
         });
       }
-      
+
+      const result = res ? await res.json() : null;
+
       if (res && res.ok) {
+        const savedSpeciesId = result?.data?.id || speciesForm.id;
+        writeStoredSpeciesSourceText(savedSpeciesId, speciesForm.scientificName.trim(), sourceText);
         await fetchSpecies();
         setShowAddSpecies(false);
       } else {
-        const err = await res?.json();
-        console.error("Failed to save species:", err);
-        alert(`${copy.common.saveSpeciesFailed}: ${err?.error?.message || copy.common.unknownError}`);
+        console.error("Failed to save species:", result);
+        alert(`${copy.common.saveSpeciesFailed}: ${result?.error?.message || copy.common.unknownError}`);
       }
     } catch (e) { 
       console.error("Failed to save species:", e); 
@@ -1821,103 +1893,134 @@ export default function AdminPage() {
         </div>
       )}
       {/* ─── ADD/EDIT SPECIES MODAL ─── */}
-      {showAddSpecies && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-card shadow-2xl border animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between border-b px-6 py-4 bg-muted/30">
-              <h2 className="text-lg font-semibold">{speciesForm.id === 0 ? copy.species.addTitle : copy.species.editTitle}</h2>
-              <button onClick={() => setShowAddSpecies(false)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="space-y-4 overflow-y-auto py-4 px-6">
+      <Dialog open={showAddSpecies} onOpenChange={setShowAddSpecies}>
+        <DialogContent className="w-[min(100vw-2rem,44rem)] max-w-none overflow-hidden rounded-2xl p-0 shadow-2xl">
+          <div className="border-b bg-muted/40 px-6 py-5">
+            <DialogHeader className="space-y-1 pr-8 text-left">
+              <DialogTitle className="text-xl">
+                {speciesForm.id === 0 ? copy.species.addTitle : copy.species.editTitle}
+              </DialogTitle>
+              <DialogDescription>
+                {speciesForm.id === 0
+                  ? copy.species.addTitle
+                  : `${copy.species.updateDetails} ${speciesForm.scientificName ? `(${speciesForm.scientificName})` : ""}`}
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              handleSaveSpecies();
+            }}
+            className="max-h-[calc(90vh-6.5rem)] space-y-5 overflow-y-auto px-6 py-5"
+          >
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-sm font-medium">{copy.species.scientificName}</label>
-                <input
-                  type="text"
+                <Label htmlFor="scientificName">{copy.species.scientificName}</Label>
+                <Input
+                  id="scientificName"
                   value={speciesForm.scientificName}
                   onChange={(e) => setSpeciesForm({ ...speciesForm, scientificName: e.target.value })}
                   placeholder={copy.species.scientificPlaceholder}
-                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                  className="italic"
+                  required
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">{copy.species.commonName}</label>
-                <input
-                  type="text"
+                <Label htmlFor="commonName">{copy.species.commonName}</Label>
+                <Input
+                  id="commonName"
                   value={speciesForm.commonName}
                   onChange={(e) => setSpeciesForm({ ...speciesForm, commonName: e.target.value })}
                   placeholder={copy.species.commonPlaceholder}
-                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">{copy.species.family}</label>
-                  <input
-                    type="text"
-                    value={speciesForm.family}
-                    onChange={(e) => setSpeciesForm({ ...speciesForm, family: e.target.value })}
-                    placeholder={copy.species.familyPlaceholder}
-                    className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">{copy.species.genus}</label>
-                  <input
-                    type="text"
-                    value={speciesForm.genus}
-                    onChange={(e) => setSpeciesForm({ ...speciesForm, genus: e.target.value })}
-                    placeholder={copy.species.genusPlaceholder}
-                    className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">{copy.species.botanicalDescription}</label>
-                <textarea
-                  value={displayedBotanicalDescription}
-                  onChange={(e) => updateLocalizedSpeciesText("botanicalDescription", e.target.value)}
-                  placeholder={copy.species.botanicalPlaceholder}
-                  rows={3}
-                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 resize-none"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">{copy.species.ecologicalInformation}</label>
-                <textarea
-                  value={displayedEcologicalInformation}
-                  onChange={(e) => updateLocalizedSpeciesText("ecologicalInformation", e.target.value)}
-                  placeholder={copy.species.ecologicalPlaceholder}
-                  rows={3}
-                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 resize-none"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">{copy.species.environmentalImpact}</label>
-                <textarea
-                  value={displayedEnvironmentalImpact}
-                  onChange={(e) => updateLocalizedSpeciesText("environmentalImpact", e.target.value)}
-                  placeholder={copy.species.impactPlaceholder}
-                  rows={3}
-                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 resize-none"
                 />
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 border-t bg-muted/30 px-6 py-4">
-              <button onClick={() => setShowAddSpecies(false)} className="rounded-lg border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="family">{copy.species.family}</Label>
+                <Input
+                  id="family"
+                  value={speciesForm.family}
+                  onChange={(e) => setSpeciesForm({ ...speciesForm, family: e.target.value })}
+                  placeholder={copy.species.familyPlaceholder}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="genus">{copy.species.genus}</Label>
+                <Input
+                  id="genus"
+                  value={speciesForm.genus}
+                  onChange={(e) => setSpeciesForm({ ...speciesForm, genus: e.target.value })}
+                  placeholder={copy.species.genusPlaceholder}
+                  required
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="botanicalDescription" className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {copy.species.botanicalDescription}
+              </Label>
+              <Textarea
+                id="botanicalDescription"
+                value={displayedBotanicalDescription}
+                onChange={(e) => updateLocalizedSpeciesText("botanicalDescription", e.target.value)}
+                placeholder={copy.species.botanicalPlaceholder}
+                rows={4}
+                className="min-h-[112px] rounded-xl"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ecologicalInformation" className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {copy.species.ecologicalInformation}
+              </Label>
+              <Textarea
+                id="ecologicalInformation"
+                value={displayedEcologicalInformation}
+                onChange={(e) => updateLocalizedSpeciesText("ecologicalInformation", e.target.value)}
+                placeholder={copy.species.ecologicalPlaceholder}
+                rows={4}
+                className="min-h-[112px] rounded-xl"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="environmentalImpact" className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {copy.species.environmentalImpact}
+              </Label>
+              <Textarea
+                id="environmentalImpact"
+                value={displayedEnvironmentalImpact}
+                onChange={(e) => updateLocalizedSpeciesText("environmentalImpact", e.target.value)}
+                placeholder={copy.species.impactPlaceholder}
+                rows={4}
+                className="min-h-[112px] rounded-xl"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="source" className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {copy.species.source}
+              </Label>
+              <Textarea
+                id="source"
+                value={speciesForm.source}
+                onChange={(e) => setSpeciesForm({ ...speciesForm, source: e.target.value })}
+                placeholder={copy.species.sourcePlaceholder}
+                rows={4}
+                className="min-h-[112px] rounded-xl"
+              />
+            </div>
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setShowAddSpecies(false)}>
                 {copy.common.cancel}
-              </button>
-              <button onClick={handleSaveSpecies} disabled={!speciesForm.scientificName.trim() || !speciesForm.family.trim()} className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              </Button>
+              <Button type="submit" disabled={!speciesForm.scientificName.trim() || !speciesForm.family.trim()}>
                 {copy.species.save}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* ─── DELETE SPECIES CONFIRMATION MODAL ─── */}
       {deleteSpeciesConfirm && (
