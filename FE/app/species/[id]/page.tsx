@@ -104,6 +104,8 @@ interface PlantApiRecord {
   environmental_impact_en?: string;
   environmentalImpactId?: string;
   environmental_impact_id?: string;
+  description?: string;
+  ecology?: string;
   imagePath?: string;
   image_path?: string;
 }
@@ -314,12 +316,36 @@ export default function SpeciesPage() {
     scientificName: record.scientificName || record.scientific_name || "",
     family: record.family || "",
     genus: record.genus || "",
-    botanicalDescription: record.botanicalDescription || record.botanical_description || "",
-    botanicalDescriptionEn: record.botanicalDescriptionEn || record.botanical_description_en || "",
-    botanicalDescriptionId: record.botanicalDescriptionId || record.botanical_description_id || "",
-    ecologicalInformation: record.ecologicalInformation || record.ecological_information || "",
-    ecologicalInformationEn: record.ecologicalInformationEn || record.ecological_information_en || "",
-    ecologicalInformationId: record.ecologicalInformationId || record.ecological_information_id || "",
+    botanicalDescription: record.botanicalDescription || record.botanical_description || record.description || "",
+    botanicalDescriptionEn:
+      record.botanicalDescriptionEn
+      || record.botanical_description_en
+      || record.botanicalDescription
+      || record.botanical_description
+      || record.description
+      || "",
+    botanicalDescriptionId:
+      record.botanicalDescriptionId
+      || record.botanical_description_id
+      || record.botanicalDescription
+      || record.botanical_description
+      || record.description
+      || "",
+    ecologicalInformation: record.ecologicalInformation || record.ecological_information || record.ecology || "",
+    ecologicalInformationEn:
+      record.ecologicalInformationEn
+      || record.ecological_information_en
+      || record.ecologicalInformation
+      || record.ecological_information
+      || record.ecology
+      || "",
+    ecologicalInformationId:
+      record.ecologicalInformationId
+      || record.ecological_information_id
+      || record.ecologicalInformation
+      || record.ecological_information
+      || record.ecology
+      || "",
     environmentalImpact: record.environmentalImpact || record.environmental_impact || "",
     environmentalImpactEn: record.environmentalImpactEn || record.environmental_impact_en || "",
     environmentalImpactId: record.environmentalImpactId || record.environmental_impact_id || "",

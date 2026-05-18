@@ -1,15 +1,15 @@
-import { PlantRepo } from './repo'
-import { listPlants } from './queries/list'
-import { getPlantById } from './queries/get-by-id'
-import { createPlant } from './commands/create'
-import { updatePlant } from './commands/update'
-import { deletePlant } from './commands/delete'
+import { createPlant } from './commands/create';
+import { deletePlant } from './commands/delete';
+import { updatePlant } from './commands/update';
+import { getPlantById } from './queries/get-by-id';
+import { listPlants } from './queries/list';
+import { PlantRepo } from './repo';
 
-export const plantModule = (deps: {
+export const createPlantModule = (deps: {
   plantRepo: PlantRepo,
 }) => {
   const { plantRepo } = deps
-
+  
   return {
     command: {
       create: createPlant({ plantRepo }),
@@ -17,8 +17,8 @@ export const plantModule = (deps: {
       delete: deletePlant({ plantRepo }),
     },
     query: {
-      list: listPlants({ plantRepo }),
       byId: getPlantById({ plantRepo }),
-    },
+      list: listPlants({ plantRepo })
+    }
   }
 }

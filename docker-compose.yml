@@ -2,13 +2,13 @@ version: '3.8'
 
 services:
   postgres-db:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     environment:
       POSTGRES_USER: juangmaulana
       POSTGRES_PASSWORD: SecretCAPS12
       POSTGRES_DB: biowatch
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: always
