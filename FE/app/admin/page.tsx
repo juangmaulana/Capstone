@@ -733,13 +733,46 @@ export default function AdminPage() {
     } catch { setAddUserError(copy.addUser.serverFailed); }
   };
 
-  const handleCopyCredentials = () => {
-    if (!addUserCreatedCreds) return;
-    const text = `Email: ${addUserCreatedCreds.email}\n${copy.addUser.passwordLabel}: ${addUserCreatedCreds.password}`;
-    navigator.clipboard.writeText(text).then(() => {
+  const fallbackCopyText = (text: string) => {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    textarea.style.top = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+
+    try {
+      const copied = document.execCommand("copy");
+      if (!copied) {
+        window.prompt(copy.addUser.copyCredentials, text);
+        return;
+      }
       setCopiedCreds(true);
       setTimeout(() => setCopiedCreds(false), 2000);
-    });
+    } finally {
+      document.body.removeChild(textarea);
+    }
+  };
+
+  const handleCopyCredentials = async () => {
+    if (!addUserCreatedCreds) return;
+    const text = `Email: ${addUserCreatedCreds.email}\n${copy.addUser.passwordLabel}: ${addUserCreatedCreds.password}`;
+
+    try {
+      if (!navigator.clipboard || !window.isSecureContext) {
+        fallbackCopyText(text);
+        return;
+      }
+
+      await navigator.clipboard.writeText(text);
+      setCopiedCreds(true);
+      setTimeout(() => setCopiedCreds(false), 2000);
+    } catch {
+      fallbackCopyText(text);
+    }
   };
 
   const handleEditRole = (u: DisplayUser) => {
@@ -1753,6 +1786,7 @@ export default function AdminPage() {
                     </div>
 
                     <button
+                      type="button"
                       onClick={handleCopyCredentials}
                       className={`w-full inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-all ${
                         copiedCreds
