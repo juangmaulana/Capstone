@@ -94,7 +94,7 @@ export function AppSidebar() {
             <div className="flex flex-1 items-center justify-between">
               <div className="flex flex-col">
                 <span className="text-sm font-bold text-sidebar-accent-foreground">
-                  BioWatch
+                  Bio-Inspector
                 </span>
                 <span className="text-[11px] text-sidebar-muted">
                   {copy.subtitle}
@@ -167,7 +167,7 @@ export function AppSidebar() {
 
       <SidebarFooter className="border-t border-sidebar-border p-4 group-data-[collapsible=icon]:p-2 transition-all">
         {!collapsed && (
-          <p className="text-[11px] text-sidebar-muted min-w-max">v1.0.0 • BioWatch</p>
+          <p className="text-[11px] text-sidebar-muted min-w-max">v1.0.0 • Bio-Inspector</p>
         )}
       </SidebarFooter>
     </Sidebar>

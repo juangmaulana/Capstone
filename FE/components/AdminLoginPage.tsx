@@ -173,7 +173,7 @@ export function AdminLoginPage() {
             </div>
             <div className="admin-login-logo-ring" />
           </div>
-          <h1 className="admin-login-title">BioWatch Admin</h1>
+          <h1 className="admin-login-title">Bio-Inspector Admin</h1>
           <p className="admin-login-subtitle">
             {copy.subtitle}
           </p>

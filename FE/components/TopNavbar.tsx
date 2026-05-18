@@ -38,7 +38,7 @@ export function TopNavbar() {
       </div>
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1 text-sm text-muted-foreground">
-        <span className="hidden sm:inline">BioWatch</span>
+        <span className="hidden sm:inline">Bio-Inspector</span>
         <ChevronRight className="h-3 w-3" />
         <span className="font-medium text-foreground">{currentLabel}</span>
       </nav>

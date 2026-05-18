@@ -4,11 +4,11 @@ import { Users, UserPlus, ShieldCheck, Activity } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const MOCK_USERS = [
-  { id: 1, name: "Dr. Andi Prasetyo", email: "andi@biowatch.id", role: "Researcher", status: "Active", lastLogin: "2026-04-15" },
-  { id: 2, name: "Siti Nurhaliza", email: "siti@biowatch.id", role: "Researcher", status: "Active", lastLogin: "2026-04-14" },
-  { id: 3, name: "Budi Santoso", email: "budi@biowatch.id", role: "Ranger", status: "Active", lastLogin: "2026-04-13" },
-  { id: 4, name: "Maya Putri", email: "maya@biowatch.id", role: "Researcher", status: "Inactive", lastLogin: "2026-03-28" },
-  { id: 5, name: "Rudi Hermawan", email: "rudi@biowatch.id", role: "Ranger", status: "Active", lastLogin: "2026-04-12" },
+  { id: 1, name: "Dr. Andi Prasetyo", email: "andi@bio-inspector.id", role: "Researcher", status: "Active", lastLogin: "2026-04-15" },
+  { id: 2, name: "Siti Nurhaliza", email: "siti@bio-inspector.id", role: "Researcher", status: "Active", lastLogin: "2026-04-14" },
+  { id: 3, name: "Budi Santoso", email: "budi@bio-inspector.id", role: "Ranger", status: "Active", lastLogin: "2026-04-13" },
+  { id: 4, name: "Maya Putri", email: "maya@bio-inspector.id", role: "Researcher", status: "Inactive", lastLogin: "2026-03-28" },
+  { id: 5, name: "Rudi Hermawan", email: "rudi@bio-inspector.id", role: "Ranger", status: "Active", lastLogin: "2026-04-12" },
 ];
 
 const USERS_COPY = {
