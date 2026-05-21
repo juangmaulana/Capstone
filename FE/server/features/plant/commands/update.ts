@@ -12,7 +12,6 @@ export const updatePlant = (deps: {
   try {
     const plant = await deps.plantRepo.update(id, dbInput)
     if (!plant) throw notFound(`Plant with id ${id} not found`)
-
     return plant
   } catch (err) {
     throw mapDbError(err)

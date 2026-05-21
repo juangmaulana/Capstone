@@ -43,6 +43,12 @@ export interface PlantTable {
   environmental_impact_en: string
   environmental_impact_id: string
   image_path: string
+  kingdom: string
+  phylum: string
+  tax_class: string
+  order_rank: string
+  tax_species: string
+  source: string
   readonly created_at: Generated<Date>
   readonly updated_at: Generated<Date>
 }
@@ -77,7 +83,7 @@ export type ImageSelect = Selectable<ImageTable>
 export interface SessionTable {
   readonly id: string
   user_id: number
-  expires_at: Generated<Date>
+  expires_at: Date
   readonly created_at: Generated<Date>
 }
 export type SessionSelect = Selectable<SessionTable>

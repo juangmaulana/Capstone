@@ -19,13 +19,26 @@ import {
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const SPECIES_CLASSES = [
-  "Vachellia nilotica",
-  "Ageratum conyzoides",
-  "Clitoria ternatea",
-  "Lantana camara",
-  "Merremia hederacea",
+  "Vachellia nilotica (L.) P.J.H.Hurter & Mabb.",
+  "Ageratum conyzoides L.",
+  "Clitoria ternatea L.",
+  "Lantana camara L.",
+  "Merremia hederacea (Burm.f.) Hallier f.",
   "Unknown",
 ];
+
+const getBinomialName = (name: string) =>
+  name.trim().toLowerCase().split(/\s+/).slice(0, 2).join(" ");
+
+const findSpeciesClass = (name: string) => {
+  const normalizedName = name.trim().toLowerCase();
+  const binomialName = getBinomialName(name);
+
+  return SPECIES_CLASSES.find((cls) => {
+    const normalizedClass = cls.toLowerCase();
+    return normalizedClass === normalizedName || getBinomialName(cls) === binomialName;
+  });
+};
 
 type ItemStatus = "pending" | "annotated" | "validated";
 type EditorMode = "draw" | "select";
@@ -402,9 +415,7 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
           )
           .map((det, idx) => {
             // Map detected name to one of the known SPECIES_CLASSES
-            const matchedClass = SPECIES_CLASSES.find(
-              (cls) => cls.toLowerCase() === det.name.toLowerCase()
-            ) || det.name;
+            const matchedClass = findSpeciesClass(det.name) || det.name;
 
             return {
               id: Date.now() + idx,
@@ -416,20 +427,19 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
             };
           });
 
+        const matchedTopClass = findSpeciesClass(topDetection.name);
+
         // Update the item with AI detection results
         setItemValue(item.id, (prev) => ({
           ...prev,
           boxes: newBoxes.length > 0 ? newBoxes : prev.boxes,
           aiDetected: true,
-          aiSpecies: topDetection.name,
+          aiSpecies: matchedTopClass || topDetection.name,
           aiConfidence: topDetection.confidence,
           status: newBoxes.length > 0 ? "annotated" : prev.status,
         }));
 
         // Auto-select detected species in class dropdown
-        const matchedTopClass = SPECIES_CLASSES.find(
-          (cls) => cls.toLowerCase() === topDetection.name.toLowerCase()
-        );
         if (matchedTopClass) {
           setSelectedClass(matchedTopClass);
         }

@@ -5,6 +5,7 @@ import { Search, Camera, Loader2 } from "lucide-react";
 import { CameraSearchDialog } from "@/components/CameraSearchDialog";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { createScientificNameSlug, getScientificNameWithAuthor } from "@/lib/plant/scientific-name-author";
 
 interface PlantSearchRecord {
   scientificName?: string;
@@ -14,7 +15,7 @@ interface PlantSearchRecord {
 const COPY = {
   en: {
     eyebrow: "Bio-Inspector | Invasive Alien Species Monitoring",
-    headline: <>Free and open access to<br />biodiversity data</>,
+    headline: <>Free and open access to<br />biodiversity data in Baluran</>,
     searchPlaceholder: "Search species...",
     cameraTitle: "Search by image (like Google Lens)",
     loadingSpecies: "Loading species data...",
@@ -40,7 +41,7 @@ const COPY = {
   },
   id: {
     eyebrow: "Bio-Inspector | Pemantauan Spesies Asing Invasif",
-    headline: <>Akses bebas dan terbuka untuk<br />data biodiversitas</>,
+    headline: <>Akses bebas dan terbuka untuk<br />data biodiversitas di Baluran</>,
     searchPlaceholder: "Cari spesies...",
     cameraTitle: "Cari dengan gambar (seperti Google Lens)",
     loadingSpecies: "Memuat data spesies...",
@@ -79,11 +80,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fallbackSpecies = [
-      "Vachellia nilotica",
-      "Ageratum conyzoides",
-      "Lantana camara",
-      "Clitoria ternatea",
-      "Merremia hederacea",
+      "Vachellia nilotica (L.) P.J.H.Hurter & Mabb.",
+      "Ageratum conyzoides L.",
+      "Lantana camara L.",
+      "Clitoria ternatea L.",
+      "Merremia hederacea (Burm.f.) Hallier f.",
     ];
 
     async function fetchSpeciesList() {
@@ -93,7 +94,7 @@ export default function Dashboard() {
         const json = await res.json();
         if (json.success && Array.isArray(json.data)) {
           const names = json.data
-            .map((plant: PlantSearchRecord) => plant.scientificName || plant.scientific_name || "")
+            .map((plant: PlantSearchRecord) => getScientificNameWithAuthor(plant.scientificName || plant.scientific_name || ""))
             .filter(Boolean);
           setSpeciesList(names.length > 0 ? names : fallbackSpecies);
         } else {
@@ -114,7 +115,7 @@ export default function Dashboard() {
     if (e) e.preventDefault();
     const query = queryOverride || searchQuery;
     if (query.trim()) {
-      const id = query.trim().toLowerCase().replace(/\s+/g, '-');
+      const id = createScientificNameSlug(query);
       router.push(`/species/${id}`);
       setIsDropdownOpen(false);
     }
@@ -186,9 +187,9 @@ export default function Dashboard() {
 
               {/* Dropdown */}
               {isDropdownOpen && (
-                <div className="absolute top-full left-0 w-full bg-white rounded-b-2xl shadow-xl border-t border-gray-100 py-2 z-50">
+                <div className="absolute left-0 top-full z-50 max-h-[min(36dvh,22rem)] w-full overflow-y-auto overscroll-contain rounded-b-2xl border-t border-gray-100 bg-white py-1.5 shadow-xl sm:max-h-[min(42dvh,22rem)]">
                   {isLoading ? (
-                    <div className="flex items-center justify-center px-5 py-3 text-gray-500">
+                    <div className="flex items-center justify-center px-5 py-2.5 text-gray-500">
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       {copy.loadingSpecies}
                     </div>
@@ -196,18 +197,18 @@ export default function Dashboard() {
                     filteredSpecies.map(sp => (
                       <div
                         key={sp}
-                        className="flex items-center px-5 py-3 hover:bg-gray-100 cursor-pointer text-gray-700 hover:text-gray-900 transition-colors"
+                        className="flex min-h-11 cursor-pointer items-center px-5 py-2.5 text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900 sm:min-h-12 sm:text-base"
                         onClick={() => {
                           setSearchQuery(sp);
                           handleSearch(undefined, sp);
                         }}
                       >
-                        <Search className="h-4 w-4 mr-3 text-gray-400" />
-                        {sp}
+                        <Search className="mr-3 h-4 w-4 shrink-0 text-gray-400" />
+                        <span className="min-w-0 truncate">{sp}</span>
                       </div>
                     ))
                   ) : (
-                    <div className="px-5 py-3 text-gray-500">{copy.noSpecies}</div>
+                    <div className="px-5 py-2.5 text-gray-500">{copy.noSpecies}</div>
                   )}
                 </div>
               )}

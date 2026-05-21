@@ -14,6 +14,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { getScientificNameWithAuthor } from "@/lib/plant/scientific-name-author";
 
 const growthData = [
   { month: "Aug", obs: 120 },
@@ -26,11 +27,11 @@ const growthData = [
 ];
 
 const abundanceData = [
-  { species: "A. mangium", count: 156 },
-  { species: "L. camara", count: 234 },
-  { species: "M. micrantha", count: 89 },
-  { species: "C. odorata", count: 178 },
-  { species: "S. molesta", count: 67 },
+  { species: getScientificNameWithAuthor("Vachellia nilotica"), count: 156 },
+  { species: getScientificNameWithAuthor("Ageratum conyzoides"), count: 234 },
+  { species: getScientificNameWithAuthor("Lantana camara"), count: 89 },
+  { species: getScientificNameWithAuthor("Clitoria ternatea"), count: 178 },
+  { species: getScientificNameWithAuthor("Merremia hederacea"), count: 67 },
 ];
 
 const PIE_COLORS = [
@@ -134,11 +135,11 @@ export function AnalyticsPanel() {
       {/* Abundance */}
       <div className="stat-card">
         <p className="panel-header mb-3 text-xs">{copy.speciesAbundance}</p>
-        <ResponsiveContainer width="100%" height={150}>
+        <ResponsiveContainer width="100%" height={230}>
           <BarChart data={abundanceData} layout="vertical">
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(150,14%,88%)" />
             <XAxis type="number" tick={{ fontSize: 11 }} stroke="hsl(150,10%,45%)" />
-            <YAxis dataKey="species" type="category" tick={{ fontSize: 10 }} width={75} stroke="hsl(150,10%,45%)" />
+            <YAxis dataKey="species" type="category" tick={{ fontSize: 10 }} width={235} stroke="hsl(150,10%,45%)" />
             <Tooltip
               contentStyle={{
                 background: "hsl(0,0%,100%)",

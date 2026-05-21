@@ -4,22 +4,22 @@ import "leaflet/dist/leaflet.css";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const MOCK_MARKERS = [
-  { lat: -7.838, lng: 114.375, elevation: 78, species: "Vachellia nilotica", location: "Savana Bekol, Baluran", date: "2025-12-15", source: "Field Survey", confidence: 96 },
-  { lat: -7.842, lng: 114.391, elevation: 14, species: "Lantana camara", location: "Pantai Bama, Baluran", date: "2025-11-20", source: "GBIF Import", confidence: 88 },
-  { lat: -7.815, lng: 114.368, elevation: 247, species: "Merremia hederacea", location: "Gunung Baluran, Baluran", date: "2026-01-05", source: "Citizen Science", confidence: 78 },
-  { lat: -7.855, lng: 114.410, elevation: 22, species: "Clitoria ternatea", location: "Hutan Tropis, Baluran", date: "2026-02-10", source: "Remote Sensing", confidence: 95 },
-  { lat: -7.820, lng: 114.385, elevation: 61, species: "Ageratum conyzoides", location: "Pos Sumber Batang, Baluran", date: "2026-01-28", source: "Field Survey", confidence: 75 },
-  { lat: -7.805, lng: 114.355, elevation: 132, species: "Lantana camara", location: "Savana Bekol, Baluran", date: "2025-10-14", source: "GBIF Import", confidence: 91 },
-  { lat: -7.840, lng: 114.360, elevation: 214, species: "Vachellia nilotica", location: "Gunung Baluran, Baluran", date: "2025-09-03", source: "Field Survey", confidence: 92 },
-  { lat: -7.845, lng: 114.395, elevation: 33, species: "Clitoria ternatea", location: "Kawasan Bama, Baluran", date: "2026-02-20", source: "Citizen Science", confidence: 84 },
+  { lat: -7.838, lng: 114.375, elevation: 78, species: "Vachellia nilotica (L.) P.J.H.Hurter & Mabb.", location: "Savana Bekol, Baluran", date: "2025-12-15", source: "Field Survey", confidence: 96 },
+  { lat: -7.842, lng: 114.391, elevation: 14, species: "Lantana camara L.", location: "Pantai Bama, Baluran", date: "2025-11-20", source: "GBIF Import", confidence: 88 },
+  { lat: -7.815, lng: 114.368, elevation: 247, species: "Merremia hederacea (Burm.f.) Hallier f.", location: "Gunung Baluran, Baluran", date: "2026-01-05", source: "Citizen Science", confidence: 78 },
+  { lat: -7.855, lng: 114.410, elevation: 22, species: "Clitoria ternatea L.", location: "Hutan Tropis, Baluran", date: "2026-02-10", source: "Remote Sensing", confidence: 95 },
+  { lat: -7.820, lng: 114.385, elevation: 61, species: "Ageratum conyzoides L.", location: "Pos Sumber Batang, Baluran", date: "2026-01-28", source: "Field Survey", confidence: 75 },
+  { lat: -7.805, lng: 114.355, elevation: 132, species: "Lantana camara L.", location: "Savana Bekol, Baluran", date: "2025-10-14", source: "GBIF Import", confidence: 91 },
+  { lat: -7.840, lng: 114.360, elevation: 214, species: "Vachellia nilotica (L.) P.J.H.Hurter & Mabb.", location: "Gunung Baluran, Baluran", date: "2025-09-03", source: "Field Survey", confidence: 92 },
+  { lat: -7.845, lng: 114.395, elevation: 33, species: "Clitoria ternatea L.", location: "Kawasan Bama, Baluran", date: "2026-02-20", source: "Citizen Science", confidence: 84 },
 ];
 
 const speciesColor: Record<string, string> = {
-  "Vachellia nilotica": "#2E7D32",
-  "Lantana camara": "#1565C0",
-  "Merremia hederacea": "#6A1B9A",
-  "Clitoria ternatea": "#E65100",
-  "Ageratum conyzoides": "#00838F",
+  "Vachellia nilotica (L.) P.J.H.Hurter & Mabb.": "#2E7D32",
+  "Lantana camara L.": "#1565C0",
+  "Merremia hederacea (Burm.f.) Hallier f.": "#6A1B9A",
+  "Clitoria ternatea L.": "#E65100",
+  "Ageratum conyzoides L.": "#00838F",
 };
 
 const MAP_COPY = {

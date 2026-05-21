@@ -17,6 +17,12 @@ export const toDbInsert = (input: CreatePlantRequest): PlantInsert => ({
   environmental_impact_en: input.environmentalImpactEn ?? input.environmentalImpact,
   environmental_impact_id: input.environmentalImpactId ?? input.environmentalImpact,
   image_path: input.imagePath,
+  kingdom: input.kingdom ?? '',
+  phylum: input.phylum ?? '',
+  tax_class: input.taxClass ?? '',
+  order_rank: input.orderRank ?? '',
+  tax_species: input.taxSpecies ?? '',
+  source: input.source ?? '',
 });
 
 export const toDbUpdate = (input: UpdatePlantRequest): PlantUpdate => ({
@@ -34,4 +40,10 @@ export const toDbUpdate = (input: UpdatePlantRequest): PlantUpdate => ({
   ...(input.environmentalImpactEn !== undefined && { environmental_impact_en: input.environmentalImpactEn }),
   ...(input.environmentalImpactId !== undefined && { environmental_impact_id: input.environmentalImpactId }),
   ...(input.imagePath !== undefined && { image_path: input.imagePath }),
+  ...(input.kingdom !== undefined && { kingdom: input.kingdom }),
+  ...(input.phylum !== undefined && { phylum: input.phylum }),
+  ...(input.taxClass !== undefined && { tax_class: input.taxClass }),
+  ...(input.orderRank !== undefined && { order_rank: input.orderRank }),
+  ...(input.taxSpecies !== undefined && { tax_species: input.taxSpecies }),
+  ...(input.source !== undefined && { source: input.source }),
 });

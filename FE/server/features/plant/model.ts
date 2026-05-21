@@ -14,6 +14,12 @@ export type Plant = {
   environmentalImpactEn: string
   environmentalImpactId: string
   imagePath: string
+  kingdom: string
+  phylum: string
+  taxClass: string
+  orderRank: string
+  taxSpecies: string
+  source: string
   createdAt: Date
   updatedAt: Date
 }

@@ -11,6 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { createScientificNameSlug, getScientificNameWithAuthor } from "@/lib/plant/scientific-name-author";
+import { type TranslateLanguage } from "@/lib/translation/client";
+import { translateSpeciesDescriptions } from "@/lib/translation/species";
 
 /* ───────────── TYPES ───────────── */
 
@@ -58,6 +61,17 @@ interface ApiPlant {
   environmental_impact_en?: string;
   environmentalImpactId?: string;
   environmental_impact_id?: string;
+  imagePath?: string;
+  image_path?: string;
+  kingdom?: string;
+  phylum?: string;
+  taxClass?: string;
+  tax_class?: string;
+  orderRank?: string;
+  order_rank?: string;
+  taxSpecies?: string;
+  tax_species?: string;
+  source?: string;
   updatedAt?: string;
   updated_at?: string;
 }
@@ -87,11 +101,18 @@ interface DisplaySpecies {
   environmentalImpact: string;
   environmentalImpactEn: string;
   environmentalImpactId: string;
+  imagePath: string;
+  kingdom: string;
+  phylum: string;
+  taxClass: string;
+  orderRank: string;
+  taxSpecies: string;
+  source: string;
   lastUpdated: string;
 }
 
 const createSpeciesSlug = (scientificName: string) =>
-  scientificName.trim().toLowerCase().replace(/\s+/g, "-").replace(/--+/g, "-");
+  createScientificNameSlug(scientificName).replace(/--+/g, "-");
 
 const SPECIES_SOURCE_STORAGE_PREFIX = "biowatch_species_source_";
 
@@ -145,6 +166,43 @@ const writeStoredSpeciesSourceText = (speciesId: number, scientificName: string,
   if (speciesId > 0) {
     localStorage.removeItem(fallbackKey);
   }
+};
+
+const SPECIES_TAXONOMY_STORAGE_PREFIX = "biowatch_species_taxonomy_";
+
+interface TaxonomyFields { kingdom: string; phylum: string; taxClass: string; order: string; taxSpecies: string; }
+const EMPTY_TAXONOMY: TaxonomyFields = { kingdom: "", phylum: "", taxClass: "", order: "", taxSpecies: "" };
+
+const getSpeciesTaxonomyStorageKey = (speciesId: number, scientificName: string) =>
+  speciesId > 0
+    ? `${SPECIES_TAXONOMY_STORAGE_PREFIX}${speciesId}`
+    : `${SPECIES_TAXONOMY_STORAGE_PREFIX}tmp_${createSpeciesSlug(scientificName)}`.replace(/--+/g, "-");
+
+const readStoredSpeciesTaxonomy = (speciesId: number, scientificName: string): TaxonomyFields => {
+  if (typeof window === "undefined") return EMPTY_TAXONOMY;
+  try {
+    const key = getSpeciesTaxonomyStorageKey(speciesId, scientificName);
+    const fallbackKey = `${SPECIES_TAXONOMY_STORAGE_PREFIX}tmp_${createSpeciesSlug(scientificName)}`;
+    const raw = localStorage.getItem(key) || localStorage.getItem(fallbackKey);
+    if (!raw) return EMPTY_TAXONOMY;
+    return JSON.parse(raw) as TaxonomyFields;
+  } catch {
+    return EMPTY_TAXONOMY;
+  }
+};
+
+const writeStoredSpeciesTaxonomy = (speciesId: number, scientificName: string, taxonomy: TaxonomyFields) => {
+  if (typeof window === "undefined") return;
+  const key = getSpeciesTaxonomyStorageKey(speciesId, scientificName);
+  const fallbackKey = `${SPECIES_TAXONOMY_STORAGE_PREFIX}tmp_${createSpeciesSlug(scientificName)}`;
+  const hasData = Object.values(taxonomy).some((v) => v.trim());
+  if (!hasData) {
+    localStorage.removeItem(key);
+    localStorage.removeItem(fallbackKey);
+    return;
+  }
+  localStorage.setItem(key, JSON.stringify(taxonomy));
+  if (speciesId > 0) localStorage.removeItem(fallbackKey);
 };
 
 type LogLevel = "info" | "warning" | "error" | "success";
@@ -229,14 +287,14 @@ const MOCK_ANNOTATION_BATCHES: AnnotationBatch[] = [
     createdBy: "Dr. Andi Prasetyo",
     createdDate: "2026-04-01",
     items: [
-      { id: 101, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260115_001.jpg", capturedDate: "2026-01-15", location: "Savana Bekol, Baluran", coordinates: "-7.8503, 114.3680", predictedSpecies: "Vachellia nilotica", confidence: 0.92, annotatedSpecies: "Vachellia nilotica", annotatedBy: "Siti Nurhaliza", annotatedDate: "2026-04-02", validatedBy: "Dr. Andi Prasetyo", validatedDate: "2026-04-03", status: "validated", notes: "Clear image, correct identification" },
-      { id: 102, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260118_002.jpg", capturedDate: "2026-01-18", location: "Pantai Bama, Baluran", coordinates: "-7.8215, 114.3842", predictedSpecies: "Lantana camara", confidence: 0.87, annotatedSpecies: "Lantana camara", annotatedBy: "Budi Santoso", annotatedDate: "2026-04-03", validatedBy: "Dr. Andi Prasetyo", validatedDate: "2026-04-04", status: "validated" },
-      { id: 103, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260205_003.jpg", capturedDate: "2026-02-05", location: "Evergreen Forest Trail", coordinates: "-7.8412, 114.3756", predictedSpecies: "Clitoria ternatea", confidence: 0.78, annotatedSpecies: "Ageratum conyzoides", annotatedBy: "Siti Nurhaliza", annotatedDate: "2026-04-05", status: "annotated", notes: "Model predicted wrong — leaves are different" },
-      { id: 104, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260210_004.jpg", capturedDate: "2026-02-10", location: "Savana Balanan", coordinates: "-7.8601, 114.3520", predictedSpecies: "Vachellia nilotica", confidence: 0.95, annotatedSpecies: "Vachellia nilotica", annotatedBy: "Budi Santoso", annotatedDate: "2026-04-05", validatedBy: "Dr. Andi Prasetyo", validatedDate: "2026-04-06", status: "validated" },
-      { id: 105, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260222_005.jpg", capturedDate: "2026-02-22", location: "Tanjung Sedano", coordinates: "-7.8003, 114.3910", predictedSpecies: "Merremia hederacea", confidence: 0.65, annotatedSpecies: "Merremia hederacea", annotatedBy: "Rudi Hermawan", annotatedDate: "2026-04-06", status: "annotated", notes: "Low confidence — partially occluded by other vegetation" },
-      { id: 106, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260305_006.jpg", capturedDate: "2026-03-05", location: "Watu Numpuk", coordinates: "-7.8320, 114.3615", predictedSpecies: "Lantana camara", confidence: 0.43, annotatedSpecies: "Unknown", annotatedBy: "Siti Nurhaliza", annotatedDate: "2026-04-07", status: "rejected", notes: "Image too blurry — cannot identify species" },
-      { id: 107, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260312_007.jpg", capturedDate: "2026-03-12", location: "Kramat Area", coordinates: "-7.8550, 114.3700", predictedSpecies: "Ageratum conyzoides", confidence: 0.81, status: "pending" },
-      { id: 108, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260325_008.jpg", capturedDate: "2026-03-25", location: "Savana Bekol, Baluran", coordinates: "-7.8488, 114.3695", predictedSpecies: "Clitoria ternatea", confidence: 0.73, status: "pending" },
+      { id: 101, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260115_001.jpg", capturedDate: "2026-01-15", location: "Savana Bekol, Baluran", coordinates: "-7.8503, 114.3680", predictedSpecies: "Vachellia nilotica (L.) P.J.H.Hurter & Mabb.", confidence: 0.92, annotatedSpecies: "Vachellia nilotica (L.) P.J.H.Hurter & Mabb.", annotatedBy: "Siti Nurhaliza", annotatedDate: "2026-04-02", validatedBy: "Dr. Andi Prasetyo", validatedDate: "2026-04-03", status: "validated", notes: "Clear image, correct identification" },
+      { id: 102, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260118_002.jpg", capturedDate: "2026-01-18", location: "Pantai Bama, Baluran", coordinates: "-7.8215, 114.3842", predictedSpecies: "Lantana camara L.", confidence: 0.87, annotatedSpecies: "Lantana camara L.", annotatedBy: "Budi Santoso", annotatedDate: "2026-04-03", validatedBy: "Dr. Andi Prasetyo", validatedDate: "2026-04-04", status: "validated" },
+      { id: 103, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260205_003.jpg", capturedDate: "2026-02-05", location: "Evergreen Forest Trail", coordinates: "-7.8412, 114.3756", predictedSpecies: "Clitoria ternatea L.", confidence: 0.78, annotatedSpecies: "Ageratum conyzoides L.", annotatedBy: "Siti Nurhaliza", annotatedDate: "2026-04-05", status: "annotated", notes: "Model predicted wrong — leaves are different" },
+      { id: 104, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260210_004.jpg", capturedDate: "2026-02-10", location: "Savana Balanan", coordinates: "-7.8601, 114.3520", predictedSpecies: "Vachellia nilotica (L.) P.J.H.Hurter & Mabb.", confidence: 0.95, annotatedSpecies: "Vachellia nilotica (L.) P.J.H.Hurter & Mabb.", annotatedBy: "Budi Santoso", annotatedDate: "2026-04-05", validatedBy: "Dr. Andi Prasetyo", validatedDate: "2026-04-06", status: "validated" },
+      { id: 105, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260222_005.jpg", capturedDate: "2026-02-22", location: "Tanjung Sedano", coordinates: "-7.8003, 114.3910", predictedSpecies: "Merremia hederacea (Burm.f.) Hallier f.", confidence: 0.65, annotatedSpecies: "Merremia hederacea (Burm.f.) Hallier f.", annotatedBy: "Rudi Hermawan", annotatedDate: "2026-04-06", status: "annotated", notes: "Low confidence — partially occluded by other vegetation" },
+      { id: 106, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260305_006.jpg", capturedDate: "2026-03-05", location: "Watu Numpuk", coordinates: "-7.8320, 114.3615", predictedSpecies: "Lantana camara L.", confidence: 0.43, annotatedSpecies: "Unknown", annotatedBy: "Siti Nurhaliza", annotatedDate: "2026-04-07", status: "rejected", notes: "Image too blurry — cannot identify species" },
+      { id: 107, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260312_007.jpg", capturedDate: "2026-03-12", location: "Kramat Area", coordinates: "-7.8550, 114.3700", predictedSpecies: "Ageratum conyzoides L.", confidence: 0.81, status: "pending" },
+      { id: 108, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260325_008.jpg", capturedDate: "2026-03-25", location: "Savana Bekol, Baluran", coordinates: "-7.8488, 114.3695", predictedSpecies: "Clitoria ternatea L.", confidence: 0.73, status: "pending" },
     ],
   },
   {
@@ -341,6 +399,19 @@ const ADMIN_COPY = {
       ecologicalInformation: "Ecological Information",
       environmentalImpact: "Environmental Impact",
       source: "Source",
+      herbariumSketch: "Herbarium Sketch",
+      herbariumSketchPlaceholder: "e.g., /sketsa-herbarium-example.jpg",
+      taxonomy: "Plant Taxonomy",
+      kingdom: "Kingdom",
+      phylum: "Phylum",
+      taxClass: "Class",
+      order: "Order",
+      taxSpecies: "Species",
+      kingdomPlaceholder: "e.g., Plantae",
+      phylumPlaceholder: "e.g., Tracheophyta",
+      classPaceholder: "e.g., Magnoliopsida",
+      orderPlaceholder: "e.g., Asterales",
+      taxSpeciesPlaceholder: "e.g., V. nilotica",
       scientificPlaceholder: "e.g., Vachellia nilotica",
       commonPlaceholder: "e.g., Babul",
       familyPlaceholder: "e.g., Fabaceae",
@@ -477,6 +548,19 @@ const ADMIN_COPY = {
       ecologicalInformation: "Informasi Ekologi",
       environmentalImpact: "Dampak Lingkungan",
       source: "Sumber",
+      herbariumSketch: "Sketsa Herbarium",
+      herbariumSketchPlaceholder: "contoh: /sketsa-herbarium-contoh.jpg",
+      taxonomy: "Taksonomi Tanaman",
+      kingdom: "Kerajaan",
+      phylum: "Filum",
+      taxClass: "Kelas",
+      order: "Ordo",
+      taxSpecies: "Spesies",
+      kingdomPlaceholder: "contoh: Plantae",
+      phylumPlaceholder: "contoh: Tracheophyta",
+      classPaceholder: "contoh: Magnoliopsida",
+      orderPlaceholder: "contoh: Asterales",
+      taxSpeciesPlaceholder: "contoh: V. nilotica",
       scientificPlaceholder: "contoh: Vachellia nilotica",
       commonPlaceholder: "contoh: Babul",
       familyPlaceholder: "contoh: Fabaceae",
@@ -642,7 +726,7 @@ export default function AdminPage() {
       if (json.success && json.data) {
         setSpeciesData(json.data.map((p: ApiPlant) => ({
           id: p.id,
-          scientificName: p.scientificName || p.scientific_name || "",
+          scientificName: getScientificNameWithAuthor(p.scientificName || p.scientific_name || ""),
           commonName: p.commonName || p.common_name || "",
           family: p.family || "",
           genus: p.genus || "",
@@ -655,6 +739,13 @@ export default function AdminPage() {
           environmentalImpact: p.environmentalImpact || p.environmental_impact || "",
           environmentalImpactEn: p.environmentalImpactEn || p.environmental_impact_en || p.environmentalImpact || p.environmental_impact || "",
           environmentalImpactId: p.environmentalImpactId || p.environmental_impact_id || p.environmentalImpact || p.environmental_impact || "",
+          imagePath: p.imagePath || p.image_path || "",
+          kingdom: p.kingdom || "",
+          phylum: p.phylum || "",
+          taxClass: p.taxClass || p.tax_class || "",
+          orderRank: p.orderRank || p.order_rank || "",
+          taxSpecies: p.taxSpecies || p.tax_species || "",
+          source: p.source || "",
           lastUpdated: p.updatedAt || p.updated_at || "-",
         })));
       }
@@ -889,11 +980,11 @@ export default function AdminPage() {
 
   // Species management state
   const [showAddSpecies, setShowAddSpecies] = useState(false);
-  const [speciesForm, setSpeciesForm] = useState({ 
-    id: 0, 
-    scientificName: "", 
-    commonName: "", 
-    family: "", 
+  const [speciesForm, setSpeciesForm] = useState({
+    id: 0,
+    scientificName: "",
+    commonName: "",
+    family: "",
     genus: "",
     botanicalDescription: "",
     botanicalDescriptionEn: "",
@@ -904,16 +995,44 @@ export default function AdminPage() {
     environmentalImpact: "",
     environmentalImpactEn: "",
     environmentalImpactId: "",
+    imagePath: "",
+    kingdom: "",
+    phylum: "",
+    taxClass: "",
+    order: "",
+    taxSpecies: "",
     source: readStoredSpeciesSourceText(0, ""),
   });
   const [deleteSpeciesConfirm, setDeleteSpeciesConfirm] = useState<DisplaySpecies | null>(null);
+  const [isUploadingSketch, setIsUploadingSketch] = useState(false);
+  const sketchFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSketchUpload = async (file: File) => {
+    if (!file) return;
+    setIsUploadingSketch(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/v1/plants/upload-sketch", { method: "POST", body: fd });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setSpeciesForm((prev) => ({ ...prev, imagePath: json.data.path }));
+      } else {
+        alert(json.error || "Upload failed");
+      }
+    } catch {
+      alert("Upload failed");
+    } finally {
+      setIsUploadingSketch(false);
+    }
+  };
 
   const handleOpenAddSpecies = () => {
-    setSpeciesForm({ 
-      id: 0, 
-      scientificName: "", 
-      commonName: "", 
-      family: "", 
+    setSpeciesForm({
+      id: 0,
+      scientificName: "",
+      commonName: "",
+      family: "",
       genus: "",
       botanicalDescription: "",
       botanicalDescriptionEn: "",
@@ -924,17 +1043,24 @@ export default function AdminPage() {
       environmentalImpact: "",
       environmentalImpactEn: "",
       environmentalImpactId: "",
+      imagePath: "",
+      kingdom: "",
+      phylum: "",
+      taxClass: "",
+      order: "",
+      taxSpecies: "",
       source: readStoredSpeciesSourceText(0, ""),
     });
     setShowAddSpecies(true);
   };
 
   const handleEditSpecies = (s: DisplaySpecies) => {
-    setSpeciesForm({ 
-      id: s.id, 
-      scientificName: s.scientificName, 
-      commonName: s.commonName, 
-      family: s.family, 
+    const localTaxonomy = readStoredSpeciesTaxonomy(s.id, s.scientificName);
+    setSpeciesForm({
+      id: s.id,
+      scientificName: s.scientificName,
+      commonName: s.commonName,
+      family: s.family,
       genus: s.genus || "",
       botanicalDescription: s.botanicalDescription || "",
       botanicalDescriptionEn: s.botanicalDescriptionEn || s.botanicalDescription || "",
@@ -945,7 +1071,13 @@ export default function AdminPage() {
       environmentalImpact: s.environmentalImpact || "",
       environmentalImpactEn: s.environmentalImpactEn || s.environmentalImpact || "",
       environmentalImpactId: s.environmentalImpactId || s.environmentalImpact || "",
-      source: readStoredSpeciesSourceText(s.id, s.scientificName) || "",
+      imagePath: s.imagePath || "",
+      kingdom: s.kingdom || localTaxonomy.kingdom,
+      phylum: s.phylum || localTaxonomy.phylum,
+      taxClass: s.taxClass || localTaxonomy.taxClass,
+      order: s.orderRank || localTaxonomy.order,
+      taxSpecies: s.taxSpecies || localTaxonomy.taxSpecies,
+      source: s.source || readStoredSpeciesSourceText(s.id, s.scientificName) || "",
     });
     setShowAddSpecies(true);
   };
@@ -983,18 +1115,32 @@ export default function AdminPage() {
 
   const handleSaveSpecies = async () => {
     if (!speciesForm.scientificName.trim() || !speciesForm.family.trim()) return;
-    const botanicalDescriptionEn = speciesForm.botanicalDescriptionEn.trim();
-    const botanicalDescriptionId = speciesForm.botanicalDescriptionId.trim();
-    const ecologicalInformationEn = speciesForm.ecologicalInformationEn.trim();
-    const ecologicalInformationId = speciesForm.ecologicalInformationId.trim();
-    const environmentalImpactEn = speciesForm.environmentalImpactEn.trim();
-    const environmentalImpactId = speciesForm.environmentalImpactId.trim();
-    const botanicalDescription = botanicalDescriptionId || botanicalDescriptionEn || speciesForm.botanicalDescription.trim() || "-";
-    const ecologicalInformation = ecologicalInformationId || ecologicalInformationEn || speciesForm.ecologicalInformation.trim() || "-";
-    const environmentalImpact = environmentalImpactId || environmentalImpactEn || speciesForm.environmentalImpact.trim() || "-";
+    const sourceLanguage = language as TranslateLanguage;
+    const botanicalDescription = (
+      language === "id"
+        ? speciesForm.botanicalDescriptionId
+        : speciesForm.botanicalDescriptionEn
+    ).trim() || speciesForm.botanicalDescription.trim() || "-";
+    const ecologicalInformation = (
+      language === "id"
+        ? speciesForm.ecologicalInformationId
+        : speciesForm.ecologicalInformationEn
+    ).trim() || speciesForm.ecologicalInformation.trim() || "-";
+    const environmentalImpact = (
+      language === "id"
+        ? speciesForm.environmentalImpactId
+        : speciesForm.environmentalImpactEn
+    ).trim() || speciesForm.environmentalImpact.trim() || "-";
     const sourceText = speciesForm.source?.trim() || "";
 
     try {
+      const translatedFields = await translateSpeciesDescriptions({
+        botanicalDescription,
+        ecologicalInformation,
+        environmentalImpact,
+        sourceLanguage,
+      });
+
       let res;
       if (speciesForm.id === 0) {
         res = await fetch("/api/v1/plants", {
@@ -1006,15 +1152,21 @@ export default function AdminPage() {
             family: speciesForm.family.trim(),
             genus: speciesForm.genus.trim() || speciesForm.family.trim(),
             botanicalDescription,
-            botanicalDescriptionEn: botanicalDescriptionEn || botanicalDescription,
-            botanicalDescriptionId: botanicalDescriptionId || botanicalDescription,
+            botanicalDescriptionEn: translatedFields.botanicalDescriptionEn,
+            botanicalDescriptionId: translatedFields.botanicalDescriptionId,
             ecologicalInformation,
-            ecologicalInformationEn: ecologicalInformationEn || ecologicalInformation,
-            ecologicalInformationId: ecologicalInformationId || ecologicalInformation,
+            ecologicalInformationEn: translatedFields.ecologicalInformationEn,
+            ecologicalInformationId: translatedFields.ecologicalInformationId,
             environmentalImpact,
-            environmentalImpactEn: environmentalImpactEn || environmentalImpact,
-            environmentalImpactId: environmentalImpactId || environmentalImpact,
-            imagePath: "",
+            environmentalImpactEn: translatedFields.environmentalImpactEn,
+            environmentalImpactId: translatedFields.environmentalImpactId,
+            imagePath: speciesForm.imagePath.trim(),
+            kingdom: speciesForm.kingdom.trim(),
+            phylum: speciesForm.phylum.trim(),
+            taxClass: speciesForm.taxClass.trim(),
+            orderRank: speciesForm.order.trim(),
+            taxSpecies: speciesForm.taxSpecies.trim(),
+            source: sourceText,
           }),
         });
       } else {
@@ -1027,14 +1179,21 @@ export default function AdminPage() {
             family: speciesForm.family.trim(),
             genus: speciesForm.genus.trim(),
             botanicalDescription,
-            botanicalDescriptionEn,
-            botanicalDescriptionId,
+            botanicalDescriptionEn: translatedFields.botanicalDescriptionEn,
+            botanicalDescriptionId: translatedFields.botanicalDescriptionId,
             ecologicalInformation,
-            ecologicalInformationEn,
-            ecologicalInformationId,
+            ecologicalInformationEn: translatedFields.ecologicalInformationEn,
+            ecologicalInformationId: translatedFields.ecologicalInformationId,
             environmentalImpact,
-            environmentalImpactEn,
-            environmentalImpactId,
+            environmentalImpactEn: translatedFields.environmentalImpactEn,
+            environmentalImpactId: translatedFields.environmentalImpactId,
+            imagePath: speciesForm.imagePath.trim(),
+            kingdom: speciesForm.kingdom.trim(),
+            phylum: speciesForm.phylum.trim(),
+            taxClass: speciesForm.taxClass.trim(),
+            orderRank: speciesForm.order.trim(),
+            taxSpecies: speciesForm.taxSpecies.trim(),
+            source: sourceText,
           }),
         });
       }
@@ -1044,6 +1203,13 @@ export default function AdminPage() {
       if (res && res.ok) {
         const savedSpeciesId = result?.data?.id || speciesForm.id;
         writeStoredSpeciesSourceText(savedSpeciesId, speciesForm.scientificName.trim(), sourceText);
+        writeStoredSpeciesTaxonomy(savedSpeciesId, speciesForm.scientificName.trim(), {
+          kingdom: speciesForm.kingdom.trim(),
+          phylum: speciesForm.phylum.trim(),
+          taxClass: speciesForm.taxClass.trim(),
+          order: speciesForm.order.trim(),
+          taxSpecies: speciesForm.taxSpecies.trim(),
+        });
         await fetchSpecies();
         setShowAddSpecies(false);
       } else {
@@ -2031,6 +2197,140 @@ export default function AdminPage() {
                 className="min-h-[112px] rounded-xl"
               />
             </div>
+            {/* Herbarium Sketch */}
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {copy.species.herbariumSketch}
+              </Label>
+              <input
+                ref={sketchFileInputRef}
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleSketchUpload(file);
+                  e.target.value = "";
+                }}
+              />
+              {speciesForm.imagePath.trim() ? (
+                <div className="relative rounded-xl border overflow-hidden bg-muted/30">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={speciesForm.imagePath.trim()}
+                    alt="Herbarium preview"
+                    className="max-h-56 w-full object-contain"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  />
+                  <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-black/40 px-3 py-2">
+                    <span className="text-xs text-white truncate">{speciesForm.imagePath.split("/").pop()}</span>
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => sketchFileInputRef.current?.click()}
+                        disabled={isUploadingSketch}
+                        className="rounded-md bg-white/20 hover:bg-white/30 px-2.5 py-1 text-xs text-white font-medium transition-colors"
+                      >
+                        {isUploadingSketch ? "Uploading..." : "Change"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSpeciesForm((prev) => ({ ...prev, imagePath: "" }))}
+                        className="rounded-md bg-destructive/80 hover:bg-destructive px-2.5 py-1 text-xs text-white font-medium transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => sketchFileInputRef.current?.click()}
+                  disabled={isUploadingSketch}
+                  className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/20 py-8 text-muted-foreground transition-colors hover:bg-muted/40 hover:border-primary/40 disabled:opacity-60"
+                >
+                  <ImageIcon className="h-8 w-8 opacity-40" />
+                  <span className="text-sm font-medium">
+                    {isUploadingSketch ? "Uploading..." : "Click to upload JPG or PNG"}
+                  </span>
+                  <span className="text-xs opacity-60">Max 10 MB</span>
+                </button>
+              )}
+            </div>
+
+            {/* Plant Taxonomy */}
+            <div className="space-y-3">
+              <Label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {copy.species.taxonomy}
+              </Label>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="kingdom" className="text-xs text-muted-foreground">{copy.species.kingdom}</Label>
+                  <Input
+                    id="kingdom"
+                    value={speciesForm.kingdom}
+                    onChange={(e) => setSpeciesForm({ ...speciesForm, kingdom: e.target.value })}
+                    placeholder={copy.species.kingdomPlaceholder}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="phylum" className="text-xs text-muted-foreground">{copy.species.phylum}</Label>
+                  <Input
+                    id="phylum"
+                    value={speciesForm.phylum}
+                    onChange={(e) => setSpeciesForm({ ...speciesForm, phylum: e.target.value })}
+                    placeholder={copy.species.phylumPlaceholder}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="taxClass" className="text-xs text-muted-foreground">{copy.species.taxClass}</Label>
+                  <Input
+                    id="taxClass"
+                    value={speciesForm.taxClass}
+                    onChange={(e) => setSpeciesForm({ ...speciesForm, taxClass: e.target.value })}
+                    placeholder={copy.species.classPaceholder}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="order" className="text-xs text-muted-foreground">{copy.species.order}</Label>
+                  <Input
+                    id="order"
+                    value={speciesForm.order}
+                    onChange={(e) => setSpeciesForm({ ...speciesForm, order: e.target.value })}
+                    placeholder={copy.species.orderPlaceholder}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="taxFamily" className="text-xs text-muted-foreground">{copy.species.family}</Label>
+                  <Input
+                    id="taxFamily"
+                    value={speciesForm.family}
+                    onChange={(e) => setSpeciesForm({ ...speciesForm, family: e.target.value })}
+                    placeholder={copy.species.familyPlaceholder}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="taxGenus" className="text-xs text-muted-foreground">{copy.species.genus}</Label>
+                  <Input
+                    id="taxGenus"
+                    value={speciesForm.genus}
+                    onChange={(e) => setSpeciesForm({ ...speciesForm, genus: e.target.value })}
+                    placeholder={copy.species.genusPlaceholder}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="taxSpecies" className="text-xs text-muted-foreground">{copy.species.taxSpecies}</Label>
+                  <Input
+                    id="taxSpecies"
+                    value={speciesForm.taxSpecies}
+                    onChange={(e) => setSpeciesForm({ ...speciesForm, taxSpecies: e.target.value })}
+                    placeholder={copy.species.taxSpeciesPlaceholder}
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="source" className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 {copy.species.source}
@@ -2044,6 +2344,7 @@ export default function AdminPage() {
                 className="min-h-[112px] rounded-xl"
               />
             </div>
+
             <DialogFooter className="pt-2">
               <Button type="button" variant="outline" onClick={() => setShowAddSpecies(false)}>
                 {copy.common.cancel}

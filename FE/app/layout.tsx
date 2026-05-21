@@ -16,6 +16,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Bio-Inspector",
   description: "Invasive Alien Species Monitoring",
+  icons: {
+    icon: "/Logo-Bio-Inspector.png",
+    shortcut: "/Logo-Bio-Inspector.png",
+    apple: "/Logo-Bio-Inspector.png",
+  },
 };
 
 export default function RootLayout({

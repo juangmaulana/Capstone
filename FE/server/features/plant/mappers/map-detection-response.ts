@@ -6,7 +6,7 @@
  *   [1] = detection results array
  * 
  * Each detection has the format (in Bahasa Indonesia):
- *   { spesies: "Lantana camara", akurasi: 0.9223, bounding_box: [x1, y1, x2, y2] }
+ *   { spesies: "Lantana camara L.", akurasi: 0.9223, bounding_box: [x1, y1, x2, y2] }
  */
 export function mapDetectionResponse(gradioData: any) {
   try {
