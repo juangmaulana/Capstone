@@ -25,6 +25,7 @@ export const toModel = (row: PlantSelect): Plant => {
     row.tax_species,
     row.created_at,
     row.updated_at,
+    row.source,
   )
 }
 

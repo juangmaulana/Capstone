@@ -1,4 +1,4 @@
-import { Kysely, PostgresDialect } from 'kysely'
+import { Kysely, PostgresDialect, sql } from 'kysely'
 import { Database } from '../db/types'
 import { Pool } from 'pg'
 import bcrypt from 'bcryptjs'
@@ -15,6 +15,11 @@ async function seed() {
   })
 
   console.log('Seeding database...')
+
+  await sql`
+    ALTER TABLE plants
+    ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT ''
+  `.execute(db)
 
   // --- Seed Roles ---
   const existingRoles = await db.selectFrom('roles').selectAll().execute()
@@ -49,6 +54,27 @@ async function seed() {
   }
 
   // --- Seed Plants (5 Invasive Alien Species in Baluran) ---
+  const sourceText = {
+    indiaFlora: [
+      'www.gbif.org',
+      'powo.science.kew.org',
+      'wikipedia.org',
+      'indiaflora-ces.iisc.ac.in',
+    ].join('\n'),
+    fao: [
+      'www.gbif.org',
+      'powo.science.kew.org',
+      'wikipedia.org',
+      'www.fao.org',
+    ].join('\n'),
+    ageratum: [
+      'www.gbif.org',
+      'powo.science.kew.org',
+      'wikipedia.org',
+      'https://www.researchgate.net/figure/Figura-2-a-c-Ageratum-conyzoides-a-habito-b-capitulo-c-flor-Teles-et-al-575-d_fig1_283232634',
+    ].join('\n'),
+  }
+
   const seedPlants = [
     {
       common_name: 'Babul',
@@ -70,6 +96,7 @@ async function seed() {
       tax_class: 'Magnoliopsida',
       order_rank: 'Fabales',
       tax_species: 'V. nilotica',
+      source: sourceText.fao,
     },
     {
       common_name: 'Tembelekan',
@@ -91,6 +118,7 @@ async function seed() {
       tax_class: 'Magnoliopsida',
       order_rank: 'Lamiales',
       tax_species: 'L. camara',
+      source: sourceText.indiaFlora,
     },
     {
       common_name: 'Kangkung Pagar',
@@ -112,6 +140,7 @@ async function seed() {
       tax_class: 'Magnoliopsida',
       order_rank: 'Solanales',
       tax_species: 'M. hederacea',
+      source: sourceText.indiaFlora,
     },
     {
       common_name: 'Telang',
@@ -133,6 +162,7 @@ async function seed() {
       tax_class: 'Magnoliopsida',
       order_rank: 'Fabales',
       tax_species: 'C. ternatea',
+      source: sourceText.indiaFlora,
     },
     {
       common_name: 'Bandotan',
@@ -154,6 +184,7 @@ async function seed() {
       tax_class: 'Magnoliopsida',
       order_rank: 'Asterales',
       tax_species: 'A. conyzoides',
+      source: sourceText.ageratum,
     },
   ]
 

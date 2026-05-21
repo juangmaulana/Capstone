@@ -48,6 +48,7 @@ export const UpdatePlantSchema = z.object({
   taxClass: z.string().optional().openapi({ example: 'Magnoliopsida' }),
   orderRank: z.string().optional().openapi({ example: 'Fabales' }),
   taxSpecies: z.string().optional().openapi({ example: 'V. nilotica' }),
+  source: z.string().optional().openapi({ example: 'www.gbif.org\npowo.science.kew.org' }),
 }).openapi({
   title: 'UpdatePlantRequest',
 })

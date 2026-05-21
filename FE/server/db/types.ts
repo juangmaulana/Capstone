@@ -48,6 +48,7 @@ export interface PlantTable {
   tax_class: string
   order_rank: string
   tax_species: string
+  source: string
   readonly created_at: Generated<Date>
   readonly updated_at: Generated<Date>
 }

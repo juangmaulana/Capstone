@@ -22,5 +22,6 @@ export class Plant {
     public taxSpecies: string,
     public createdAt: Date,
     public updatedAt: Date,
+    public source?: string,
   ) {}
 }

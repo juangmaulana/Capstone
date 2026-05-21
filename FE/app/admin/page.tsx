@@ -12,6 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { createScientificNameSlug, getScientificNameWithAuthor } from "@/lib/plant/scientific-name-author";
+import { type TranslateLanguage } from "@/lib/translation/client";
+import { translateSpeciesDescriptions } from "@/lib/translation/species";
 
 /* ───────────── TYPES ───────────── */
 
@@ -69,6 +71,7 @@ interface ApiPlant {
   order_rank?: string;
   taxSpecies?: string;
   tax_species?: string;
+  source?: string;
   updatedAt?: string;
   updated_at?: string;
 }
@@ -104,6 +107,7 @@ interface DisplaySpecies {
   taxClass: string;
   orderRank: string;
   taxSpecies: string;
+  source: string;
   lastUpdated: string;
 }
 
@@ -741,6 +745,7 @@ export default function AdminPage() {
           taxClass: p.taxClass || p.tax_class || "",
           orderRank: p.orderRank || p.order_rank || "",
           taxSpecies: p.taxSpecies || p.tax_species || "",
+          source: p.source || "",
           lastUpdated: p.updatedAt || p.updated_at || "-",
         })));
       }
@@ -1072,7 +1077,7 @@ export default function AdminPage() {
       taxClass: s.taxClass || localTaxonomy.taxClass,
       order: s.orderRank || localTaxonomy.order,
       taxSpecies: s.taxSpecies || localTaxonomy.taxSpecies,
-      source: readStoredSpeciesSourceText(s.id, s.scientificName) || "",
+      source: s.source || readStoredSpeciesSourceText(s.id, s.scientificName) || "",
     });
     setShowAddSpecies(true);
   };
@@ -1110,18 +1115,32 @@ export default function AdminPage() {
 
   const handleSaveSpecies = async () => {
     if (!speciesForm.scientificName.trim() || !speciesForm.family.trim()) return;
-    const botanicalDescriptionEn = speciesForm.botanicalDescriptionEn.trim();
-    const botanicalDescriptionId = speciesForm.botanicalDescriptionId.trim();
-    const ecologicalInformationEn = speciesForm.ecologicalInformationEn.trim();
-    const ecologicalInformationId = speciesForm.ecologicalInformationId.trim();
-    const environmentalImpactEn = speciesForm.environmentalImpactEn.trim();
-    const environmentalImpactId = speciesForm.environmentalImpactId.trim();
-    const botanicalDescription = botanicalDescriptionId || botanicalDescriptionEn || speciesForm.botanicalDescription.trim() || "-";
-    const ecologicalInformation = ecologicalInformationId || ecologicalInformationEn || speciesForm.ecologicalInformation.trim() || "-";
-    const environmentalImpact = environmentalImpactId || environmentalImpactEn || speciesForm.environmentalImpact.trim() || "-";
+    const sourceLanguage = language as TranslateLanguage;
+    const botanicalDescription = (
+      language === "id"
+        ? speciesForm.botanicalDescriptionId
+        : speciesForm.botanicalDescriptionEn
+    ).trim() || speciesForm.botanicalDescription.trim() || "-";
+    const ecologicalInformation = (
+      language === "id"
+        ? speciesForm.ecologicalInformationId
+        : speciesForm.ecologicalInformationEn
+    ).trim() || speciesForm.ecologicalInformation.trim() || "-";
+    const environmentalImpact = (
+      language === "id"
+        ? speciesForm.environmentalImpactId
+        : speciesForm.environmentalImpactEn
+    ).trim() || speciesForm.environmentalImpact.trim() || "-";
     const sourceText = speciesForm.source?.trim() || "";
 
     try {
+      const translatedFields = await translateSpeciesDescriptions({
+        botanicalDescription,
+        ecologicalInformation,
+        environmentalImpact,
+        sourceLanguage,
+      });
+
       let res;
       if (speciesForm.id === 0) {
         res = await fetch("/api/v1/plants", {
@@ -1133,20 +1152,21 @@ export default function AdminPage() {
             family: speciesForm.family.trim(),
             genus: speciesForm.genus.trim() || speciesForm.family.trim(),
             botanicalDescription,
-            botanicalDescriptionEn: botanicalDescriptionEn || botanicalDescription,
-            botanicalDescriptionId: botanicalDescriptionId || botanicalDescription,
+            botanicalDescriptionEn: translatedFields.botanicalDescriptionEn,
+            botanicalDescriptionId: translatedFields.botanicalDescriptionId,
             ecologicalInformation,
-            ecologicalInformationEn: ecologicalInformationEn || ecologicalInformation,
-            ecologicalInformationId: ecologicalInformationId || ecologicalInformation,
+            ecologicalInformationEn: translatedFields.ecologicalInformationEn,
+            ecologicalInformationId: translatedFields.ecologicalInformationId,
             environmentalImpact,
-            environmentalImpactEn: environmentalImpactEn || environmentalImpact,
-            environmentalImpactId: environmentalImpactId || environmentalImpact,
+            environmentalImpactEn: translatedFields.environmentalImpactEn,
+            environmentalImpactId: translatedFields.environmentalImpactId,
             imagePath: speciesForm.imagePath.trim(),
             kingdom: speciesForm.kingdom.trim(),
             phylum: speciesForm.phylum.trim(),
             taxClass: speciesForm.taxClass.trim(),
             orderRank: speciesForm.order.trim(),
             taxSpecies: speciesForm.taxSpecies.trim(),
+            source: sourceText,
           }),
         });
       } else {
@@ -1159,20 +1179,21 @@ export default function AdminPage() {
             family: speciesForm.family.trim(),
             genus: speciesForm.genus.trim(),
             botanicalDescription,
-            botanicalDescriptionEn,
-            botanicalDescriptionId,
+            botanicalDescriptionEn: translatedFields.botanicalDescriptionEn,
+            botanicalDescriptionId: translatedFields.botanicalDescriptionId,
             ecologicalInformation,
-            ecologicalInformationEn,
-            ecologicalInformationId,
+            ecologicalInformationEn: translatedFields.ecologicalInformationEn,
+            ecologicalInformationId: translatedFields.ecologicalInformationId,
             environmentalImpact,
-            environmentalImpactEn,
-            environmentalImpactId,
+            environmentalImpactEn: translatedFields.environmentalImpactEn,
+            environmentalImpactId: translatedFields.environmentalImpactId,
             imagePath: speciesForm.imagePath.trim(),
             kingdom: speciesForm.kingdom.trim(),
             phylum: speciesForm.phylum.trim(),
             taxClass: speciesForm.taxClass.trim(),
             orderRank: speciesForm.order.trim(),
             taxSpecies: speciesForm.taxSpecies.trim(),
+            source: sourceText,
           }),
         });
       }

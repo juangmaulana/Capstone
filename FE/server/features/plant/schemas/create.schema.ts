@@ -48,6 +48,7 @@ export const CreatePlantSchema = z.object({
   taxClass: z.string().default('').openapi({ example: 'Magnoliopsida' }),
   orderRank: z.string().default('').openapi({ example: 'Fabales' }),
   taxSpecies: z.string().default('').openapi({ example: 'V. nilotica' }),
+  source: z.string().default('').openapi({ example: 'www.gbif.org\npowo.science.kew.org' }),
 }).openapi({
   title: 'CreatePlantRequest',
 })

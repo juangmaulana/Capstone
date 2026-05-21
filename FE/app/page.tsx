@@ -187,9 +187,9 @@ export default function Dashboard() {
 
               {/* Dropdown */}
               {isDropdownOpen && (
-                <div className="absolute top-full left-0 w-full bg-white rounded-b-2xl shadow-xl border-t border-gray-100 py-2 z-50">
+                <div className="absolute left-0 top-full z-50 max-h-[min(36dvh,22rem)] w-full overflow-y-auto overscroll-contain rounded-b-2xl border-t border-gray-100 bg-white py-1.5 shadow-xl sm:max-h-[min(42dvh,22rem)]">
                   {isLoading ? (
-                    <div className="flex items-center justify-center px-5 py-3 text-gray-500">
+                    <div className="flex items-center justify-center px-5 py-2.5 text-gray-500">
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       {copy.loadingSpecies}
                     </div>
@@ -197,18 +197,18 @@ export default function Dashboard() {
                     filteredSpecies.map(sp => (
                       <div
                         key={sp}
-                        className="flex items-center px-5 py-3 hover:bg-gray-100 cursor-pointer text-gray-700 hover:text-gray-900 transition-colors"
+                        className="flex min-h-11 cursor-pointer items-center px-5 py-2.5 text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900 sm:min-h-12 sm:text-base"
                         onClick={() => {
                           setSearchQuery(sp);
                           handleSearch(undefined, sp);
                         }}
                       >
-                        <Search className="h-4 w-4 mr-3 text-gray-400" />
-                        {sp}
+                        <Search className="mr-3 h-4 w-4 shrink-0 text-gray-400" />
+                        <span className="min-w-0 truncate">{sp}</span>
                       </div>
                     ))
                   ) : (
-                    <div className="px-5 py-3 text-gray-500">{copy.noSpecies}</div>
+                    <div className="px-5 py-2.5 text-gray-500">{copy.noSpecies}</div>
                   )}
                 </div>
               )}

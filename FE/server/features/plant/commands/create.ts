@@ -26,6 +26,7 @@ export const createPlant = (deps: {
       tax_class: input.taxClass ?? '',
       order_rank: input.orderRank ?? '',
       tax_species: input.taxSpecies ?? '',
+      source: input.source ?? '',
     })
   } catch (err) {
     throw mapDbError(err)

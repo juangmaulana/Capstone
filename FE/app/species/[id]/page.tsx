@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { getScientificNameWithAuthor } from "@/lib/plant/scientific-name-author";
+import { type TranslateLanguage } from "@/lib/translation/client";
+import { translateSpeciesDescriptions } from "@/lib/translation/species";
 
 // Taxonomy data for the 5 invasive species
 const TAXONOMY_DB: Record<string, { rank: string; value: string }[]> = {
@@ -82,6 +84,7 @@ interface PlantData {
   taxClass: string;
   orderRank: string;
   taxSpecies: string;
+  source?: string;
 }
 
 interface PlantApiRecord {
@@ -120,6 +123,7 @@ interface PlantApiRecord {
   order_rank?: string;
   taxSpecies?: string;
   tax_species?: string;
+  source?: string;
 }
 
 const SPECIES_SOURCE_STORAGE_PREFIX = "biowatch_species_source_";
@@ -398,6 +402,7 @@ export default function SpeciesPage() {
     taxClass: record.taxClass || record.tax_class || "",
     orderRank: record.orderRank || record.order_rank || "",
     taxSpecies: record.taxSpecies || record.tax_species || "",
+    source: record.source || "",
   });
 
   useEffect(() => {
@@ -480,7 +485,7 @@ export default function SpeciesPage() {
       return;
     }
 
-    setSourceText(readStoredSpeciesSourceText(plant.id, plant.scientificName));
+    setSourceText(plant.source || readStoredSpeciesSourceText(plant.id, plant.scientificName));
   }, [plant]);
 
   const handleStartEditing = () => {
@@ -506,7 +511,7 @@ export default function SpeciesPage() {
       taxClass: plant.taxClass || savedTaxonomy?.taxClass || "",
       order: plant.orderRank || savedTaxonomy?.order || "",
       taxSpecies: plant.taxSpecies || savedTaxonomy?.taxSpecies || "",
-      source: readStoredSpeciesSourceText(plant.id, plant.scientificName),
+      source: plant.source || readStoredSpeciesSourceText(plant.id, plant.scientificName),
     });
     setIsEditing(true);
   };
@@ -573,6 +578,14 @@ export default function SpeciesPage() {
         return;
       }
 
+      const sourceLanguage = language as TranslateLanguage;
+      const translatedFields = await translateSpeciesDescriptions({
+        botanicalDescription: draft.botanicalDescription,
+        ecologicalInformation: draft.ecologicalInformation,
+        environmentalImpact: draft.environmentalImpact,
+        sourceLanguage,
+      });
+
       const payload = language === "id"
         ? {
             scientificName,
@@ -580,12 +593,16 @@ export default function SpeciesPage() {
             family,
             genus,
             botanicalDescription: draft.botanicalDescription,
-            botanicalDescriptionId: draft.botanicalDescription,
+            botanicalDescriptionEn: translatedFields.botanicalDescriptionEn,
+            botanicalDescriptionId: translatedFields.botanicalDescriptionId,
             ecologicalInformation: draft.ecologicalInformation,
-            ecologicalInformationId: draft.ecologicalInformation,
+            ecologicalInformationEn: translatedFields.ecologicalInformationEn,
+            ecologicalInformationId: translatedFields.ecologicalInformationId,
             environmentalImpact: draft.environmentalImpact,
-            environmentalImpactId: draft.environmentalImpact,
+            environmentalImpactEn: translatedFields.environmentalImpactEn,
+            environmentalImpactId: translatedFields.environmentalImpactId,
             imagePath: draft.imagePath.trim(),
+            source: draft.source.trim(),
           }
         : {
             scientificName,
@@ -593,17 +610,21 @@ export default function SpeciesPage() {
             family,
             genus,
             botanicalDescription: draft.botanicalDescription,
-            botanicalDescriptionEn: draft.botanicalDescription,
+            botanicalDescriptionEn: translatedFields.botanicalDescriptionEn,
+            botanicalDescriptionId: translatedFields.botanicalDescriptionId,
             ecologicalInformation: draft.ecologicalInformation,
-            ecologicalInformationEn: draft.ecologicalInformation,
+            ecologicalInformationEn: translatedFields.ecologicalInformationEn,
+            ecologicalInformationId: translatedFields.ecologicalInformationId,
             environmentalImpact: draft.environmentalImpact,
-            environmentalImpactEn: draft.environmentalImpact,
+            environmentalImpactEn: translatedFields.environmentalImpactEn,
+            environmentalImpactId: translatedFields.environmentalImpactId,
             imagePath: draft.imagePath.trim(),
             kingdom: draft.kingdom.trim(),
             phylum: draft.phylum.trim(),
             taxClass: draft.taxClass.trim(),
             orderRank: draft.order.trim(),
             taxSpecies: draft.taxSpecies.trim(),
+            source: draft.source.trim(),
           };
 
       const response = await fetch(`/api/v1/plants/${plant.id}`, {
@@ -619,7 +640,8 @@ export default function SpeciesPage() {
         throw new Error(result.error?.message || "Failed to update species");
       }
 
-      setPlant(mapPlantRecord(result.data));
+      const updatedPlant = mapPlantRecord(result.data);
+      setPlant(updatedPlant);
       writeStoredSpeciesSourceText(plant.id, scientificName, draft.source);
 
       // Persist taxonomy fields to localStorage
@@ -631,7 +653,7 @@ export default function SpeciesPage() {
         localStorage.removeItem(taxonomyKey);
       }
 
-      setSourceText(draft.source.trim());
+      setSourceText(updatedPlant.source || draft.source.trim());
       setIsEditing(false);
       toast.success(language === "id" ? "Detail spesies berhasil diperbarui" : "Species details updated successfully");
     } catch (err) {

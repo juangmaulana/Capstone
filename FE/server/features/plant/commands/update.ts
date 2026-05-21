@@ -30,6 +30,7 @@ export const updatePlant = (deps: {
     if (input.taxClass !== undefined) updateData.tax_class = input.taxClass
     if (input.orderRank !== undefined) updateData.order_rank = input.orderRank
     if (input.taxSpecies !== undefined) updateData.tax_species = input.taxSpecies
+    if (input.source !== undefined) updateData.source = input.source
 
     return await deps.plantRepo.update(id, updateData)
   } catch (err) {
