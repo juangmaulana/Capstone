@@ -1,6 +1,7 @@
 import { Kysely, sql } from 'kysely';
+import { Database } from '../db/types';
 
-export async function up(db: Kysely<any>) {
+export async function up(db: Kysely<Database>) {
   await db.schema
     .createTable('sessions')
     .addColumn('id', 'varchar(255)', (col) => col.primaryKey())
@@ -14,6 +15,6 @@ export async function up(db: Kysely<any>) {
     .execute()
 }
 
-export async function down(db: Kysely<any>) {
+export async function down(db: Kysely<Database>) {
   await db.schema.dropTable('sessions').execute()
 }
