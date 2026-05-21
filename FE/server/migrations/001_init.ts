@@ -1,6 +1,18 @@
 import { Kysely, sql } from 'kysely';
+import { Database } from '../db/types';
 
-export async function up(db: Kysely<any>) {
+const SCIENTIFIC_NAME_AUTHORS = [
+  'Vachellia nilotica (L.) P.J.H.Hurter & Mabb.',
+  'Lantana camara L.',
+  'Merremia hederacea (Burm.f.) Hallier f.',
+  'Clitoria ternatea L.',
+  'Ageratum conyzoides L.',
+] as const;
+
+const getBinomialName = (scientificName: string) =>
+  scientificName.trim().split(/\s+/).slice(0, 2).join(' ');
+
+export async function up(db: Kysely<Database>) {
   await db.schema
     .createTable('roles')
     .addColumn('id', 'serial', (col) => col.primaryKey())
@@ -45,6 +57,12 @@ export async function up(db: Kysely<any>) {
     .addColumn('environmental_impact_en', 'text', (col) => col.notNull().defaultTo(''))
     .addColumn('environmental_impact_id', 'text', (col) => col.notNull().defaultTo(''))
     .addColumn('image_path', 'text', (col) => col.notNull())
+    .addColumn('kingdom', 'text', (col) => col.notNull().defaultTo(''))
+    .addColumn('phylum', 'text', (col) => col.notNull().defaultTo(''))
+    .addColumn('tax_class', 'text', (col) => col.notNull().defaultTo(''))
+    .addColumn('order_rank', 'text', (col) => col.notNull().defaultTo(''))
+    .addColumn('tax_species', 'text', (col) => col.notNull().defaultTo(''))
+    .addColumn('source', 'text', (col) => col.notNull().defaultTo(''))
     .addColumn('created_at', 'timestamp', (col) =>
       col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
     .addColumn('updated_at', 'timestamp', (col) =>
@@ -125,9 +143,17 @@ export async function up(db: Kysely<any>) {
       FOR EACH ROW
       EXECUTE FUNCTION update_updated_at_column();
       `.execute(db)
+
+    for (const scientificName of SCIENTIFIC_NAME_AUTHORS) {
+      await db
+        .updateTable('plants')
+        .set({ scientific_name: scientificName })
+        .where('scientific_name', '=', getBinomialName(scientificName))
+        .execute()
+    }
 }
 
-export async function down(db: Kysely<any>) {
+export async function down(db: Kysely<Database>) {
   await sql`DROP TRIGGER IF EXISTS roles_updated_at_trigger ON roles`.execute(db)
   await sql`DROP TRIGGER IF EXISTS users_updated_at_trigger ON users`.execute(db)
   await sql`DROP TRIGGER IF EXISTS plants_updated_at_trigger ON plants`.execute(db)
