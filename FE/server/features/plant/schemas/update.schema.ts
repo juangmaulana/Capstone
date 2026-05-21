@@ -1,21 +1,7 @@
 import { z } from '@/lib/openapi/zod'
+import { PlantBaseSchema } from './base.schema';
 
-export const UpdatePlantSchema = z.object({
-  commonName: z.string().min(1).optional().openapi({
-    example: 'Acacia nilotica',
-  }),
-  scientificName: z.string().min(1).optional().openapi({
-    example: 'Vachellia nilotica',
-  }),
-  family: z.string().min(1).optional().openapi({
-    example: 'Fabaceae',
-  }),
-  genus: z.string().min(1).optional().openapi({
-    example: 'Vachellia',
-  }),
-  botanicalDescription: z.string().min(1).optional().openapi({
-    example: 'Thorny tree with pinnate leaves',
-  }),
+export const UpdatePlantSchema = PlantBaseSchema.extend({
   botanicalDescriptionEn: z.string().optional().openapi({
     example: 'Thorny tree with bipinnate leaves',
   }),
@@ -40,17 +26,14 @@ export const UpdatePlantSchema = z.object({
   environmentalImpactId: z.string().optional().openapi({
     example: 'Menggeser spesies rumput asli',
   }),
-  imagePath: z.string().optional().openapi({
-    example: '/images/acacia.jpg',
-  }),
   kingdom: z.string().optional().openapi({ example: 'Plantae' }),
   phylum: z.string().optional().openapi({ example: 'Tracheophyta' }),
   taxClass: z.string().optional().openapi({ example: 'Magnoliopsida' }),
   orderRank: z.string().optional().openapi({ example: 'Fabales' }),
   taxSpecies: z.string().optional().openapi({ example: 'V. nilotica' }),
   source: z.string().optional().openapi({ example: 'www.gbif.org\npowo.science.kew.org' }),
-}).openapi({
+}).partial().openapi({
   title: 'UpdatePlantRequest',
 })
 
-export type UpdatePlantRequest = z.infer<typeof UpdatePlantSchema>
+export type UpdatePlantRequest = z.infer<typeof UpdatePlantSchema>;

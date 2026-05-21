@@ -1,11 +1,7 @@
-import { db } from '@/server/db'
-import { createImageRepo } from './repo'
-import { getImageById } from './queries/get-by-id'
+import { db } from '@/server/db';
+import { createImageModule } from './module';
+import { createImageRepo } from './repo';
 
-const imageRepo = createImageRepo(db)
-
-export const image = {
-  query: {
-    byId: getImageById({ imageRepo }),
-  },
-}
+export const image = createImageModule({
+  imageRepo: createImageRepo(db),
+});

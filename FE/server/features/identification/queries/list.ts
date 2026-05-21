@@ -1,10 +1,10 @@
 import { mapDbError } from '@/lib/db/mappers'
 import { IdentificationRepo } from '../repo'
-import { IdentificationFilter } from '../types/filter'
+import { IdentificationFilterRequest } from '../schemas/filter.schema'
 
 export const listIdentifications = (deps: {
   identificationRepo: IdentificationRepo,
-}) => async (filter: IdentificationFilter) => {
+}) => async (filter?: IdentificationFilterRequest) => {
   try {
     return await deps.identificationRepo.findAll(filter)
   } catch (err) {

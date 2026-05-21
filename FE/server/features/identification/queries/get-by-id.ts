@@ -1,13 +1,16 @@
-import { ApiError } from '@/lib/api/api-error'
-import { ErrorCode } from '@/lib/api/errors/error-codes'
+import { mapDbError } from '@/lib/db/mappers'
 import { IdentificationRepo } from '../repo'
+import { notFound } from '@/lib/api/errors/http.error'
 
 export const getIdentificationById = (deps: {
   identificationRepo: IdentificationRepo,
 }) => async (id: number) => {
-  const identification = await deps.identificationRepo.findById(id)
-  if (!identification) {
-    throw new ApiError(ErrorCode.NOT_FOUND, 'Identification not found')
+  try {
+    const identification = await deps.identificationRepo.findById(id)
+    if (!identification) throw notFound(`Identification with id ${id} not found`)
+      
+    return identification
+  } catch (err) {
+    throw mapDbError(err)
   }
-  return identification
 }

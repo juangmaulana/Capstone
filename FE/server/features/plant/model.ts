@@ -1,27 +1,25 @@
-export class Plant {
-  constructor(
-    public id: number,
-    public commonName: string,
-    public scientificName: string,
-    public family: string,
-    public genus: string,
-    public botanicalDescription: string,
-    public ecologicalInformation: string,
-    public environmentalImpact: string,
-    public botanicalDescriptionEn: string,
-    public botanicalDescriptionId: string,
-    public ecologicalInformationEn: string,
-    public ecologicalInformationId: string,
-    public environmentalImpactEn: string,
-    public environmentalImpactId: string,
-    public imagePath: string,
-    public kingdom: string,
-    public phylum: string,
-    public taxClass: string,
-    public orderRank: string,
-    public taxSpecies: string,
-    public createdAt: Date,
-    public updatedAt: Date,
-    public source?: string,
-  ) {}
+export type Plant = {
+  id: number
+  commonName: string
+  scientificName: string
+  family: string
+  genus: string
+  botanicalDescription: string
+  botanicalDescriptionEn: string
+  botanicalDescriptionId: string
+  ecologicalInformation: string
+  ecologicalInformationEn: string
+  ecologicalInformationId: string
+  environmentalImpact: string
+  environmentalImpactEn: string
+  environmentalImpactId: string
+  imagePath: string
+  kingdom: string
+  phylum: string
+  taxClass: string
+  orderRank: string
+  taxSpecies: string
+  source: string
+  createdAt: Date
+  updatedAt: Date
 }
