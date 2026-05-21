@@ -18,6 +18,11 @@ export const toModel = (row: PlantSelect): Plant => {
     row.environmental_impact_en,
     row.environmental_impact_id,
     row.image_path,
+    row.kingdom,
+    row.phylum,
+    row.tax_class,
+    row.order_rank,
+    row.tax_species,
     row.created_at,
     row.updated_at,
   )

@@ -21,6 +21,11 @@ export const createPlant = (deps: {
       environmental_impact_en: input.environmentalImpactEn ?? input.environmentalImpact,
       environmental_impact_id: input.environmentalImpactId ?? input.environmentalImpact,
       image_path: input.imagePath,
+      kingdom: input.kingdom ?? '',
+      phylum: input.phylum ?? '',
+      tax_class: input.taxClass ?? '',
+      order_rank: input.orderRank ?? '',
+      tax_species: input.taxSpecies ?? '',
     })
   } catch (err) {
     throw mapDbError(err)

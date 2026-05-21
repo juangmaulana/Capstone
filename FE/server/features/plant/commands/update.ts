@@ -25,6 +25,11 @@ export const updatePlant = (deps: {
     if (input.environmentalImpactEn !== undefined) updateData.environmental_impact_en = input.environmentalImpactEn
     if (input.environmentalImpactId !== undefined) updateData.environmental_impact_id = input.environmentalImpactId
     if (input.imagePath !== undefined) updateData.image_path = input.imagePath
+    if (input.kingdom !== undefined) updateData.kingdom = input.kingdom
+    if (input.phylum !== undefined) updateData.phylum = input.phylum
+    if (input.taxClass !== undefined) updateData.tax_class = input.taxClass
+    if (input.orderRank !== undefined) updateData.order_rank = input.orderRank
+    if (input.taxSpecies !== undefined) updateData.tax_species = input.taxSpecies
 
     return await deps.plantRepo.update(id, updateData)
   } catch (err) {

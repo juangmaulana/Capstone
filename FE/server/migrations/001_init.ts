@@ -45,6 +45,11 @@ export async function up(db: Kysely<any>) {
     .addColumn('environmental_impact_en', 'text', (col) => col.notNull().defaultTo(''))
     .addColumn('environmental_impact_id', 'text', (col) => col.notNull().defaultTo(''))
     .addColumn('image_path', 'text', (col) => col.notNull())
+    .addColumn('kingdom', 'text', (col) => col.notNull().defaultTo(''))
+    .addColumn('phylum', 'text', (col) => col.notNull().defaultTo(''))
+    .addColumn('tax_class', 'text', (col) => col.notNull().defaultTo(''))
+    .addColumn('order_rank', 'text', (col) => col.notNull().defaultTo(''))
+    .addColumn('tax_species', 'text', (col) => col.notNull().defaultTo(''))
     .addColumn('created_at', 'timestamp', (col) =>
       col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
     .addColumn('updated_at', 'timestamp', (col) =>

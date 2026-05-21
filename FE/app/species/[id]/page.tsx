@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Network, FileText, Image as ImageIcon, Loader2, Pencil } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { getScientificNameWithAuthor } from "@/lib/plant/scientific-name-author";
 
 // Taxonomy data for the 5 invasive species
 const TAXONOMY_DB: Record<string, { rank: string; value: string }[]> = {
@@ -76,6 +77,11 @@ interface PlantData {
   environmentalImpactEn?: string;
   environmentalImpactId?: string;
   imagePath: string;
+  kingdom: string;
+  phylum: string;
+  taxClass: string;
+  orderRank: string;
+  taxSpecies: string;
 }
 
 interface PlantApiRecord {
@@ -106,9 +112,32 @@ interface PlantApiRecord {
   environmental_impact_id?: string;
   imagePath?: string;
   image_path?: string;
+  kingdom?: string;
+  phylum?: string;
+  taxClass?: string;
+  tax_class?: string;
+  orderRank?: string;
+  order_rank?: string;
+  taxSpecies?: string;
+  tax_species?: string;
 }
 
 const SPECIES_SOURCE_STORAGE_PREFIX = "biowatch_species_source_";
+const SPECIES_TAXONOMY_STORAGE_PREFIX = "biowatch_species_taxonomy_";
+
+const readStoredSpeciesTaxonomy = (speciesId: number, scientificName: string): { kingdom: string; phylum: string; taxClass: string; order: string; taxSpecies: string } | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const key = speciesId > 0
+      ? `${SPECIES_TAXONOMY_STORAGE_PREFIX}${speciesId}`
+      : `${SPECIES_TAXONOMY_STORAGE_PREFIX}tmp_${scientificName.trim().toLowerCase().replace(/\s+/g, "-")}`;
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    return JSON.parse(raw) as { kingdom: string; phylum: string; taxClass: string; order: string; taxSpecies: string };
+  } catch {
+    return null;
+  }
+};
 
 const createSpeciesSlug = (scientificName: string) =>
   scientificName.trim().toLowerCase().replace(/\s+/g, "-");
@@ -173,7 +202,22 @@ const SPECIES_COPY = {
     environmentalImpact: "Environmental Impact",
     source: "Source",
     herbariumSketch: "Herbarium Sketch",
+    herbariumSketchUpload: "Click to upload JPG or PNG",
+    herbariumSketchMaxSize: "Max 10 MB",
+    herbariumSketchUploading: "Uploading...",
+    herbariumSketchChange: "Change",
+    herbariumSketchRemove: "Remove",
     taxonomy: "Plant Taxonomy",
+    kingdom: "Kingdom",
+    phylum: "Phylum",
+    taxClass: "Class",
+    order: "Order",
+    taxSpecies: "Species",
+    kingdomPlaceholder: "e.g., Plantae",
+    phylumPlaceholder: "e.g., Tracheophyta",
+    classPaceholder: "e.g., Magnoliopsida",
+    orderPlaceholder: "e.g., Asterales",
+    taxSpeciesPlaceholder: "e.g., V. nilotica",
     herbariumAlt: "Herbarium sketch of",
     sourceEmpty: "No source available.",
     ranks: {
@@ -207,7 +251,22 @@ const SPECIES_COPY = {
     environmentalImpact: "Dampak Lingkungan",
     source: "Sumber",
     herbariumSketch: "Sketsa Herbarium",
+    herbariumSketchUpload: "Klik untuk upload JPG atau PNG",
+    herbariumSketchMaxSize: "Maks 10 MB",
+    herbariumSketchUploading: "Mengupload...",
+    herbariumSketchChange: "Ganti",
+    herbariumSketchRemove: "Hapus",
     taxonomy: "Taksonomi Tanaman",
+    kingdom: "Kerajaan",
+    phylum: "Filum",
+    taxClass: "Kelas",
+    order: "Ordo",
+    taxSpecies: "Spesies",
+    kingdomPlaceholder: "contoh: Plantae",
+    phylumPlaceholder: "contoh: Tracheophyta",
+    classPaceholder: "contoh: Magnoliopsida",
+    orderPlaceholder: "contoh: Asterales",
+    taxSpeciesPlaceholder: "contoh: V. nilotica",
     herbariumAlt: "Sketsa herbarium",
     sourceEmpty: "Sumber tidak tersedia.",
     ranks: {
@@ -235,7 +294,7 @@ const FALLBACK_PLANTS: Record<string, PlantData> = {
   "merremia hederacea": {
     id: 901,
     commonName: "Kangkung Pagar",
-    scientificName: "Merremia hederacea",
+    scientificName: "Merremia hederacea (Burm.f.) Hallier f.",
     family: "Convolvulaceae",
     genus: "Merremia",
     botanicalDescription: "Tanaman merambat herba tahunan dari keluarga Convolvulaceae. Daun berbentuk jantung hingga berlekuk 3-5 jari, tipis, dan berwarna hijau cerah. Bunga berbentuk corong berwarna kuning pucat hingga putih. Buah kapsul membulat berisi biji kecil.",
@@ -248,11 +307,12 @@ const FALLBACK_PLANTS: Record<string, PlantData> = {
     environmentalImpactEn: "Covers native plants and reduces photosynthesis, suppresses natural forest regeneration, and changes vegetation structure in savannas and forest edges of Baluran National Park.",
     environmentalImpactId: "Menutupi tanaman asli sehingga menghambat fotosintesis, menekan regenerasi alami hutan, dan mengubah struktur vegetasi di sabana dan tepi hutan Taman Nasional Baluran.",
     imagePath: "/sketsa-herbarium-merremia-hederacea.jpg",
+    kingdom: "Plantae", phylum: "Tracheophyta", taxClass: "Magnoliopsida", orderRank: "Solanales", taxSpecies: "M. hederacea",
   },
   "clitoria ternatea": {
     id: 902,
     commonName: "Telang",
-    scientificName: "Clitoria ternatea",
+    scientificName: "Clitoria ternatea L.",
     family: "Fabaceae",
     genus: "Clitoria",
     botanicalDescription: "Tanaman merambat herba perennial dari keluarga Fabaceae. Daun majemuk menyirip ganjil dengan 5-7 anak daun. Bunga berbentuk kupu-kupu berwarna biru tua hingga ungu, kadang putih. Polong pipih berisi biji berbentuk ginjal.",
@@ -265,6 +325,7 @@ const FALLBACK_PLANTS: Record<string, PlantData> = {
     environmentalImpactEn: "Can suppress native grasses through dense shading, alter savanna vegetation composition, and disrupt forage availability for native herbivores such as the Javan banteng.",
     environmentalImpactId: "Mampu menekan pertumbuhan rumput asli melalui naungan yang padat, mengubah komposisi vegetasi sabana, dan mengganggu ketersediaan pakan bagi herbivora asli seperti Banteng Jawa.",
     imagePath: "/sketsa-herbarium-clitoria-ternatea.jpg",
+    kingdom: "Plantae", phylum: "Tracheophyta", taxClass: "Magnoliopsida", orderRank: "Fabales", taxSpecies: "C. ternatea",
   },
 };
 
@@ -281,6 +342,8 @@ export default function SpeciesPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingSketch, setIsUploadingSketch] = useState(false);
+  const sketchFileInputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState({
     scientificName: "",
     commonName: "",
@@ -289,6 +352,12 @@ export default function SpeciesPage() {
     botanicalDescription: "",
     ecologicalInformation: "",
     environmentalImpact: "",
+    imagePath: "",
+    kingdom: "",
+    phylum: "",
+    taxClass: "",
+    order: "",
+    taxSpecies: "",
     source: "",
   });
   const [sourceText, setSourceText] = useState("");
@@ -324,6 +393,11 @@ export default function SpeciesPage() {
     environmentalImpactEn: record.environmentalImpactEn || record.environmental_impact_en || "",
     environmentalImpactId: record.environmentalImpactId || record.environmental_impact_id || "",
     imagePath: record.imagePath || record.image_path || "",
+    kingdom: record.kingdom || "",
+    phylum: record.phylum || "",
+    taxClass: record.taxClass || record.tax_class || "",
+    orderRank: record.orderRank || record.order_rank || "",
+    taxSpecies: record.taxSpecies || record.tax_species || "",
   });
 
   useEffect(() => {
@@ -375,7 +449,7 @@ export default function SpeciesPage() {
 
   useEffect(() => {
     if (!plant || isEditing) return;
-
+    const savedTaxonomy = readStoredSpeciesTaxonomy(plant.id, plant.scientificName);
     setDraft({
       scientificName: plant.scientificName,
       commonName: plant.commonName,
@@ -390,6 +464,12 @@ export default function SpeciesPage() {
       environmentalImpact: language === "id"
         ? plant.environmentalImpactId || plant.environmentalImpact
         : plant.environmentalImpactEn || plant.environmentalImpact,
+      imagePath: plant.imagePath || "",
+      kingdom: plant.kingdom || savedTaxonomy?.kingdom || "",
+      phylum: plant.phylum || savedTaxonomy?.phylum || "",
+      taxClass: plant.taxClass || savedTaxonomy?.taxClass || "",
+      order: plant.orderRank || savedTaxonomy?.order || "",
+      taxSpecies: plant.taxSpecies || savedTaxonomy?.taxSpecies || "",
       source: sourceText,
     });
   }, [language, isEditing, plant, sourceText]);
@@ -405,7 +485,7 @@ export default function SpeciesPage() {
 
   const handleStartEditing = () => {
     if (!plant) return;
-
+    const savedTaxonomy = readStoredSpeciesTaxonomy(plant.id, plant.scientificName);
     setDraft({
       scientificName: plant.scientificName,
       commonName: plant.commonName,
@@ -420,6 +500,12 @@ export default function SpeciesPage() {
       environmentalImpact: language === "id"
         ? plant.environmentalImpactId || plant.environmentalImpact
         : plant.environmentalImpactEn || plant.environmentalImpact,
+      imagePath: plant.imagePath || "",
+      kingdom: plant.kingdom || savedTaxonomy?.kingdom || "",
+      phylum: plant.phylum || savedTaxonomy?.phylum || "",
+      taxClass: plant.taxClass || savedTaxonomy?.taxClass || "",
+      order: plant.orderRank || savedTaxonomy?.order || "",
+      taxSpecies: plant.taxSpecies || savedTaxonomy?.taxSpecies || "",
       source: readStoredSpeciesSourceText(plant.id, plant.scientificName),
     });
     setIsEditing(true);
@@ -428,7 +514,7 @@ export default function SpeciesPage() {
   const handleCancelEditing = () => {
     setIsEditing(false);
     if (!plant) return;
-
+    const savedTaxonomy = readStoredSpeciesTaxonomy(plant.id, plant.scientificName);
     setDraft({
       scientificName: plant.scientificName,
       commonName: plant.commonName,
@@ -443,8 +529,33 @@ export default function SpeciesPage() {
       environmentalImpact: language === "id"
         ? plant.environmentalImpactId || plant.environmentalImpact
         : plant.environmentalImpactEn || plant.environmentalImpact,
+      imagePath: plant.imagePath || "",
+      kingdom: plant.kingdom || savedTaxonomy?.kingdom || "",
+      phylum: plant.phylum || savedTaxonomy?.phylum || "",
+      taxClass: plant.taxClass || savedTaxonomy?.taxClass || "",
+      order: plant.orderRank || savedTaxonomy?.order || "",
+      taxSpecies: plant.taxSpecies || savedTaxonomy?.taxSpecies || "",
       source: sourceText,
     });
+  };
+
+  const handleSketchUpload = async (file: File) => {
+    setIsUploadingSketch(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/v1/plants/upload-sketch", { method: "POST", body: fd });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setDraft((prev) => ({ ...prev, imagePath: json.data.path }));
+      } else {
+        toast.error(json.error || (language === "id" ? "Upload gagal" : "Upload failed"));
+      }
+    } catch {
+      toast.error(language === "id" ? "Upload gagal" : "Upload failed");
+    } finally {
+      setIsUploadingSketch(false);
+    }
   };
 
   const handleSaveSpecies = async () => {
@@ -474,6 +585,7 @@ export default function SpeciesPage() {
             ecologicalInformationId: draft.ecologicalInformation,
             environmentalImpact: draft.environmentalImpact,
             environmentalImpactId: draft.environmentalImpact,
+            imagePath: draft.imagePath.trim(),
           }
         : {
             scientificName,
@@ -486,6 +598,12 @@ export default function SpeciesPage() {
             ecologicalInformationEn: draft.ecologicalInformation,
             environmentalImpact: draft.environmentalImpact,
             environmentalImpactEn: draft.environmentalImpact,
+            imagePath: draft.imagePath.trim(),
+            kingdom: draft.kingdom.trim(),
+            phylum: draft.phylum.trim(),
+            taxClass: draft.taxClass.trim(),
+            orderRank: draft.order.trim(),
+            taxSpecies: draft.taxSpecies.trim(),
           };
 
       const response = await fetch(`/api/v1/plants/${plant.id}`, {
@@ -503,6 +621,16 @@ export default function SpeciesPage() {
 
       setPlant(mapPlantRecord(result.data));
       writeStoredSpeciesSourceText(plant.id, scientificName, draft.source);
+
+      // Persist taxonomy fields to localStorage
+      const taxonomyKey = `${SPECIES_TAXONOMY_STORAGE_PREFIX}${plant.id}`;
+      const taxonomy = { kingdom: draft.kingdom.trim(), phylum: draft.phylum.trim(), taxClass: draft.taxClass.trim(), order: draft.order.trim(), taxSpecies: draft.taxSpecies.trim() };
+      if (Object.values(taxonomy).some((v) => v)) {
+        localStorage.setItem(taxonomyKey, JSON.stringify(taxonomy));
+      } else {
+        localStorage.removeItem(taxonomyKey);
+      }
+
       setSourceText(draft.source.trim());
       setIsEditing(false);
       toast.success(language === "id" ? "Detail spesies berhasil diperbarui" : "Species details updated successfully");
@@ -514,15 +642,41 @@ export default function SpeciesPage() {
     }
   };
 
-  // Get taxonomy for the species
-  const taxonomy = plant
-    ? TAXONOMY_DB[plant.scientificName.toLowerCase()] || [
-        { rank: "Kerajaan", value: "Plantae" },
+  // Get taxonomy for the species — localStorage overrides TAXONOMY_DB
+  const taxonomy = (() => {
+    if (!plant) return [];
+    const saved = readStoredSpeciesTaxonomy(plant.id, plant.scientificName);
+    // API data takes priority; localStorage is a fallback for older records
+    const apiHasTaxonomy = plant.kingdom || plant.phylum || plant.taxClass || plant.orderRank || plant.taxSpecies;
+    if (apiHasTaxonomy) {
+      return [
+        { rank: "Kerajaan", value: plant.kingdom || "Plantae" },
+        ...(plant.phylum ? [{ rank: "Filum", value: plant.phylum }] : []),
+        ...(plant.taxClass ? [{ rank: "Kelas", value: plant.taxClass }] : []),
+        ...(plant.orderRank ? [{ rank: "Ordo", value: plant.orderRank }] : []),
         { rank: "Famili", value: plant.family },
         { rank: "Genus", value: plant.genus },
-        { rank: "Spesies", value: plant.scientificName },
-      ]
-    : [];
+        { rank: "Spesies", value: plant.taxSpecies || plant.scientificName },
+      ];
+    }
+    if (saved && (saved.kingdom || saved.phylum || saved.taxClass || saved.order || saved.taxSpecies)) {
+      return [
+        { rank: "Kerajaan", value: saved.kingdom || "Plantae" },
+        ...(saved.phylum ? [{ rank: "Filum", value: saved.phylum }] : []),
+        ...(saved.taxClass ? [{ rank: "Kelas", value: saved.taxClass }] : []),
+        ...(saved.order ? [{ rank: "Ordo", value: saved.order }] : []),
+        { rank: "Famili", value: plant.family },
+        { rank: "Genus", value: plant.genus },
+        { rank: "Spesies", value: saved.taxSpecies || plant.scientificName },
+      ];
+    }
+    return TAXONOMY_DB[plant.scientificName.toLowerCase()] || [
+      { rank: "Kerajaan", value: "Plantae" },
+      { rank: "Famili", value: plant.family },
+      { rank: "Genus", value: plant.genus },
+      { rank: "Spesies", value: plant.scientificName },
+    ];
+  })();
   const botanicalDescription = language === "id"
     ? plant?.botanicalDescriptionId || plant?.botanicalDescription
     : plant?.botanicalDescriptionEn || plant?.botanicalDescription;
@@ -558,6 +712,8 @@ export default function SpeciesPage() {
     );
   }
 
+  const displayScientificName = getScientificNameWithAuthor(plant.scientificName);
+
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-muted/20 p-4 md:p-6 lg:p-8">
       {/* Header */}
@@ -569,7 +725,7 @@ export default function SpeciesPage() {
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div>
-          <h1 className="text-2xl font-bold md:text-3xl italic">{plant.scientificName}</h1>
+          <h1 className="text-2xl font-bold md:text-3xl italic">{displayScientificName}</h1>
           <p className="text-sm text-muted-foreground">{plant.commonName}</p>
         </div>
       </div>
@@ -767,6 +923,140 @@ export default function SpeciesPage() {
                 rows={4}
                 className="min-h-[112px] rounded-xl"
               />
+            </div>
+
+            {/* Herbarium Sketch */}
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {copy.herbariumSketch}
+              </Label>
+              <input
+                ref={sketchFileInputRef}
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleSketchUpload(file);
+                  e.target.value = "";
+                }}
+              />
+              {draft.imagePath.trim() ? (
+                <div className="relative rounded-xl border overflow-hidden bg-muted/30">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={draft.imagePath.trim()}
+                    alt="Herbarium preview"
+                    className="max-h-56 w-full object-contain"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  />
+                  <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-black/40 px-3 py-2">
+                    <span className="text-xs text-white truncate">{draft.imagePath.split("/").pop()}</span>
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => sketchFileInputRef.current?.click()}
+                        disabled={isUploadingSketch}
+                        className="rounded-md bg-white/20 hover:bg-white/30 px-2.5 py-1 text-xs text-white font-medium transition-colors"
+                      >
+                        {isUploadingSketch ? copy.herbariumSketchUploading : copy.herbariumSketchChange}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDraft((prev) => ({ ...prev, imagePath: "" }))}
+                        className="rounded-md bg-destructive/80 hover:bg-destructive px-2.5 py-1 text-xs text-white font-medium transition-colors"
+                      >
+                        {copy.herbariumSketchRemove}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => sketchFileInputRef.current?.click()}
+                  disabled={isUploadingSketch}
+                  className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/20 py-8 text-muted-foreground transition-colors hover:bg-muted/40 hover:border-primary/40 disabled:opacity-60"
+                >
+                  <ImageIcon className="h-8 w-8 opacity-40" />
+                  <span className="text-sm font-medium">
+                    {isUploadingSketch ? copy.herbariumSketchUploading : copy.herbariumSketchUpload}
+                  </span>
+                  <span className="text-xs opacity-60">{copy.herbariumSketchMaxSize}</span>
+                </button>
+              )}
+            </div>
+
+            {/* Plant Taxonomy */}
+            <div className="space-y-3">
+              <Label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {copy.taxonomy}
+              </Label>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-kingdom" className="text-xs text-muted-foreground">{copy.kingdom}</Label>
+                  <Input
+                    id="edit-kingdom"
+                    value={draft.kingdom}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, kingdom: e.target.value }))}
+                    placeholder={copy.kingdomPlaceholder}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-phylum" className="text-xs text-muted-foreground">{copy.phylum}</Label>
+                  <Input
+                    id="edit-phylum"
+                    value={draft.phylum}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, phylum: e.target.value }))}
+                    placeholder={copy.phylumPlaceholder}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-taxClass" className="text-xs text-muted-foreground">{copy.taxClass}</Label>
+                  <Input
+                    id="edit-taxClass"
+                    value={draft.taxClass}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, taxClass: e.target.value }))}
+                    placeholder={copy.classPaceholder}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-order" className="text-xs text-muted-foreground">{copy.order}</Label>
+                  <Input
+                    id="edit-order"
+                    value={draft.order}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, order: e.target.value }))}
+                    placeholder={copy.orderPlaceholder}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-taxFamily" className="text-xs text-muted-foreground">{copy.family}</Label>
+                  <Input
+                    id="edit-taxFamily"
+                    value={draft.family}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, family: e.target.value }))}
+                    placeholder="e.g., Asteraceae"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-taxGenus" className="text-xs text-muted-foreground">{copy.genus}</Label>
+                  <Input
+                    id="edit-taxGenus"
+                    value={draft.genus}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, genus: e.target.value }))}
+                    placeholder="e.g., Ageratum"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-taxSpecies" className="text-xs text-muted-foreground">{copy.taxSpecies}</Label>
+                  <Input
+                    id="edit-taxSpecies"
+                    value={draft.taxSpecies}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, taxSpecies: e.target.value }))}
+                    placeholder={copy.taxSpeciesPlaceholder}
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="space-y-2">

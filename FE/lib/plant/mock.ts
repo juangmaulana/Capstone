@@ -4,7 +4,7 @@ export const mockPlants: Plant[] = [
   {
     id: 1,
     commonName: "Red Maple",
-    scientificName: "Acer rubrum",
+    scientificName: "Acer rubrum L.",
     family: "Sapindaceae",
     genus: "Acer",
     botanicalDescription: "Deciduous tree, medium-sized, red flowers in spring, red fall foliage.",
@@ -15,7 +15,7 @@ export const mockPlants: Plant[] = [
   {
     id: 2,
     commonName: "Kudzu",
-    scientificName: "Pueraria montana",
+    scientificName: "Pueraria montana (Lour.) Merr.",
     family: "Fabaceae",
     genus: "Pueraria",
     botanicalDescription: "Fast-growing vine, trifoliate leaves, purple flowers.",
@@ -26,7 +26,7 @@ export const mockPlants: Plant[] = [
   {
     id: 3,
     commonName: "Sugar Maple",
-    scientificName: "Acer saccharum",
+    scientificName: "Acer saccharum Marshall",
     family: "Sapindaceae",
     genus: "Acer",
     botanicalDescription: "Large deciduous tree with palmate leaves, known for sap production.",
@@ -37,7 +37,7 @@ export const mockPlants: Plant[] = [
   {
     id: 4,
     commonName: "Giant Hogweed",
-    scientificName: "Heracleum mantegazzianum",
+    scientificName: "Heracleum mantegazzianum Sommier & Levier",
     family: "Apiaceae",
     genus: "Heracleum",
     botanicalDescription: "Tall herbaceous plant, white umbrella-shaped flowers, toxic sap.",
@@ -48,7 +48,7 @@ export const mockPlants: Plant[] = [
   {
     id: 5,
     commonName: "White Oak",
-    scientificName: "Quercus alba",
+    scientificName: "Quercus alba L.",
     family: "Fagaceae",
     genus: "Quercus",
     botanicalDescription: "Large deciduous tree with lobed leaves and white bark.",
@@ -59,7 +59,7 @@ export const mockPlants: Plant[] = [
   {
     id: 6,
     commonName: "Japanese Knotweed",
-    scientificName: "Fallopia japonica",
+    scientificName: "Fallopia japonica (Houtt.) Ronse Decr.",
     family: "Polygonaceae",
     genus: "Fallopia",
     botanicalDescription: "Perennial herb with bamboo-like stems, small white flowers.",
@@ -70,7 +70,7 @@ export const mockPlants: Plant[] = [
   {
     id: 7,
     commonName: "Eastern Redbud",
-    scientificName: "Cercis canadensis",
+    scientificName: "Cercis canadensis L.",
     family: "Fabaceae",
     genus: "Cercis",
     botanicalDescription: "Small tree with heart-shaped leaves, pink flowers in early spring.",
@@ -81,7 +81,7 @@ export const mockPlants: Plant[] = [
   {
     id: 8,
     commonName: "Black Cherry",
-    scientificName: "Prunus serotina",
+    scientificName: "Prunus serotina Ehrh.",
     family: "Rosaceae",
     genus: "Prunus",
     botanicalDescription: "Medium to large tree, dark bark, white spring flowers, small edible fruits.",
@@ -92,7 +92,7 @@ export const mockPlants: Plant[] = [
   {
     id: 9,
     commonName: "Autumn Olive",
-    scientificName: "Elaeagnus umbellata",
+    scientificName: "Elaeagnus umbellata Thunb.",
     family: "Elaeagnaceae",
     genus: "Elaeagnus",
     botanicalDescription: "Shrub with silver leaves and small yellow flowers, produces berries.",
@@ -103,7 +103,7 @@ export const mockPlants: Plant[] = [
   {
     id: 10,
     commonName: "Sugarcane",
-    scientificName: "Saccharum officinarum",
+    scientificName: "Saccharum officinarum L.",
     family: "Poaceae",
     genus: "Saccharum",
     botanicalDescription: "Tall perennial grass with jointed stems, grows in tropical regions.",

@@ -43,6 +43,11 @@ export const CreatePlantSchema = z.object({
   imagePath: z.string().default('').openapi({
     example: '/images/acacia.jpg',
   }),
+  kingdom: z.string().default('').openapi({ example: 'Plantae' }),
+  phylum: z.string().default('').openapi({ example: 'Tracheophyta' }),
+  taxClass: z.string().default('').openapi({ example: 'Magnoliopsida' }),
+  orderRank: z.string().default('').openapi({ example: 'Fabales' }),
+  taxSpecies: z.string().default('').openapi({ example: 'V. nilotica' }),
 }).openapi({
   title: 'CreatePlantRequest',
 })

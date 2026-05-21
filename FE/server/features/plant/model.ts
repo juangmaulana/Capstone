@@ -15,6 +15,11 @@ export class Plant {
     public environmentalImpactEn: string,
     public environmentalImpactId: string,
     public imagePath: string,
+    public kingdom: string,
+    public phylum: string,
+    public taxClass: string,
+    public orderRank: string,
+    public taxSpecies: string,
     public createdAt: Date,
     public updatedAt: Date,
   ) {}

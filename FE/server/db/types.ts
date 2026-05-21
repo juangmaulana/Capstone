@@ -43,6 +43,11 @@ export interface PlantTable {
   environmental_impact_en: string
   environmental_impact_id: string
   image_path: string
+  kingdom: string
+  phylum: string
+  tax_class: string
+  order_rank: string
+  tax_species: string
   readonly created_at: Generated<Date>
   readonly updated_at: Generated<Date>
 }

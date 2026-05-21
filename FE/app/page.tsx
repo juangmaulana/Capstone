@@ -5,6 +5,7 @@ import { Search, Camera, Loader2 } from "lucide-react";
 import { CameraSearchDialog } from "@/components/CameraSearchDialog";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { createScientificNameSlug, getScientificNameWithAuthor } from "@/lib/plant/scientific-name-author";
 
 interface PlantSearchRecord {
   scientificName?: string;
@@ -79,11 +80,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fallbackSpecies = [
-      "Vachellia nilotica",
-      "Ageratum conyzoides",
-      "Lantana camara",
-      "Clitoria ternatea",
-      "Merremia hederacea",
+      "Vachellia nilotica (L.) P.J.H.Hurter & Mabb.",
+      "Ageratum conyzoides L.",
+      "Lantana camara L.",
+      "Clitoria ternatea L.",
+      "Merremia hederacea (Burm.f.) Hallier f.",
     ];
 
     async function fetchSpeciesList() {
@@ -93,7 +94,7 @@ export default function Dashboard() {
         const json = await res.json();
         if (json.success && Array.isArray(json.data)) {
           const names = json.data
-            .map((plant: PlantSearchRecord) => plant.scientificName || plant.scientific_name || "")
+            .map((plant: PlantSearchRecord) => getScientificNameWithAuthor(plant.scientificName || plant.scientific_name || ""))
             .filter(Boolean);
           setSpeciesList(names.length > 0 ? names : fallbackSpecies);
         } else {
@@ -114,7 +115,7 @@ export default function Dashboard() {
     if (e) e.preventDefault();
     const query = queryOverride || searchQuery;
     if (query.trim()) {
-      const id = query.trim().toLowerCase().replace(/\s+/g, '-');
+      const id = createScientificNameSlug(query);
       router.push(`/species/${id}`);
       setIsDropdownOpen(false);
     }
