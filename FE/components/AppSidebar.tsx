@@ -5,9 +5,9 @@ import {
   Brain,
   Database,
   Shield,
-  Leaf,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   Sidebar,
@@ -85,10 +85,17 @@ export function AppSidebar() {
             onClick={() => {
               toggleSidebar();
             }}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/80 transition-colors focus:outline-none"
+            className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/80 transition-colors focus:outline-none"
             aria-label={copy.toggle}
           >
-            <Leaf className="h-4 w-4" />
+            <Image
+              src="/Bio-Inspector-Logo-Only.png"
+              alt=""
+              width={28}
+              height={28}
+              className="h-7 w-7 object-contain"
+              priority
+            />
           </button>
           {!collapsed && (
             <div className="flex flex-1 items-center justify-between">
