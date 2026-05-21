@@ -1,8 +1,9 @@
-import { Kysely, PostgresDialect } from 'kysely'
+import { Kysely, PostgresDialect, sql } from 'kysely'
 import { Database } from '../db/types'
 import { Pool } from 'pg'
 import bcrypt from 'bcryptjs'
 import 'dotenv/config'
+import { getScientificNameWithAuthor } from '../../lib/plant/scientific-name-author'
 
 async function seed() {
   const db = new Kysely<Database>({
@@ -14,6 +15,11 @@ async function seed() {
   })
 
   console.log('Seeding database...')
+
+  await sql`
+    ALTER TABLE plants
+    ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT ''
+  `.execute(db)
 
   // --- Seed Roles ---
   const existingRoles = await db.selectFrom('roles').selectAll().execute()
@@ -48,10 +54,31 @@ async function seed() {
   }
 
   // --- Seed Plants (5 Invasive Alien Species in Baluran) ---
+  const sourceText = {
+    indiaFlora: [
+      'www.gbif.org',
+      'powo.science.kew.org',
+      'wikipedia.org',
+      'indiaflora-ces.iisc.ac.in',
+    ].join('\n'),
+    fao: [
+      'www.gbif.org',
+      'powo.science.kew.org',
+      'wikipedia.org',
+      'www.fao.org',
+    ].join('\n'),
+    ageratum: [
+      'www.gbif.org',
+      'powo.science.kew.org',
+      'wikipedia.org',
+      'https://www.researchgate.net/figure/Figura-2-a-c-Ageratum-conyzoides-a-habito-b-capitulo-c-flor-Teles-et-al-575-d_fig1_283232634',
+    ].join('\n'),
+  }
+
   const seedPlants = [
     {
       common_name: 'Babul',
-      scientific_name: 'Vachellia nilotica',
+      scientific_name: getScientificNameWithAuthor('Vachellia nilotica'),
       family: 'Fabaceae',
       genus: 'Vachellia',
       botanical_description: 'Vachellia nilotica adalah pohon berduri invasif dengan daun majemuk menyirip ganda. Tinggi mencapai 5-20 m, memiliki bunga kuning bulat dan polong coklat kehitaman. Kulit kayu berwarna abu-abu kehitaman dan berduri panjang.',
@@ -64,10 +91,16 @@ async function seed() {
       environmental_impact_en: 'Transforms savanna ecosystems into dense shrubland, reduces grazing areas for local herbivores, disrupts natural fire cycles, and suppresses native biodiversity.',
       environmental_impact_id: 'Mengubah ekosistem sabana menjadi semak belukar, mengurangi area penggembalaan bagi herbivora lokal, mengganggu siklus kebakaran alami, dan menekan keanekaragaman hayati asli.',
       image_path: '/sketsa-herbarium-acacia-nilotica.gif',
+      kingdom: 'Plantae',
+      phylum: 'Tracheophyta',
+      tax_class: 'Magnoliopsida',
+      order_rank: 'Fabales',
+      tax_species: 'V. nilotica',
+      source: sourceText.fao,
     },
     {
       common_name: 'Tembelekan',
-      scientific_name: 'Lantana camara',
+      scientific_name: getScientificNameWithAuthor('Lantana camara'),
       family: 'Verbenaceae',
       genus: 'Lantana',
       botanical_description: 'Semak tegak bercabang dengan batang berkayu berduri kecil. Daun berhadapan, berkerut, berbulu kasar. Bunga majemuk berwarna-warni (kuning, oranye, merah, merah muda) dalam payung datar.',
@@ -80,10 +113,16 @@ async function seed() {
       environmental_impact_en: 'Highly invasive, toxic to livestock, suppresses native plant growth through allelopathy, and can increase forest fire intensity.',
       environmental_impact_id: 'Sangat invasif, meracuni ternak, menekan pertumbuhan tanaman asli melalui alelopati, dan meningkatkan intensitas kebakaran hutan.',
       image_path: '/sketsa-herbarium-lantana-camara.jpg',
+      kingdom: 'Plantae',
+      phylum: 'Tracheophyta',
+      tax_class: 'Magnoliopsida',
+      order_rank: 'Lamiales',
+      tax_species: 'L. camara',
+      source: sourceText.indiaFlora,
     },
     {
       common_name: 'Kangkung Pagar',
-      scientific_name: 'Merremia hederacea',
+      scientific_name: getScientificNameWithAuthor('Merremia hederacea'),
       family: 'Convolvulaceae',
       genus: 'Merremia',
       botanical_description: 'Tanaman merambat herba tahunan dari keluarga Convolvulaceae. Daun berbentuk jantung hingga berlekuk 3-5 jari, tipis, dan berwarna hijau cerah. Bunga berbentuk corong berwarna kuning pucat hingga putih. Buah kapsul membulat berisi biji kecil.',
@@ -96,10 +135,16 @@ async function seed() {
       environmental_impact_en: 'Covers native plants and reduces photosynthesis, suppresses natural forest regeneration, and changes vegetation structure in savannas and forest edges of Baluran National Park.',
       environmental_impact_id: 'Menutupi tanaman asli sehingga menghambat fotosintesis, menekan regenerasi alami hutan, dan mengubah struktur vegetasi di sabana dan tepi hutan Taman Nasional Baluran.',
       image_path: '/sketsa-herbarium-merremia-hederacea.jpg',
+      kingdom: 'Plantae',
+      phylum: 'Tracheophyta',
+      tax_class: 'Magnoliopsida',
+      order_rank: 'Solanales',
+      tax_species: 'M. hederacea',
+      source: sourceText.indiaFlora,
     },
     {
       common_name: 'Telang',
-      scientific_name: 'Clitoria ternatea',
+      scientific_name: getScientificNameWithAuthor('Clitoria ternatea'),
       family: 'Fabaceae',
       genus: 'Clitoria',
       botanical_description: 'Tanaman merambat herba perennial dari keluarga Fabaceae. Daun majemuk menyirip ganjil dengan 5-7 anak daun. Bunga berbentuk kupu-kupu berwarna biru tua hingga ungu, kadang putih. Polong pipih berisi biji berbentuk ginjal.',
@@ -112,10 +157,16 @@ async function seed() {
       environmental_impact_en: 'Can suppress native grasses through dense shading, alter savanna vegetation composition, and disrupt forage availability for native herbivores such as the Javan banteng.',
       environmental_impact_id: 'Mampu menekan pertumbuhan rumput asli melalui naungan yang padat, mengubah komposisi vegetasi sabana, dan mengganggu ketersediaan pakan bagi herbivora asli seperti Banteng Jawa.',
       image_path: '/sketsa-herbarium-clitoria-ternatea.jpg',
+      kingdom: 'Plantae',
+      phylum: 'Tracheophyta',
+      tax_class: 'Magnoliopsida',
+      order_rank: 'Fabales',
+      tax_species: 'C. ternatea',
+      source: sourceText.indiaFlora,
     },
     {
       common_name: 'Bandotan',
-      scientific_name: 'Ageratum conyzoides',
+      scientific_name: getScientificNameWithAuthor('Ageratum conyzoides'),
       family: 'Asteraceae',
       genus: 'Ageratum',
       botanical_description: 'Gulma herba tahunan setinggi 30-80 cm. Daun berhadapan berbentuk oval dengan tepi bergerigi. Bunga biru-ungu pucat atau putih dalam payung terminal. Batang berbulu halus.',
@@ -128,6 +179,12 @@ async function seed() {
       environmental_impact_en: 'Inhibits native plant growth through allelopathy, can be toxic to grazing animals, and persists as a troublesome agricultural weed.',
       environmental_impact_id: 'Menghambat pertumbuhan tanaman asli melalui alelopati, bersifat racun bagi hewan pemakan rumput, dan menjadi gulma persisten di lahan pertanian.',
       image_path: '/sketsa-herbarium-Ageratum-conyzoides.webp',
+      kingdom: 'Plantae',
+      phylum: 'Tracheophyta',
+      tax_class: 'Magnoliopsida',
+      order_rank: 'Asterales',
+      tax_species: 'A. conyzoides',
+      source: sourceText.ageratum,
     },
   ]
 
@@ -135,7 +192,7 @@ async function seed() {
     const existingPlant = await db
       .selectFrom('plants')
       .select(['id'])
-      .where('scientific_name', '=', seedPlant.scientific_name)
+      .where('common_name', '=', seedPlant.common_name)
       .executeTakeFirst()
 
     if (existingPlant) {
