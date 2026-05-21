@@ -111,6 +111,7 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
   const copy = CAMERA_COPY[language];
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -248,6 +249,8 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
   // Handle file upload
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
+
     if (file) {
       const reader = new FileReader();
       reader.onload = (event) => {
@@ -289,11 +292,7 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
   };
 
   const handleTakePhotoClick = () => {
-    setView("camera");
-    // Small delay to ensure the video element is rendered before starting camera
-    setTimeout(() => {
-      startCamera();
-    }, 100);
+    cameraInputRef.current?.click();
   };
 
   // Cleanup camera on unmount or dialog close
@@ -331,9 +330,17 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
             <div className="grid w-full grid-cols-2 gap-4">
               <input
                 type="file"
-                accept="image/*"
+                accept=".jpg,.jpeg,.png,.webp"
                 className="hidden"
                 ref={fileInputRef}
+                onChange={handleFileChange}
+              />
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                ref={cameraInputRef}
                 onChange={handleFileChange}
               />
               <Button
