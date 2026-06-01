@@ -87,8 +87,15 @@ export default function MapObservationDetailPage() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={observation.imagePath}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-xl"
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={observation.imagePath}
             alt={observation.species}
-            className="h-full w-full object-cover lg:object-contain"
+            className="relative h-full w-full object-contain"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-transparent to-black/75" />
           <button
