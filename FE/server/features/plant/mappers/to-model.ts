@@ -26,6 +26,7 @@ export const toModel = (row: PlantSelect): Plant => {
     row.created_at,
     row.updated_at,
     row.source,
+    row.image_source,
   )
 }
 

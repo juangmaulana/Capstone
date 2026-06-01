@@ -141,7 +141,7 @@ export function AdminLoginPage() {
       } else {
         setForgotSuccess(true);
       }
-    } catch (err) {
+    } catch {
       setForgotError(copy.forgotNetworkError);
     } finally {
       setForgotSubmitting(false);

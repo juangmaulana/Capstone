@@ -30,7 +30,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   })
 
   // Gradio returns: result.data = [annotatedImage, boundingBoxJson]
-  const gradioData = result.data as any[]
+  const gradioData = result.data as unknown[]
 
   const data = mapDetectionResponse(gradioData)
 

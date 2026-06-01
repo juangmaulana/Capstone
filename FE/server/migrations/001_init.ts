@@ -63,6 +63,7 @@ export async function up(db: Kysely<Database>) {
     .addColumn('order_rank', 'text', (col) => col.notNull().defaultTo(''))
     .addColumn('tax_species', 'text', (col) => col.notNull().defaultTo(''))
     .addColumn('source', 'text', (col) => col.notNull().defaultTo(''))
+    .addColumn('image_source', 'text', (col) => col.notNull().defaultTo(''))
     .addColumn('created_at', 'timestamp', (col) =>
       col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
     .addColumn('updated_at', 'timestamp', (col) =>

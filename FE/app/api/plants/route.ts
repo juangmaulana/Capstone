@@ -6,7 +6,7 @@ export async function GET() {
   try {
     const plants = await getAllPlants();
     return NextResponse.json(plants.map((p) => PlantSchema.parse(p)));
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: "Failed to fetch plants" }, { status: 500 });
   }
 }

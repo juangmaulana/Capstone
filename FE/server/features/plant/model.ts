@@ -23,5 +23,6 @@ export class Plant {
     public createdAt: Date,
     public updatedAt: Date,
     public source?: string,
+    public imageSource?: string,
   ) {}
 }

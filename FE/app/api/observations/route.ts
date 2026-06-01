@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     const observations = await getObservations(query);
 
     return NextResponse.json(EnrichedObservationListSchema.parse({ observations }));
-  } catch(err) {
+  } catch {
     return NextResponse.json({ error: "Failed to fetch observations" }, { status: 500 });
   }
 }

@@ -14,22 +14,20 @@ const LANGUAGE_STORAGE_KEY = "biowatch_language";
 
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  // Start with a stable initial state that matches the server (SSR)
-  const [language, setLanguageState] = useState<Language>("en");
+  const [language, setLanguageState] = useState<Language>(() => {
+    if (typeof window === "undefined") return "en";
 
-  // Sync with localStorage/navigator only after mounting on the client
-  useEffect(() => {
     try {
       const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
       if (stored === "en" || stored === "id") {
-        setLanguageState(stored);
-      } else if (navigator.language.toLowerCase().startsWith("id")) {
-        setLanguageState("id");
+        return stored;
       }
+      return navigator.language.toLowerCase().startsWith("id") ? "id" : "en";
     } catch (e) {
       console.error("Failed to load language from storage:", e);
+      return "en";
     }
-  }, []);
+  });
 
   const setLanguage = (nextLanguage: Language) => {
     setLanguageState(nextLanguage);

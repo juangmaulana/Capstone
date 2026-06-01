@@ -23,7 +23,12 @@ export const createUserSchema = z.object({
     path: ['confirmPassword'],
   })
 
-.transform(({ confirmPassword, ...rest }) => rest)
+.transform((data) => ({
+  roleId: data.roleId,
+  name: data.name,
+  email: data.email,
+  password: data.password,
+}))
 
 .openapi({
   title: 'CreateUserRequest',

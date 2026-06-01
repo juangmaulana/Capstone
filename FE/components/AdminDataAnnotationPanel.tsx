@@ -14,7 +14,6 @@ import {
   Tag,
   Trash2,
   Upload,
-  X,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -271,6 +270,49 @@ const buildYoloLine = (box: BoundingBox, width: number, height: number) => {
   ].join(" ");
 };
 
+const normalizeDetectedBox = (
+  box: DetectionResult["box"],
+  imageWidth: number,
+  imageHeight: number,
+) => {
+  if (!box) return null;
+
+  const x1 = Number.isFinite(box.x1) ? box.x1 : 0;
+  const y1 = Number.isFinite(box.y1) ? box.y1 : 0;
+  const x2 = Number.isFinite(box.x2) ? box.x2 : x1 + box.width;
+  const y2 = Number.isFinite(box.y2) ? box.y2 : y1 + box.height;
+  const left = clamp(Math.min(x1, x2), 0, Math.max(imageWidth - 1, 0));
+  const top = clamp(Math.min(y1, y2), 0, Math.max(imageHeight - 1, 0));
+  const right = clamp(Math.max(x1, x2), left + 1, imageWidth);
+  const bottom = clamp(Math.max(y1, y2), top + 1, imageHeight);
+
+  if (right <= left || bottom <= top) return null;
+
+  return {
+    x: left,
+    y: top,
+    width: right - left,
+    height: bottom - top,
+  };
+};
+
+const constrainBoxToImage = (
+  box: BoundingBox,
+  imageWidth: number,
+  imageHeight: number,
+): BoundingBox => {
+  const x = clamp(box.x, 0, Math.max(imageWidth - 1, 0));
+  const y = clamp(box.y, 0, Math.max(imageHeight - 1, 0));
+
+  return {
+    ...box,
+    x,
+    y,
+    width: clamp(box.width, 1, Math.max(imageWidth - x, 1)),
+    height: clamp(box.height, 1, Math.max(imageHeight - y, 1)),
+  };
+};
+
 const readImageSize = (url: string) =>
   new Promise<{ width: number; height: number }>((resolve) => {
     const img = new Image();
@@ -337,28 +379,58 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
   const getScale = () => {
     const rect = stageRef.current?.getBoundingClientRect();
     if (!rect || !activeItem) {
-      return { scaleX: 1, scaleY: 1, stageWidth: 1, stageHeight: 1 };
+      return {
+        scaleX: 1,
+        scaleY: 1,
+        imageFrame: { left: 0, top: 0, width: 1, height: 1 },
+      };
     }
 
+    const stageRatio = rect.width / rect.height;
+    const imageRatio = activeItem.imageWidth / activeItem.imageHeight;
+    const imageFrame = stageRatio > imageRatio
+      ? {
+        width: rect.height * imageRatio,
+        height: rect.height,
+        left: (rect.width - rect.height * imageRatio) / 2,
+        top: 0,
+      }
+      : {
+        width: rect.width,
+        height: rect.width / imageRatio,
+        left: 0,
+        top: (rect.height - rect.width / imageRatio) / 2,
+      };
+
     return {
-      scaleX: rect.width / activeItem.imageWidth,
-      scaleY: rect.height / activeItem.imageHeight,
-      stageWidth: rect.width,
-      stageHeight: rect.height,
+      scaleX: imageFrame.width / activeItem.imageWidth,
+      scaleY: imageFrame.height / activeItem.imageHeight,
+      imageFrame,
     };
   };
 
-  const toStagePoint = (event: MouseEvent<HTMLDivElement>) => {
+  const toStagePoint = (event: MouseEvent<HTMLDivElement>, clampToImage = true) => {
     const rect = stageRef.current?.getBoundingClientRect();
     if (!rect) return null;
 
+    const { imageFrame } = getScale();
+    const stageX = event.clientX - rect.left;
+    const stageY = event.clientY - rect.top;
+    const isOutsideImage =
+      stageX < imageFrame.left ||
+      stageX > imageFrame.left + imageFrame.width ||
+      stageY < imageFrame.top ||
+      stageY > imageFrame.top + imageFrame.height;
+
+    if (isOutsideImage && !clampToImage) return null;
+
     return {
-      x: clamp(event.clientX - rect.left, 0, rect.width),
-      y: clamp(event.clientY - rect.top, 0, rect.height),
+      x: clamp(stageX - imageFrame.left, 0, imageFrame.width),
+      y: clamp(stageY - imageFrame.top, 0, imageFrame.height),
     };
   };
 
-  const setItemValue = (
+  const setItemValue = useCallback((
     itemId: number,
     updater: (item: AnnotationItem) => AnnotationItem,
   ) => {
@@ -371,7 +443,7 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
         };
       }),
     );
-  };
+  }, [activeBatchId]);
 
   // AI Detection function — sends image to /api/v1/plants/detect
   const detectPlant = useCallback(async (item: AnnotationItem) => {
@@ -407,25 +479,20 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
 
         // Create bounding boxes only for detections with a valid box
         const newBoxes: BoundingBox[] = detections
-          .filter(
-            (det) =>
-              det.box &&
-              det.box.width > 0 &&
-              det.box.height > 0
-          )
           .map((det, idx) => {
+            const normalizedBox = normalizeDetectedBox(det.box, item.imageWidth, item.imageHeight);
+            if (!normalizedBox) return null;
+
             // Map detected name to one of the known SPECIES_CLASSES
             const matchedClass = findSpeciesClass(det.name) || det.name;
 
             return {
               id: Date.now() + idx,
               className: matchedClass,
-              x: det.box?.x1 ?? 0,
-              y: det.box?.y1 ?? 0,
-              width: det.box?.width ?? 0,
-              height: det.box?.height ?? 0,
+              ...normalizedBox,
             };
-          });
+          })
+          .filter((box): box is BoundingBox => box !== null);
 
         const matchedTopClass = findSpeciesClass(topDetection.name);
 
@@ -525,7 +592,7 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
 
   const startDraw = (event: MouseEvent<HTMLDivElement>) => {
     if (!activeItem || mode !== "draw") return;
-    const point = toStagePoint(event);
+    const point = toStagePoint(event, false);
     if (!point) return;
 
     setSelectedBoxId(null);
@@ -788,7 +855,7 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[340px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[340px_minmax(0,1fr)]">
         <div className="rounded-xl border bg-card shadow-sm">
           <div className="border-b px-5 py-4">
             <div className="flex items-center justify-between gap-3">
@@ -889,7 +956,7 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
           </div>
         </div>
 
-        <div className="xl:col-span-3 space-y-4">
+        <div className="min-w-0 space-y-4">
           <div className="rounded-xl border bg-card shadow-sm">
             <div className="flex flex-col gap-4 border-b px-5 py-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
@@ -1018,7 +1085,8 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                   )}
 
                   {activeItem.boxes.map((box) => {
-                    const { scaleX, scaleY } = getScale();
+                    const { scaleX, scaleY, imageFrame } = getScale();
+                    const safeBox = constrainBoxToImage(box, activeItem.imageWidth, activeItem.imageHeight);
                     const isSelected = selectedBoxId === box.id;
 
                     return (
@@ -1034,13 +1102,16 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                         className={`absolute border-2 text-left ${isSelected ? "border-yellow-400" : "border-lime-400"
                           } bg-lime-400/15`}
                         style={{
-                          left: box.x * scaleX,
-                          top: box.y * scaleY,
-                          width: box.width * scaleX,
-                          height: box.height * scaleY,
+                          left: imageFrame.left + safeBox.x * scaleX,
+                          top: imageFrame.top + safeBox.y * scaleY,
+                          width: safeBox.width * scaleX,
+                          height: safeBox.height * scaleY,
                         }}
                       >
-                        <span className="absolute -top-5 left-0 rounded bg-black/75 px-1.5 py-0.5 text-[10px] text-white">
+                        <span
+                          className="absolute left-0 rounded bg-black/75 px-1.5 py-0.5 text-[10px] text-white"
+                          style={{ top: safeBox.y * scaleY < 22 ? 2 : -20 }}
+                        >
                           {box.className}
                         </span>
                       </button>
@@ -1048,15 +1119,21 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                   })}
 
                   {draftStyle && (
-                    <div
-                      className="absolute border-2 border-cyan-400 bg-cyan-300/20"
-                      style={{
-                        left: draftStyle.left,
-                        top: draftStyle.top,
-                        width: draftStyle.width,
-                        height: draftStyle.height,
-                      }}
-                    />
+                    (() => {
+                      const { imageFrame } = getScale();
+
+                      return (
+                        <div
+                          className="absolute border-2 border-cyan-400 bg-cyan-300/20"
+                          style={{
+                            left: imageFrame.left + draftStyle.left,
+                            top: imageFrame.top + draftStyle.top,
+                            width: draftStyle.width,
+                            height: draftStyle.height,
+                          }}
+                        />
+                      );
+                    })()
                   )}
                 </div>
               )}

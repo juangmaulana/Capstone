@@ -31,7 +31,21 @@ export const updateUserSchema = z.object({
   }
 )
 
-.transform(({ confirmPassword, ...rest }) => rest)
+.transform((data) => {
+  const result: {
+    roleId?: number
+    name?: string
+    email?: string
+    password?: string
+  } = {}
+
+  if (data.roleId !== undefined) result.roleId = data.roleId
+  if (data.name !== undefined) result.name = data.name
+  if (data.email !== undefined) result.email = data.email
+  if (data.password !== undefined) result.password = data.password
+
+  return result
+})
 
 .refine((data) => Object.keys(data).length > 0, {
   message: 'At least one field must be provided',

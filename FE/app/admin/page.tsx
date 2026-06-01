@@ -1,11 +1,22 @@
 "use client";
 
-import { Users, UserPlus, ShieldCheck, Activity, Bug, Upload, ScrollText, Database, Plus, Pencil, Trash2, Search, FileSpreadsheet, FileText, CheckCircle2, Clock, AlertCircle, AlertTriangle, Info, Server, Wifi, Filter, LogOut, User, Tag, Download, Eye, X, ChevronDown, ChevronRight, Image as ImageIcon, MapPin, Calendar, ThumbsUp, ThumbsDown, FileDown, BarChart3, Lock, Copy, KeyRound } from "lucide-react";
-import { useState, useRef, useMemo, useEffect, useCallback } from "react";
+import { Users, UserPlus, ShieldCheck, Activity, ScrollText, Plus, Pencil, Trash2, Search, CheckCircle2, AlertCircle, AlertTriangle, Info, Filter, LogOut, User, Eye, X, Image as ImageIcon, Lock, Copy, KeyRound } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminDataAnnotationPanel } from "@/components/AdminDataAnnotationPanel";
 import { useLanguage } from "@/contexts/LanguageContext";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,6 +83,8 @@ interface ApiPlant {
   taxSpecies?: string;
   tax_species?: string;
   source?: string;
+  imageSource?: string;
+  image_source?: string;
   updatedAt?: string;
   updated_at?: string;
 }
@@ -108,6 +121,7 @@ interface DisplaySpecies {
   orderRank: string;
   taxSpecies: string;
   source: string;
+  imageSource: string;
   lastUpdated: string;
 }
 
@@ -155,6 +169,46 @@ const writeStoredSpeciesSourceText = (speciesId: number, scientificName: string,
 
   const storageKey = getSpeciesSourceStorageKey(speciesId, scientificName);
   const fallbackKey = `${SPECIES_SOURCE_STORAGE_PREFIX}tmp_${createSpeciesSlug(scientificName)}`;
+
+  if (!normalizedText) {
+    localStorage.removeItem(storageKey);
+    localStorage.removeItem(fallbackKey);
+    return;
+  }
+
+  localStorage.setItem(storageKey, JSON.stringify(normalizedText));
+  if (speciesId > 0) {
+    localStorage.removeItem(fallbackKey);
+  }
+};
+
+const SPECIES_IMAGE_SOURCE_STORAGE_PREFIX = "biowatch_species_image_source_";
+
+const getSpeciesImageSourceStorageKey = (speciesId: number, scientificName: string) =>
+  speciesId > 0
+    ? `${SPECIES_IMAGE_SOURCE_STORAGE_PREFIX}${speciesId}`
+    : `${SPECIES_IMAGE_SOURCE_STORAGE_PREFIX}tmp_${createSpeciesSlug(scientificName)}`.replace(/--+/g, "-");
+
+const readStoredSpeciesImageSourceText = (speciesId: number, scientificName: string) => {
+  if (typeof window === "undefined") return "";
+
+  try {
+    const primaryKey = getSpeciesImageSourceStorageKey(speciesId, scientificName);
+    const fallbackKey = `${SPECIES_IMAGE_SOURCE_STORAGE_PREFIX}tmp_${createSpeciesSlug(scientificName)}`;
+    const raw = localStorage.getItem(primaryKey) || localStorage.getItem(fallbackKey);
+    if (!raw) return "";
+    return JSON.parse(raw) as string;
+  } catch {
+    return "";
+  }
+};
+
+const writeStoredSpeciesImageSourceText = (speciesId: number, scientificName: string, sourceText: string) => {
+  if (typeof window === "undefined") return;
+
+  const normalizedText = sourceText.trim();
+  const storageKey = getSpeciesImageSourceStorageKey(speciesId, scientificName);
+  const fallbackKey = `${SPECIES_IMAGE_SOURCE_STORAGE_PREFIX}tmp_${createSpeciesSlug(scientificName)}`;
 
   if (!normalizedText) {
     localStorage.removeItem(storageKey);
@@ -236,121 +290,17 @@ const LEVEL_STYLES: Record<LogLevel, { bg: string; text: string; icon: typeof In
   success: { bg: "bg-green-100", text: "text-green-700", icon: CheckCircle2 },
 };
 
-/* ───────────── ANNOTATION MOCK DATA ───────────── */
-
-type AnnotationStatus = "pending" | "annotated" | "validated" | "rejected";
-
-interface AnnotationItem {
-  id: number;
-  imageUrl: string;
-  filename: string;
-  capturedDate: string;
-  location: string;
-  coordinates: string;
-  predictedSpecies: string;
-  confidence: number;
-  annotatedSpecies?: string;
-  annotatedBy?: string;
-  annotatedDate?: string;
-  validatedBy?: string;
-  validatedDate?: string;
-  status: AnnotationStatus;
-  notes?: string;
-}
-
-interface AnnotationBatch {
-  id: number;
-  period: string;
-  dateRange: string;
-  totalItems: number;
-  pending: number;
-  annotated: number;
-  validated: number;
-  rejected: number;
-  status: "in_progress" | "review" | "completed" | "exported";
-  createdBy: string;
-  createdDate: string;
-  items: AnnotationItem[];
-}
-
-const MOCK_ANNOTATION_BATCHES: AnnotationBatch[] = [
-  {
-    id: 1,
-    period: "Q1 2026",
-    dateRange: "Jan 1 – Mar 31, 2026",
-    totalItems: 8,
-    pending: 2,
-    annotated: 2,
-    validated: 3,
-    rejected: 1,
-    status: "in_progress",
-    createdBy: "Dr. Andi Prasetyo",
-    createdDate: "2026-04-01",
-    items: [
-      { id: 101, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260115_001.jpg", capturedDate: "2026-01-15", location: "Savana Bekol, Baluran", coordinates: "-7.8503, 114.3680", predictedSpecies: "Vachellia nilotica (L.) P.J.H.Hurter & Mabb.", confidence: 0.92, annotatedSpecies: "Vachellia nilotica (L.) P.J.H.Hurter & Mabb.", annotatedBy: "Siti Nurhaliza", annotatedDate: "2026-04-02", validatedBy: "Dr. Andi Prasetyo", validatedDate: "2026-04-03", status: "validated", notes: "Clear image, correct identification" },
-      { id: 102, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260118_002.jpg", capturedDate: "2026-01-18", location: "Pantai Bama, Baluran", coordinates: "-7.8215, 114.3842", predictedSpecies: "Lantana camara L.", confidence: 0.87, annotatedSpecies: "Lantana camara L.", annotatedBy: "Budi Santoso", annotatedDate: "2026-04-03", validatedBy: "Dr. Andi Prasetyo", validatedDate: "2026-04-04", status: "validated" },
-      { id: 103, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260205_003.jpg", capturedDate: "2026-02-05", location: "Evergreen Forest Trail", coordinates: "-7.8412, 114.3756", predictedSpecies: "Clitoria ternatea L.", confidence: 0.78, annotatedSpecies: "Ageratum conyzoides L.", annotatedBy: "Siti Nurhaliza", annotatedDate: "2026-04-05", status: "annotated", notes: "Model predicted wrong — leaves are different" },
-      { id: 104, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260210_004.jpg", capturedDate: "2026-02-10", location: "Savana Balanan", coordinates: "-7.8601, 114.3520", predictedSpecies: "Vachellia nilotica (L.) P.J.H.Hurter & Mabb.", confidence: 0.95, annotatedSpecies: "Vachellia nilotica (L.) P.J.H.Hurter & Mabb.", annotatedBy: "Budi Santoso", annotatedDate: "2026-04-05", validatedBy: "Dr. Andi Prasetyo", validatedDate: "2026-04-06", status: "validated" },
-      { id: 105, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260222_005.jpg", capturedDate: "2026-02-22", location: "Tanjung Sedano", coordinates: "-7.8003, 114.3910", predictedSpecies: "Merremia hederacea (Burm.f.) Hallier f.", confidence: 0.65, annotatedSpecies: "Merremia hederacea (Burm.f.) Hallier f.", annotatedBy: "Rudi Hermawan", annotatedDate: "2026-04-06", status: "annotated", notes: "Low confidence — partially occluded by other vegetation" },
-      { id: 106, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260305_006.jpg", capturedDate: "2026-03-05", location: "Watu Numpuk", coordinates: "-7.8320, 114.3615", predictedSpecies: "Lantana camara L.", confidence: 0.43, annotatedSpecies: "Unknown", annotatedBy: "Siti Nurhaliza", annotatedDate: "2026-04-07", status: "rejected", notes: "Image too blurry — cannot identify species" },
-      { id: 107, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260312_007.jpg", capturedDate: "2026-03-12", location: "Kramat Area", coordinates: "-7.8550, 114.3700", predictedSpecies: "Ageratum conyzoides L.", confidence: 0.81, status: "pending" },
-      { id: 108, imageUrl: "/placeholder-species.jpg", filename: "IMG_20260325_008.jpg", capturedDate: "2026-03-25", location: "Savana Bekol, Baluran", coordinates: "-7.8488, 114.3695", predictedSpecies: "Clitoria ternatea L.", confidence: 0.73, status: "pending" },
-    ],
-  },
-  {
-    id: 2,
-    period: "Q4 2025",
-    dateRange: "Oct 1 – Dec 31, 2025",
-    totalItems: 24,
-    pending: 0,
-    annotated: 0,
-    validated: 24,
-    rejected: 0,
-    status: "exported",
-    createdBy: "Dr. Andi Prasetyo",
-    createdDate: "2026-01-05",
-    items: [],
-  },
-  {
-    id: 3,
-    period: "Q3 2025",
-    dateRange: "Jul 1 – Sep 30, 2025",
-    totalItems: 31,
-    pending: 0,
-    annotated: 0,
-    validated: 28,
-    rejected: 3,
-    status: "completed",
-    createdBy: "Dr. Andi Prasetyo",
-    createdDate: "2025-10-02",
-    items: [],
-  },
-];
-
-const ANNOTATION_STATUS_STYLES: Record<AnnotationStatus, { bg: string; text: string; label: string }> = {
-  pending: { bg: "bg-gray-100", text: "text-gray-600", label: "Pending" },
-  annotated: { bg: "bg-blue-100", text: "text-blue-700", label: "Annotated" },
-  validated: { bg: "bg-green-100", text: "text-green-700", label: "Validated" },
-  rejected: { bg: "bg-red-100", text: "text-red-700", label: "Rejected" },
-};
-
-const BATCH_STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-  in_progress: { bg: "bg-blue-100", text: "text-blue-700", label: "In Progress" },
-  review: { bg: "bg-amber-100", text: "text-amber-700", label: "Under Review" },
-  completed: { bg: "bg-green-100", text: "text-green-700", label: "Completed" },
-  exported: { bg: "bg-purple-100", text: "text-purple-700", label: "Exported" },
-};
-
 /* ───────────── TABS ───────────── */
 
 type Tab = "users" | "species" | "logs" | "annotation";
+type AdminConfirmAction = "logout" | "addSpecies" | "editSpecies" | "saveProfile";
 
-const TABS: { key: Tab; icon: typeof Users }[] = [
-  { key: "users", icon: Users },
-  { key: "species", icon: Bug },
-  { key: "annotation", icon: Tag },
-  { key: "logs", icon: ScrollText },
-];
+const getAdminTabFromPath = (pathname: string): Tab => {
+  if (pathname.startsWith("/admin/species")) return "species";
+  if (pathname.startsWith("/admin/annotation")) return "annotation";
+  if (pathname.startsWith("/admin/logs")) return "logs";
+  return "users";
+};
 
 const ADMIN_COPY = {
   en: {
@@ -401,6 +351,8 @@ const ADMIN_COPY = {
       source: "Source",
       herbariumSketch: "Herbarium Sketch",
       herbariumSketchPlaceholder: "e.g., /sketsa-herbarium-example.jpg",
+      imageSource: "Image Source",
+      imageSourcePlaceholder: "Add the herbarium sketch source, credit, or link...",
       taxonomy: "Plant Taxonomy",
       kingdom: "Kingdom",
       phylum: "Phylum",
@@ -450,6 +402,20 @@ const ADMIN_COPY = {
       mismatch: "Passwords do not match",
       currentRequired: "Current Password is required",
       currentWrong: "Current password is incorrect",
+    },
+    confirm: {
+      logoutTitle: "Log out?",
+      logoutDesc: "You will need to sign in again to access the admin system.",
+      logoutAction: "Log Out",
+      addSpeciesTitle: "Add species?",
+      addSpeciesDesc: "This will create a new species record with the current form data.",
+      addSpeciesAction: "Add Species",
+      editSpeciesTitle: "Save species changes?",
+      editSpeciesDesc: "This will update the selected species record.",
+      editSpeciesAction: "Save Changes",
+      saveProfileTitle: "Save profile changes?",
+      saveProfileDesc: "This will close the profile editor and apply the current profile changes.",
+      saveProfileAction: "Save Profile",
     },
     roleModal: {
       title: "Edit Role",
@@ -550,6 +516,8 @@ const ADMIN_COPY = {
       source: "Sumber",
       herbariumSketch: "Sketsa Herbarium",
       herbariumSketchPlaceholder: "contoh: /sketsa-herbarium-contoh.jpg",
+      imageSource: "Sumber Gambar",
+      imageSourcePlaceholder: "Tambahkan sumber, kredit, atau tautan sketsa herbarium...",
       taxonomy: "Taksonomi Tanaman",
       kingdom: "Kerajaan",
       phylum: "Filum",
@@ -599,6 +567,20 @@ const ADMIN_COPY = {
       mismatch: "Password tidak cocok",
       currentRequired: "Password Saat Ini wajib diisi",
       currentWrong: "Password saat ini salah",
+    },
+    confirm: {
+      logoutTitle: "Keluar?",
+      logoutDesc: "Anda perlu login kembali untuk mengakses sistem admin.",
+      logoutAction: "Keluar",
+      addSpeciesTitle: "Tambah spesies?",
+      addSpeciesDesc: "Data pada form saat ini akan dibuat sebagai catatan spesies baru.",
+      addSpeciesAction: "Tambah Spesies",
+      editSpeciesTitle: "Simpan perubahan spesies?",
+      editSpeciesDesc: "Catatan spesies yang dipilih akan diperbarui.",
+      editSpeciesAction: "Simpan Perubahan",
+      saveProfileTitle: "Simpan perubahan profil?",
+      saveProfileDesc: "Editor profil akan ditutup dan perubahan profil saat ini akan diterapkan.",
+      saveProfileAction: "Simpan Profil",
     },
     roleModal: {
       title: "Edit Role",
@@ -656,12 +638,15 @@ const ADMIN_COPY = {
 /* ───────────── COMPONENT ───────────── */
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<Tab>("users");
+  const pathname = usePathname();
+  const router = useRouter();
+  const activeTab = getAdminTabFromPath(pathname);
   const [speciesSearch, setSpeciesSearch] = useState("");
   const [logFilter, setLogFilter] = useState<LogLevel | "all">("all");
-  const { user, logout, registerUser, updatePassword } = useAuth();
+  const { user, logout, updatePassword } = useAuth();
   const { language } = useLanguage();
   const copy = ADMIN_COPY[language];
+  const [confirmAction, setConfirmAction] = useState<AdminConfirmAction | null>(null);
 
   // Check if current user is Super Admin
   const isSuperAdmin = user?.role === "Super Admin";
@@ -669,7 +654,6 @@ export default function AdminPage() {
   // User management state (must be declared before fetch functions)
   const [users, setUsers] = useState<DisplayUser[]>([]);
   const [roles, setRoles] = useState<ApiRole[]>([]);
-  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   const [isLoadingSpecies, setIsLoadingSpecies] = useState(true);
   const [speciesData, setSpeciesData] = useState<DisplaySpecies[]>([]);
 
@@ -687,7 +671,6 @@ export default function AdminPage() {
   }, []);
 
   const fetchUsers = useCallback(async () => {
-    setIsLoadingUsers(true);
     try {
       const [usersRes, rolesData] = await Promise.all([
         fetch("/api/v1/users?limit=100"),
@@ -715,7 +698,6 @@ export default function AdminPage() {
         }));
       }
     } catch (e) { console.error("Failed to fetch users:", e); }
-    setIsLoadingUsers(false);
   }, [fetchRoles, language]);
 
   const fetchSpecies = useCallback(async () => {
@@ -746,6 +728,7 @@ export default function AdminPage() {
           orderRank: p.orderRank || p.order_rank || "",
           taxSpecies: p.taxSpecies || p.tax_species || "",
           source: p.source || "",
+          imageSource: p.imageSource || p.image_source || "",
           lastUpdated: p.updatedAt || p.updated_at || "-",
         })));
       }
@@ -935,6 +918,12 @@ export default function AdminPage() {
     setShowProfile(true);
   };
 
+  const handleSaveProfile = () => {
+    setProfileEditing(false);
+    setShowProfile(false);
+    router.push("/admin/users");
+  };
+
   const handleChangePassword = async () => {
     const errors = { repeatNewPassword: "", currentPassword: "" };
     let hasError = false;
@@ -975,7 +964,7 @@ export default function AdminPage() {
     setPasswordErrors({ repeatNewPassword: "", currentPassword: "" });
     setShowProfile(false);
     setProfileEditing(false);
-    setActiveTab("users");
+    router.push("/admin/users");
   };
 
   // Species management state
@@ -996,6 +985,7 @@ export default function AdminPage() {
     environmentalImpactEn: "",
     environmentalImpactId: "",
     imagePath: "",
+    imageSource: readStoredSpeciesImageSourceText(0, ""),
     kingdom: "",
     phylum: "",
     taxClass: "",
@@ -1044,6 +1034,7 @@ export default function AdminPage() {
       environmentalImpactEn: "",
       environmentalImpactId: "",
       imagePath: "",
+      imageSource: readStoredSpeciesImageSourceText(0, ""),
       kingdom: "",
       phylum: "",
       taxClass: "",
@@ -1072,6 +1063,7 @@ export default function AdminPage() {
       environmentalImpactEn: s.environmentalImpactEn || s.environmentalImpact || "",
       environmentalImpactId: s.environmentalImpactId || s.environmentalImpact || "",
       imagePath: s.imagePath || "",
+      imageSource: s.imageSource || readStoredSpeciesImageSourceText(s.id, s.scientificName) || "",
       kingdom: s.kingdom || localTaxonomy.kingdom,
       phylum: s.phylum || localTaxonomy.phylum,
       taxClass: s.taxClass || localTaxonomy.taxClass,
@@ -1132,6 +1124,7 @@ export default function AdminPage() {
         : speciesForm.environmentalImpactEn
     ).trim() || speciesForm.environmentalImpact.trim() || "-";
     const sourceText = speciesForm.source?.trim() || "";
+    const imageSourceText = speciesForm.imageSource?.trim() || "";
 
     try {
       const translatedFields = await translateSpeciesDescriptions({
@@ -1167,6 +1160,7 @@ export default function AdminPage() {
             orderRank: speciesForm.order.trim(),
             taxSpecies: speciesForm.taxSpecies.trim(),
             source: sourceText,
+            imageSource: imageSourceText,
           }),
         });
       } else {
@@ -1194,6 +1188,7 @@ export default function AdminPage() {
             orderRank: speciesForm.order.trim(),
             taxSpecies: speciesForm.taxSpecies.trim(),
             source: sourceText,
+            imageSource: imageSourceText,
           }),
         });
       }
@@ -1203,6 +1198,7 @@ export default function AdminPage() {
       if (res && res.ok) {
         const savedSpeciesId = result?.data?.id || speciesForm.id;
         writeStoredSpeciesSourceText(savedSpeciesId, speciesForm.scientificName.trim(), sourceText);
+        writeStoredSpeciesImageSourceText(savedSpeciesId, speciesForm.scientificName.trim(), imageSourceText);
         writeStoredSpeciesTaxonomy(savedSpeciesId, speciesForm.scientificName.trim(), {
           kingdom: speciesForm.kingdom.trim(),
           phylum: speciesForm.phylum.trim(),
@@ -1243,15 +1239,6 @@ export default function AdminPage() {
     setDeleteSpeciesConfirm(null);
   };
 
-  // Annotation state
-  const [annotationBatches, setAnnotationBatches] = useState(MOCK_ANNOTATION_BATCHES);
-  const [expandedBatchId, setExpandedBatchId] = useState<number | null>(1);
-  const [annotationFilter, setAnnotationFilter] = useState<AnnotationStatus | "all">("all");
-  const [annotateModalItem, setAnnotateModalItem] = useState<AnnotationItem | null>(null);
-  const [annotateSpecies, setAnnotateSpecies] = useState("");
-  const [annotateNotes, setAnnotateNotes] = useState("");
-  const [viewDetailItem, setViewDetailItem] = useState<AnnotationItem | null>(null);
-
   const filteredSpecies = speciesData.filter(s =>
     s.scientificName.toLowerCase().includes(speciesSearch.toLowerCase()) ||
     s.commonName.toLowerCase().includes(speciesSearch.toLowerCase())
@@ -1277,103 +1264,59 @@ export default function AdminPage() {
     ? systemLogs
     : systemLogs.filter((log) => log.level === logFilter);
 
-  // Annotation helpers
-  const getExpandedBatch = useMemo(() => {
-    return annotationBatches.find(b => b.id === expandedBatchId);
-  }, [annotationBatches, expandedBatchId]);
-
-  const filteredAnnotationItems = useMemo(() => {
-    const batch = getExpandedBatch;
-    if (!batch) return [];
-    if (annotationFilter === "all") return batch.items;
-    return batch.items.filter(item => item.status === annotationFilter);
-  }, [getExpandedBatch, annotationFilter]);
-
-  const handleAnnotate = (item: AnnotationItem) => {
-    setAnnotateModalItem(item);
-    setAnnotateSpecies(item.predictedSpecies);
-    setAnnotateNotes(item.notes || "");
-  };
-
-  const submitAnnotation = () => {
-    if (!annotateModalItem || !annotateSpecies) return;
-    setAnnotationBatches(prev => prev.map(batch => {
-      if (batch.id !== expandedBatchId) return batch;
-      const updatedItems = batch.items.map(item => {
-        if (item.id !== annotateModalItem.id) return item;
+  const getConfirmContent = () => {
+    switch (confirmAction) {
+      case "logout":
         return {
-          ...item,
-          annotatedSpecies: annotateSpecies,
-          annotatedBy: user?.name || "Admin",
-          annotatedDate: new Date().toISOString().split("T")[0],
-          notes: annotateNotes || undefined,
-          status: "annotated" as AnnotationStatus,
+          title: copy.confirm.logoutTitle,
+          description: copy.confirm.logoutDesc,
+          action: copy.confirm.logoutAction,
+          destructive: true,
         };
-      });
-      const pending = updatedItems.filter(i => i.status === "pending").length;
-      const annotated = updatedItems.filter(i => i.status === "annotated").length;
-      const validated = updatedItems.filter(i => i.status === "validated").length;
-      const rejected = updatedItems.filter(i => i.status === "rejected").length;
-      return { ...batch, items: updatedItems, pending, annotated, validated, rejected };
-    }));
-    setAnnotateModalItem(null);
-  };
-
-  const handleValidate = (itemId: number) => {
-    setAnnotationBatches(prev => prev.map(batch => {
-      if (batch.id !== expandedBatchId) return batch;
-      const updatedItems = batch.items.map(item => {
-        if (item.id !== itemId) return item;
+      case "addSpecies":
         return {
-          ...item,
-          validatedBy: user?.name || "Admin",
-          validatedDate: new Date().toISOString().split("T")[0],
-          status: "validated" as AnnotationStatus,
+          title: copy.confirm.addSpeciesTitle,
+          description: copy.confirm.addSpeciesDesc,
+          action: copy.confirm.addSpeciesAction,
+          destructive: false,
         };
-      });
-      const pending = updatedItems.filter(i => i.status === "pending").length;
-      const annotated = updatedItems.filter(i => i.status === "annotated").length;
-      const validated = updatedItems.filter(i => i.status === "validated").length;
-      const rejected = updatedItems.filter(i => i.status === "rejected").length;
-      return { ...batch, items: updatedItems, pending, annotated, validated, rejected };
-    }));
-  };
-
-  const handleReject = (itemId: number) => {
-    setAnnotationBatches(prev => prev.map(batch => {
-      if (batch.id !== expandedBatchId) return batch;
-      const updatedItems = batch.items.map(item => {
-        if (item.id !== itemId) return item;
+      case "editSpecies":
         return {
-          ...item,
-          status: "rejected" as AnnotationStatus,
-          validatedBy: user?.name || "Admin",
-          validatedDate: new Date().toISOString().split("T")[0],
+          title: copy.confirm.editSpeciesTitle,
+          description: copy.confirm.editSpeciesDesc,
+          action: copy.confirm.editSpeciesAction,
+          destructive: false,
         };
-      });
-      const pending = updatedItems.filter(i => i.status === "pending").length;
-      const annotated = updatedItems.filter(i => i.status === "annotated").length;
-      const validated = updatedItems.filter(i => i.status === "validated").length;
-      const rejected = updatedItems.filter(i => i.status === "rejected").length;
-      return { ...batch, items: updatedItems, pending, annotated, validated, rejected };
-    }));
+      case "saveProfile":
+        return {
+          title: copy.confirm.saveProfileTitle,
+          description: copy.confirm.saveProfileDesc,
+          action: copy.confirm.saveProfileAction,
+          destructive: false,
+        };
+      default:
+        return null;
+    }
   };
 
-  const handleDownloadBatch = (batch: AnnotationBatch) => {
-    const validatedItems = batch.items.filter(i => i.status === "validated");
-    if (validatedItems.length === 0) return;
-    const csvHeader = "id,filename,captured_date,location,coordinates,predicted_species,confidence,annotated_species,annotated_by,annotated_date,validated_by,validated_date,notes\n";
-    const csvRows = validatedItems.map(item =>
-      `${item.id},${item.filename},${item.capturedDate},"${item.location}","${item.coordinates}",${item.predictedSpecies},${item.confidence},${item.annotatedSpecies || ""},${item.annotatedBy || ""},${item.annotatedDate || ""},${item.validatedBy || ""},${item.validatedDate || ""},"${item.notes || ""}"`
-    ).join("\n");
-    const blob = new Blob([csvHeader + csvRows], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `annotation_${batch.period.replace(/\s+/g, "_").toLowerCase()}_validated.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleConfirmAction = () => {
+    const action = confirmAction;
+    setConfirmAction(null);
+
+    if (action === "logout") {
+      logout();
+      return;
+    }
+    if (action === "saveProfile") {
+      handleSaveProfile();
+      return;
+    }
+    if (action === "addSpecies" || action === "editSpecies") {
+      void handleSaveSpecies();
+    }
   };
+
+  const confirmContent = getConfirmContent();
 
   return (
     <div className="p-6 space-y-6">
@@ -1397,30 +1340,13 @@ export default function AdminPage() {
             {copy.profile}
           </button>
           <button
-            onClick={logout}
+            onClick={() => setConfirmAction("logout")}
             className="inline-flex items-center gap-2 rounded-lg border border-destructive/30 px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive hover:text-white transition-colors"
           >
             <LogOut className="h-4 w-4" />
             {copy.logout}
           </button>
         </div>
-      </div>
-
-      {/* Tab Navigation */}
-      <div className="flex items-center gap-1 rounded-xl bg-muted/60 p-1 w-fit">
-        {TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${activeTab === tab.key
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground hover:bg-card/50"
-              }`}
-          >
-            <tab.icon className="h-4 w-4" />
-            {copy.tabs[tab.key]}
-          </button>
-        ))}
       </div>
 
       {/* ─── USER MANAGEMENT TAB ─── */}
@@ -1735,7 +1661,7 @@ export default function AdminPage() {
               {profileEditing && (
                 <div className="flex justify-end">
                   <button
-                    onClick={() => { setProfileEditing(false); setShowProfile(false); setActiveTab("users"); }}
+                    onClick={() => setConfirmAction("saveProfile")}
                     className="text-sm font-semibold uppercase tracking-wider text-primary hover:text-primary/80 transition-colors"
                   >
                     {copy.profileModal.save}
@@ -2110,7 +2036,8 @@ export default function AdminPage() {
           <form
             onSubmit={(event) => {
               event.preventDefault();
-              handleSaveSpecies();
+              if (!speciesForm.scientificName.trim() || !speciesForm.family.trim()) return;
+              setConfirmAction(speciesForm.id === 0 ? "addSpecies" : "editSpecies");
             }}
             className="max-h-[calc(90vh-6.5rem)] space-y-5 overflow-y-auto px-6 py-5"
           >
@@ -2257,6 +2184,19 @@ export default function AdminPage() {
                   <span className="text-xs opacity-60">Max 10 MB</span>
                 </button>
               )}
+              <div className="space-y-1.5 pt-1">
+                <Label htmlFor="imageSource" className="text-xs text-muted-foreground">
+                  {copy.species.imageSource}
+                </Label>
+                <Textarea
+                  id="imageSource"
+                  value={speciesForm.imageSource}
+                  onChange={(e) => setSpeciesForm({ ...speciesForm, imageSource: e.target.value })}
+                  placeholder={copy.species.imageSourcePlaceholder}
+                  rows={2}
+                  className="min-h-[72px] rounded-xl"
+                />
+              </div>
             </div>
 
             {/* Plant Taxonomy */}
@@ -2356,6 +2296,24 @@ export default function AdminPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={confirmAction !== null} onOpenChange={(open) => !open && setConfirmAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmContent?.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmContent?.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{copy.common.cancel}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmAction}
+              className={confirmContent?.destructive ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+            >
+              {confirmContent?.action}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* ─── DELETE SPECIES CONFIRMATION MODAL ─── */}
       {deleteSpeciesConfirm && (

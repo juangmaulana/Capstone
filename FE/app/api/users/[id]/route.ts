@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const GET = withErrorHandling(async (
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) => {
   const { id } = parseWithZod(paramNumberIdSchema, await params)
   const data = await user.queries.byId(id)
@@ -17,7 +17,7 @@ export const GET = withErrorHandling(async (
 
 export const PATCH = withErrorHandling(async (
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) => {
   const { id } = parseWithZod(paramNumberIdSchema, await params)
   const input = parseWithZod(updateUserSchema, await req.json())
@@ -28,7 +28,7 @@ export const PATCH = withErrorHandling(async (
 
 export const DELETE = withErrorHandling(async (
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) => {
   const { id } = parseWithZod(paramNumberIdSchema, await params)
   const data = await user.commands.delete(id)
