@@ -6,5 +6,6 @@ export const ErrorMessageMap: Record<ErrorCode, string> = {
   UNAUTHORIZED: "Unauthorized",
   FORBIDDEN: "Forbidden",
   NOT_FOUND: "Not Found",
+  TOO_MANY_REQUEST: "Too Many Request",
   UNKNOWN: "Internal Server Error",
 };

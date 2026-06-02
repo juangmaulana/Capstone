@@ -1,15 +1,13 @@
 import { withErrorHandling } from '@/lib/api/errors/error-handler';
-import { parseWithZod } from '@/lib/validation/parse-with-zod'
-import { login } from '@/server/auth';
-import { loginSchema } from '@/server/auth/schemas/login.schema'
+import { refresh } from '@/server/auth';
 import { cookies } from 'next/headers';
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 
-export const POST = withErrorHandling(async (req: NextRequest) => {
-  const input = parseWithZod(loginSchema, await req.json());
-  const data = await login(input.email, input.password);
-
+export const POST = withErrorHandling(async () => {
   const cookieStore = await cookies();
+  const refreshToken = cookieStore.get("refresh_token")?.value;
+  
+  const data = await refresh(refreshToken!);
 
   cookieStore.set("refresh_token", data.refreshToken, {
     httpOnly: true,

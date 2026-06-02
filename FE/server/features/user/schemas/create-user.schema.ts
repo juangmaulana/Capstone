@@ -10,21 +10,10 @@ export const createUserSchema = z.object({
   email: z.email().openapi({
     example: 'john@example.com',
   }),
-  password: z.string().min(6).openapi({
-    example: 'secret123',
-  }),
-  confirmPassword: z.string().min(6).openapi({
+  password: z.string().min(8).openapi({
     example: 'secret123',
   }),
 })
-
-.refine((data) => data.password === data.confirmPassword, {
-    message: 'Passwords do not match',
-    path: ['confirmPassword'],
-  })
-
-.transform(({ confirmPassword, ...rest }) => rest)
-
 .openapi({
   title: 'CreateUserRequest',
 })

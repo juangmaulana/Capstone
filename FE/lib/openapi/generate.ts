@@ -33,6 +33,10 @@ export const generateOpenApiDoc = () => {
         name: 'Identifications',
         description: 'Manage plant identification records and related classification or matching results.',
       },
+      {
+        name: 'Auth',
+        description: 'Authentication and Authorization related endpoints.'
+      },
     ],
   })
 }
