@@ -31,7 +31,8 @@ export const UpdatePlantSchema = PlantBaseSchema.extend({
   taxClass: z.string().optional().openapi({ example: 'Magnoliopsida' }),
   orderRank: z.string().optional().openapi({ example: 'Fabales' }),
   taxSpecies: z.string().optional().openapi({ example: 'V. nilotica' }),
-  source: z.string().optional().openapi({ example: 'www.gbif.org\npowo.science.kew.org' }),
+  source: z.string().optional().openapi({ example: 'https://www.gbif.org/species/3974744\nhttps://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:77089275-1' }),
+  imageSource: z.string().optional().openapi({ example: 'https://indiaflora-ces.iisc.ac.in/FloraKarnataka/herbsheet.php?id=1846&cat=1' }),
 }).partial().openapi({
   title: 'UpdatePlantRequest',
 })

@@ -21,6 +21,11 @@ async function seed() {
     ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT ''
   `.execute(db)
 
+  await sql`
+    ALTER TABLE plants
+    ADD COLUMN IF NOT EXISTS image_source text NOT NULL DEFAULT ''
+  `.execute(db)
+
   // --- Seed Roles ---
   const existingRoles = await db.selectFrom('roles').selectAll().execute()
   if (existingRoles.length === 0) {
@@ -55,24 +60,39 @@ async function seed() {
 
   // --- Seed Plants (5 Invasive Alien Species in Baluran) ---
   const sourceText = {
-    indiaFlora: [
-      'www.gbif.org',
-      'powo.science.kew.org',
-      'wikipedia.org',
-      'indiaflora-ces.iisc.ac.in',
+    vachelliaNilotica: [
+      'https://www.gbif.org/species/3974744',
+      'https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:77089275-1',
+      'https://en.wikipedia.org/wiki/Vachellia_nilotica',
     ].join('\n'),
-    fao: [
-      'www.gbif.org',
-      'powo.science.kew.org',
-      'wikipedia.org',
-      'www.fao.org',
+    lantanaCamara: [
+      'https://www.gbif.org/species/2925303',
+      'https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:325686-2',
+      'https://en.wikipedia.org/wiki/Lantana_camara',
     ].join('\n'),
-    ageratum: [
-      'www.gbif.org',
-      'powo.science.kew.org',
-      'wikipedia.org',
-      'https://www.researchgate.net/figure/Figura-2-a-c-Ageratum-conyzoides-a-habito-b-capitulo-c-flor-Teles-et-al-575-d_fig1_283232634',
+    merremiaHederacea: [
+      'https://www.gbif.org/species/5341744',
+      'https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:270531-1',
+      'https://en.wikipedia.org/wiki/Merremia_hederacea',
     ].join('\n'),
+    clitoriaTernatea: [
+      'https://www.gbif.org/species/2946519',
+      'https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:486606-1',
+      'https://en.wikipedia.org/wiki/Clitoria_ternatea',
+    ].join('\n'),
+    ageratumConyzoides: [
+      'https://www.gbif.org/species/5401673',
+      'https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:7086-2',
+      'https://en.wikipedia.org/wiki/Ageratum_conyzoides',
+    ].join('\n'),
+  }
+
+  const imageSourceText = {
+    vachelliaNilotica: 'https://www.fao.org/4/q2934e/q2934e04.htm',
+    lantanaCamara: 'https://indiaflora-ces.iisc.ac.in/FloraPeninsular/herbsheet.php?id=9534&cat=7',
+    merremiaHederacea: 'https://indiaflora-ces.iisc.ac.in/FloraPeninsular/herbsheet.php?id=2896&cat=7',
+    clitoriaTernatea: 'https://indiaflora-ces.iisc.ac.in/FloraKarnataka/herbsheet.php?id=1908&cat=1',
+    ageratumConyzoides: 'https://www.researchgate.net/figure/Figura-2-a-c-Ageratum-conyzoides-a-habito-b-capitulo-c-flor-Teles-et-al-575-d_fig1_283232634',
   }
 
   const seedPlants = [
@@ -96,7 +116,8 @@ async function seed() {
       tax_class: 'Magnoliopsida',
       order_rank: 'Fabales',
       tax_species: 'V. nilotica',
-      source: sourceText.fao,
+      source: sourceText.vachelliaNilotica,
+      image_source: imageSourceText.vachelliaNilotica,
     },
     {
       common_name: 'Tembelekan',
@@ -118,7 +139,8 @@ async function seed() {
       tax_class: 'Magnoliopsida',
       order_rank: 'Lamiales',
       tax_species: 'L. camara',
-      source: sourceText.indiaFlora,
+      source: sourceText.lantanaCamara,
+      image_source: imageSourceText.lantanaCamara,
     },
     {
       common_name: 'Kangkung Pagar',
@@ -140,7 +162,8 @@ async function seed() {
       tax_class: 'Magnoliopsida',
       order_rank: 'Solanales',
       tax_species: 'M. hederacea',
-      source: sourceText.indiaFlora,
+      source: sourceText.merremiaHederacea,
+      image_source: imageSourceText.merremiaHederacea,
     },
     {
       common_name: 'Telang',
@@ -162,7 +185,8 @@ async function seed() {
       tax_class: 'Magnoliopsida',
       order_rank: 'Fabales',
       tax_species: 'C. ternatea',
-      source: sourceText.indiaFlora,
+      source: sourceText.clitoriaTernatea,
+      image_source: imageSourceText.clitoriaTernatea,
     },
     {
       common_name: 'Bandotan',
@@ -184,7 +208,8 @@ async function seed() {
       tax_class: 'Magnoliopsida',
       order_rank: 'Asterales',
       tax_species: 'A. conyzoides',
-      source: sourceText.ageratum,
+      source: sourceText.ageratumConyzoides,
+      image_source: imageSourceText.ageratumConyzoides,
     },
   ]
 

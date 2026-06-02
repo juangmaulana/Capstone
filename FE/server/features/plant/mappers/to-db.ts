@@ -23,6 +23,7 @@ export const toDbInsert = (input: CreatePlantRequest): PlantInsert => ({
   order_rank: input.orderRank ?? '',
   tax_species: input.taxSpecies ?? '',
   source: input.source ?? '',
+  image_source: input.imageSource ?? '',
 });
 
 export const toDbUpdate = (input: UpdatePlantRequest): PlantUpdate => ({
@@ -46,4 +47,5 @@ export const toDbUpdate = (input: UpdatePlantRequest): PlantUpdate => ({
   ...(input.orderRank !== undefined && { order_rank: input.orderRank }),
   ...(input.taxSpecies !== undefined && { tax_species: input.taxSpecies }),
   ...(input.source !== undefined && { source: input.source }),
+  ...(input.imageSource !== undefined && { image_source: input.imageSource }),
 });

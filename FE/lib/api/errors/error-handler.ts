@@ -4,7 +4,7 @@ import { ErrorCode } from "./error-codes";
 import { ErrorMessageMap } from "./error-messages";
 import { ErrorStatusMap } from "./error-status";
 
-export function withErrorHandling<T extends any[]>(
+export function withErrorHandling<T extends unknown[]>(
   handler: (...args: T) => Promise<Response>
 ) {
   return async (...args: T) => {

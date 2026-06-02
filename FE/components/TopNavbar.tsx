@@ -11,7 +11,11 @@ const routeLabels: Record<"en" | "id", Record<string, string>> = {
     "/modeling": "Modeling (SDM)",
     "/data": "Data Explorer",
     "/reports": "Reports",
-    "/admin": "Admin",
+    "/admin": "Admin System",
+    "/admin/users": "User Management",
+    "/admin/species": "Species Management",
+    "/admin/annotation": "Data Annotation",
+    "/admin/logs": "System Logs",
   },
   id: {
     "/": "Dasbor",
@@ -20,7 +24,11 @@ const routeLabels: Record<"en" | "id", Record<string, string>> = {
     "/modeling": "Pemodelan (SDM)",
     "/data": "Penjelajah Data",
     "/reports": "Laporan",
-    "/admin": "Admin",
+    "/admin": "Sistem Admin",
+    "/admin/users": "Manajemen User",
+    "/admin/species": "Manajemen Spesies",
+    "/admin/annotation": "Anotasi Data",
+    "/admin/logs": "Log Sistem",
   },
 };
 

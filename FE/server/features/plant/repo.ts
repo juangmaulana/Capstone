@@ -45,6 +45,7 @@ export const createPlantRepo = (db: DB): PlantRepo => ({
           eb('environmental_impact_en', 'ilike', `%${filter.search}%`),
           eb('environmental_impact_id', 'ilike', `%${filter.search}%`),
           eb('source', 'ilike', `%${filter.search}%`),
+          eb('image_source', 'ilike', `%${filter.search}%`),
         ])
       )
     }
