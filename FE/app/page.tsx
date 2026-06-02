@@ -1,10 +1,12 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useRef, useEffect } from "react";
-import { Search, Camera, Loader2 } from "lucide-react";
+import { Search, Camera, Loader2, CalendarClock, Database, MapPinned, ScanSearch, Sprout } from "lucide-react";
 import { CameraSearchDialog } from "@/components/CameraSearchDialog";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { MAP_OBSERVATIONS } from "@/lib/map-observations";
 import { createScientificNameSlug, getScientificNameWithAuthor } from "@/lib/plant/scientific-name-author";
 
 interface PlantSearchRecord {
@@ -20,6 +22,13 @@ const COPY = {
     cameraTitle: "Search by image (like Google Lens)",
     loadingSpecies: "Loading species data...",
     noSpecies: "No species found",
+    stats: {
+      records: "IAS records",
+      species: "Detected species",
+      hotspots: "Monitored locations",
+      latest: "Latest observation",
+      confidence: "AI detection confidence",
+    },
     mapSectionTitle: "Baluran National Park Maps",
     mapItems: [
       {
@@ -46,6 +55,13 @@ const COPY = {
     cameraTitle: "Cari dengan gambar (seperti Google Lens)",
     loadingSpecies: "Memuat data spesies...",
     noSpecies: "Spesies tidak ditemukan",
+    stats: {
+      records: "Record IAS",
+      species: "Spesies terdeteksi",
+      hotspots: "Lokasi terpantau",
+      latest: "Observasi terbaru",
+      confidence: "Confidence deteksi AI",
+    },
     mapSectionTitle: "Peta Taman Nasional Baluran",
     mapItems: [
       {
@@ -77,6 +93,27 @@ export default function Dashboard() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { language } = useLanguage();
   const copy = COPY[language];
+  const latestObservation = MAP_OBSERVATIONS.reduce((latest, observation) =>
+    observation.date > latest.date ? observation : latest
+  );
+  const averageConfidence = Math.round(
+    MAP_OBSERVATIONS.reduce((total, observation) => total + observation.confidence, 0) / MAP_OBSERVATIONS.length
+  );
+  const quickStats = [
+    { label: copy.stats.records, value: MAP_OBSERVATIONS.length.toLocaleString("id-ID"), icon: Database },
+    { label: copy.stats.species, value: new Set(MAP_OBSERVATIONS.map((observation) => observation.species)).size.toString(), icon: Sprout },
+    { label: copy.stats.hotspots, value: new Set(MAP_OBSERVATIONS.map((observation) => observation.location)).size.toString(), icon: MapPinned },
+    {
+      label: copy.stats.latest,
+      value: new Intl.DateTimeFormat(language === "id" ? "id-ID" : "en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }).format(new Date(`${latestObservation.date}T00:00:00`)),
+      icon: CalendarClock,
+    },
+    { label: copy.stats.confidence, value: `${averageConfidence}%`, icon: ScanSearch },
+  ];
 
   useEffect(() => {
     const fallbackSpecies = [
@@ -220,7 +257,22 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
       </div>
+
+      <section className="w-full bg-white px-6 py-12 text-gray-700 md:px-12 md:py-16 lg:px-20">
+        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-x-6 gap-y-12 md:grid-cols-3 lg:grid-cols-5">
+          {quickStats.map((stat) => (
+            <div key={stat.label} className="flex min-w-0 flex-col items-center text-center">
+              <div className="mb-5 grid h-20 w-20 place-items-center rounded-full bg-green-50">
+                <stat.icon className="h-10 w-10 text-green-700" strokeWidth={1.6} />
+              </div>
+              <p className="text-2xl font-semibold leading-none text-gray-700 md:text-3xl">{stat.value}</p>
+              <p className="mt-3 max-w-44 text-sm font-medium leading-snug text-gray-500 md:text-base">{stat.label}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* Map Assets Section — below the hero, visible on scroll */}
       <div className="relative z-10 w-full bg-gray-950">
@@ -260,9 +312,12 @@ export default function Dashboard() {
               </div>
               {/* Full-width map image */}
               <div className="w-full overflow-hidden bg-gray-900 border-y border-white/5">
-                <img
+                <Image
                   src={map.src}
                   alt={map.title}
+                  width={1920}
+                  height={1080}
+                  sizes="100vw"
                   className="w-full h-auto object-contain transition-transform duration-700 group-hover:scale-[1.02]"
                 />
               </div>

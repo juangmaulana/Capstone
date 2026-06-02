@@ -20,6 +20,7 @@ export type Plant = {
   orderRank: string
   taxSpecies: string
   source: string
+  imageSource?: string
   createdAt: Date
   updatedAt: Date
 }

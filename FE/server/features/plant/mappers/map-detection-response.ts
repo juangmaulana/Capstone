@@ -8,7 +8,34 @@
  * Each detection has the format (in Bahasa Indonesia):
  *   { spesies: "Lantana camara L.", akurasi: 0.9223, bounding_box: [x1, y1, x2, y2] }
  */
-export function mapDetectionResponse(gradioData: any) {
+type DetectionBoundingBox =
+  | [number?, number?, number?, number?]
+  | {
+      x1?: number;
+      y1?: number;
+      x2?: number;
+      y2?: number;
+      width?: number;
+      height?: number;
+    };
+
+type DetectionResult = {
+  spesies?: string;
+  class?: string;
+  label?: string;
+  name?: string;
+  akurasi?: number;
+  confidence?: number;
+  score?: number;
+  bounding_box?: DetectionBoundingBox;
+  bbox?: DetectionBoundingBox;
+};
+
+const isDetectionResult = (value: unknown): value is DetectionResult => {
+  return typeof value === 'object' && value !== null;
+};
+
+export function mapDetectionResponse(gradioData: unknown) {
   try {
     if (!Array.isArray(gradioData) || gradioData.length < 2) {
       console.warn('Unexpected Gradio response format:', JSON.stringify(gradioData));
@@ -23,7 +50,7 @@ export function mapDetectionResponse(gradioData: any) {
     }
 
     return {
-      plants: detections.map((d: any) => {
+      plants: detections.filter(isDetectionResult).map((d) => {
         // Handle the Indonesian field names from the Gradio model
         const name = d.spesies || d.class || d.label || d.name || 'Unknown';
         const confidence = d.akurasi || d.confidence || d.score || 0;

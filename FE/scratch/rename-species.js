@@ -1,4 +1,6 @@
 
+/* eslint-disable @typescript-eslint/no-require-imports */
+
 const { Kysely, PostgresDialect } = require('kysely');
 const { Pool } = require('pg');
 

@@ -4,9 +4,13 @@ import {
   BarChart3,
   Brain,
   Database,
-  Shield,
+  Users,
+  Sprout,
+  Tag,
+  ScrollText,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
+import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
@@ -28,7 +32,7 @@ const NAV_COPY = {
   en: {
     subtitle: "IAS Monitoring",
     main: "Main",
-    system: "System",
+    adminSystem: "Admin System",
     toggle: "Toggle sidebar",
     items: {
       dashboard: "Dashboard",
@@ -36,13 +40,16 @@ const NAV_COPY = {
       analytics: "Analytics",
       modeling: "Prediction (SDM)",
       data: "Data Explorer",
-      admin: "Admin",
+      users: "User Management",
+      species: "Species Management",
+      annotation: "Data Annotation",
+      logs: "System Logs",
     },
   },
   id: {
     subtitle: "Pemantauan IAS",
     main: "Utama",
-    system: "Sistem",
+    adminSystem: "Sistem Admin",
     toggle: "Buka/tutup sidebar",
     items: {
       dashboard: "Dasbor",
@@ -50,7 +57,10 @@ const NAV_COPY = {
       analytics: "Analitik",
       modeling: "Prediksi (SDM)",
       data: "Penjelajah Data",
-      admin: "Admin",
+      users: "Manajemen User",
+      species: "Manajemen Spesies",
+      annotation: "Anotasi Data",
+      logs: "Log Sistem",
     },
   },
 } as const;
@@ -63,8 +73,11 @@ const mainItems = [
   { key: "data", url: "/data", icon: Database },
 ] as const;
 
-const systemItems = [
-  { key: "admin", url: "/admin", icon: Shield },
+const adminItems = [
+  { key: "users", url: "/admin/users", icon: Users },
+  { key: "species", url: "/admin/species", icon: Sprout },
+  { key: "annotation", url: "/admin/annotation", icon: Tag },
+  { key: "logs", url: "/admin/logs", icon: ScrollText },
 ] as const;
 
 export function AppSidebar() {
@@ -144,28 +157,33 @@ export function AppSidebar() {
 
         <SidebarGroup>
           <SidebarGroupLabel className="text-sidebar-muted">
-            {copy.system}
+            {copy.adminSystem}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {systemItems.map((item) => (
+              {adminItems.map((item) => {
+                const active = item.url === "/admin/users"
+                  ? pathname === "/admin" || pathname === item.url
+                  : pathname === item.url;
+
+                return (
                 <SidebarMenuItem key={item.key}>
                   <SidebarMenuButton
                     asChild
-                    isActive={isActive(item.url)}
+                    isActive={active}
                     tooltip={copy.items[item.key]}
                   >
-                    <NavLink
-                      to={item.url}
-                      className="transition-colors"
-                      activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium border-l-2 border-sidebar-primary"
+                    <Link
+                      href={item.url}
+                      className={`transition-colors ${active ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium border-l-2 border-sidebar-primary" : ""}`}
                     >
                       <item.icon className="h-4 w-4" />
                       <span>{copy.items[item.key]}</span>
-                    </NavLink>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              ))}
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

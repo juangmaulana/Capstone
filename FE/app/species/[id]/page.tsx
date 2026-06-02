@@ -5,6 +5,16 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Network, FileText, Image as ImageIcon, Loader2, Pencil } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -85,6 +95,7 @@ interface PlantData {
   orderRank: string;
   taxSpecies: string;
   source?: string;
+  imageSource?: string;
 }
 
 interface PlantApiRecord {
@@ -126,6 +137,8 @@ interface PlantApiRecord {
   taxSpecies?: string;
   tax_species?: string;
   source?: string;
+  imageSource?: string;
+  image_source?: string;
 }
 
 const SPECIES_SOURCE_STORAGE_PREFIX = "biowatch_species_source_";
@@ -186,6 +199,45 @@ const writeStoredSpeciesSourceText = (speciesId: number, scientificName: string,
   }
 };
 
+const SPECIES_IMAGE_SOURCE_STORAGE_PREFIX = "biowatch_species_image_source_";
+
+const getSpeciesImageSourceStorageKey = (speciesId: number, scientificName: string) =>
+  speciesId > 0 ? `${SPECIES_IMAGE_SOURCE_STORAGE_PREFIX}${speciesId}` : `${SPECIES_IMAGE_SOURCE_STORAGE_PREFIX}tmp_${createSpeciesSlug(scientificName)}`;
+
+const readStoredSpeciesImageSourceText = (speciesId: number, scientificName: string) => {
+  if (typeof window === "undefined") return "";
+
+  try {
+    const primaryKey = getSpeciesImageSourceStorageKey(speciesId, scientificName);
+    const fallbackKey = `${SPECIES_IMAGE_SOURCE_STORAGE_PREFIX}tmp_${createSpeciesSlug(scientificName)}`;
+    const raw = localStorage.getItem(primaryKey) || localStorage.getItem(fallbackKey);
+    if (!raw) return "";
+    const parsed = JSON.parse(raw) as string;
+    return typeof parsed === "string" ? parsed : raw;
+  } catch {
+    return "";
+  }
+};
+
+const writeStoredSpeciesImageSourceText = (speciesId: number, scientificName: string, sourceText: string) => {
+  if (typeof window === "undefined") return;
+
+  const storageKey = getSpeciesImageSourceStorageKey(speciesId, scientificName);
+  const fallbackKey = `${SPECIES_IMAGE_SOURCE_STORAGE_PREFIX}tmp_${createSpeciesSlug(scientificName)}`;
+  const normalizedText = sourceText.trim();
+
+  if (!normalizedText) {
+    localStorage.removeItem(storageKey);
+    localStorage.removeItem(fallbackKey);
+    return;
+  }
+
+  localStorage.setItem(storageKey, JSON.stringify(normalizedText));
+  if (speciesId > 0) {
+    localStorage.removeItem(fallbackKey);
+  }
+};
+
 const SPECIES_COPY = {
   en: {
     loading: "Loading species data...",
@@ -196,6 +248,9 @@ const SPECIES_COPY = {
     cancel: "Cancel",
     saveSpecies: "Save Species",
     saving: "Saving...",
+    confirmEditTitle: "Save species changes?",
+    confirmEditDesc: "This will update this species record with the current form data.",
+    confirmEditAction: "Save Changes",
     editSpecies: "Edit Species",
     updateDetails: "Update the details for",
     scientificName: "Scientific Name",
@@ -213,6 +268,9 @@ const SPECIES_COPY = {
     herbariumSketchUploading: "Uploading...",
     herbariumSketchChange: "Change",
     herbariumSketchRemove: "Remove",
+    imageSource: "Image Source",
+    imageSourcePlaceholder: "Add the herbarium sketch source, credit, or link...",
+    imageSourceEmpty: "No image source available.",
     taxonomy: "Plant Taxonomy",
     kingdom: "Kingdom",
     phylum: "Phylum",
@@ -245,6 +303,9 @@ const SPECIES_COPY = {
     cancel: "Batal",
     saveSpecies: "Simpan Spesies",
     saving: "Menyimpan...",
+    confirmEditTitle: "Simpan perubahan spesies?",
+    confirmEditDesc: "Data spesies ini akan diperbarui dengan isi form saat ini.",
+    confirmEditAction: "Simpan Perubahan",
     editSpecies: "Edit Spesies",
     updateDetails: "Perbarui detail untuk",
     scientificName: "Nama Ilmiah",
@@ -262,6 +323,9 @@ const SPECIES_COPY = {
     herbariumSketchUploading: "Mengupload...",
     herbariumSketchChange: "Ganti",
     herbariumSketchRemove: "Hapus",
+    imageSource: "Sumber Gambar",
+    imageSourcePlaceholder: "Tambahkan sumber, kredit, atau tautan sketsa herbarium...",
+    imageSourceEmpty: "Sumber gambar tidak tersedia.",
     taxonomy: "Taksonomi Tanaman",
     kingdom: "Kerajaan",
     phylum: "Filum",
@@ -348,6 +412,7 @@ export default function SpeciesPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [isUploadingSketch, setIsUploadingSketch] = useState(false);
   const sketchFileInputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState({
@@ -359,6 +424,7 @@ export default function SpeciesPage() {
     ecologicalInformation: "",
     environmentalImpact: "",
     imagePath: "",
+    imageSource: "",
     kingdom: "",
     phylum: "",
     taxClass: "",
@@ -429,6 +495,7 @@ export default function SpeciesPage() {
     orderRank: record.orderRank || record.order_rank || "",
     taxSpecies: record.taxSpecies || record.tax_species || "",
     source: record.source || "",
+    imageSource: record.imageSource || record.image_source || "",
   });
 
   useEffect(() => {
@@ -496,6 +563,7 @@ export default function SpeciesPage() {
         ? plant.environmentalImpactId || plant.environmentalImpact
         : plant.environmentalImpactEn || plant.environmentalImpact,
       imagePath: plant.imagePath || "",
+      imageSource: plant.imageSource || readStoredSpeciesImageSourceText(plant.id, plant.scientificName),
       kingdom: plant.kingdom || savedTaxonomy?.kingdom || "",
       phylum: plant.phylum || savedTaxonomy?.phylum || "",
       taxClass: plant.taxClass || savedTaxonomy?.taxClass || "",
@@ -532,6 +600,7 @@ export default function SpeciesPage() {
         ? plant.environmentalImpactId || plant.environmentalImpact
         : plant.environmentalImpactEn || plant.environmentalImpact,
       imagePath: plant.imagePath || "",
+      imageSource: plant.imageSource || readStoredSpeciesImageSourceText(plant.id, plant.scientificName),
       kingdom: plant.kingdom || savedTaxonomy?.kingdom || "",
       phylum: plant.phylum || savedTaxonomy?.phylum || "",
       taxClass: plant.taxClass || savedTaxonomy?.taxClass || "",
@@ -561,6 +630,7 @@ export default function SpeciesPage() {
         ? plant.environmentalImpactId || plant.environmentalImpact
         : plant.environmentalImpactEn || plant.environmentalImpact,
       imagePath: plant.imagePath || "",
+      imageSource: plant.imageSource || readStoredSpeciesImageSourceText(plant.id, plant.scientificName),
       kingdom: plant.kingdom || savedTaxonomy?.kingdom || "",
       phylum: plant.phylum || savedTaxonomy?.phylum || "",
       taxClass: plant.taxClass || savedTaxonomy?.taxClass || "",
@@ -628,6 +698,7 @@ export default function SpeciesPage() {
             environmentalImpactEn: translatedFields.environmentalImpactEn,
             environmentalImpactId: translatedFields.environmentalImpactId,
             imagePath: draft.imagePath.trim(),
+            imageSource: draft.imageSource.trim(),
             source: draft.source.trim(),
           }
         : {
@@ -645,6 +716,7 @@ export default function SpeciesPage() {
             environmentalImpactEn: translatedFields.environmentalImpactEn,
             environmentalImpactId: translatedFields.environmentalImpactId,
             imagePath: draft.imagePath.trim(),
+            imageSource: draft.imageSource.trim(),
             kingdom: draft.kingdom.trim(),
             phylum: draft.phylum.trim(),
             taxClass: draft.taxClass.trim(),
@@ -669,6 +741,7 @@ export default function SpeciesPage() {
       const updatedPlant = mapPlantRecord(result.data);
       setPlant(updatedPlant);
       writeStoredSpeciesSourceText(plant.id, scientificName, draft.source);
+      writeStoredSpeciesImageSourceText(plant.id, scientificName, draft.imageSource);
 
       // Persist taxonomy fields to localStorage
       const taxonomyKey = `${SPECIES_TAXONOMY_STORAGE_PREFIX}${plant.id}`;
@@ -761,6 +834,7 @@ export default function SpeciesPage() {
   }
 
   const displayScientificName = getScientificNameWithAuthor(plant.scientificName);
+  const imageSourceText = plant.imageSource || readStoredSpeciesImageSourceText(plant.id, plant.scientificName);
 
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-muted/20 p-4 md:p-6 lg:p-8">
@@ -840,6 +914,21 @@ export default function SpeciesPage() {
             </div>
           )}
 
+          {/* Image Source */}
+          <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
+            <div className="flex items-center gap-2 border-b bg-muted/50 px-4 py-3">
+              <FileText className="h-4 w-4 text-primary" />
+              <h2 className="font-semibold text-sm">{copy.imageSource}</h2>
+            </div>
+            <div className="p-4">
+              <div className="rounded-lg border bg-background px-3 py-3">
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                  {imageSourceText.trim() || copy.imageSourceEmpty}
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Taxonomy */}
           <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
             <div className="flex items-center gap-2 border-b bg-muted/50 px-4 py-3">
@@ -888,7 +977,11 @@ export default function SpeciesPage() {
           <form
             onSubmit={(event) => {
               event.preventDefault();
-              handleSaveSpecies();
+              if (!draft.scientificName.trim() || !draft.family.trim() || !draft.genus.trim()) {
+                toast.error(language === "id" ? "Nama ilmiah, famili, dan genus wajib diisi" : "Scientific name, family, and genus are required");
+                return;
+              }
+              setShowSaveConfirm(true);
             }}
             className="max-h-[calc(90vh-6.5rem)] space-y-5 overflow-y-auto bg-card px-6 py-5"
           >
@@ -1033,6 +1126,19 @@ export default function SpeciesPage() {
                   <span className="text-xs opacity-60">{copy.herbariumSketchMaxSize}</span>
                 </button>
               )}
+              <div className="space-y-1.5 pt-1">
+                <Label htmlFor="edit-image-source" className="text-xs text-muted-foreground">
+                  {copy.imageSource}
+                </Label>
+                <Textarea
+                  id="edit-image-source"
+                  value={draft.imageSource}
+                  onChange={(event) => setDraft((current) => ({ ...current, imageSource: event.target.value }))}
+                  placeholder={copy.imageSourcePlaceholder}
+                  rows={2}
+                  className="min-h-[72px] rounded-xl"
+                />
+              </div>
             </div>
 
             {/* Plant Taxonomy */}
@@ -1138,6 +1244,27 @@ export default function SpeciesPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={showSaveConfirm} onOpenChange={setShowSaveConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{copy.confirmEditTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{copy.confirmEditDesc}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSaving}>{copy.cancel}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isSaving}
+              onClick={() => {
+                setShowSaveConfirm(false);
+                void handleSaveSpecies();
+              }}
+            >
+              {copy.confirmEditAction}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

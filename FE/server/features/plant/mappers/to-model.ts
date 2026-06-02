@@ -24,6 +24,7 @@ export const toModel = (row: PlantSelect): Plant => {
     orderRank: row.order_rank,
     taxSpecies: row.tax_species,
     source: row.source,
+    imageSource: row.image_source,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
