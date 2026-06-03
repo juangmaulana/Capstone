@@ -54,7 +54,7 @@ export const createUserRepo = (db: DB): UserRepo => ({
       .selectAll()
       .orderBy('created_at', 'desc')
       .execute()
-      .then(rows => rows.map(toDomain))
+      .then(rows => rows.map(toDomain)) 
 
     return { data, total, limit, page: filter.page }
   },

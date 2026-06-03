@@ -1,0 +1,44 @@
+import { withErrorHandling } from '@/lib/api/errors/error-handler';
+import { getLinks } from '@/lib/next-pagination';
+import { parseWithZod } from '@/lib/validation/parse-with-zod';
+import { getAuditLogs, logEvent } from '@/server/services/audit';
+import { AuditFilterSchema } from '@/server/services/audit/schema/filter.schema';
+import { LogEventSchema } from '@/server/services/audit/schema/log.schema';
+import { NextRequest, NextResponse } from 'next/server';
+
+export const GET = withErrorHandling(async (req: NextRequest) => {
+  const searchParams = {
+    entityType: req.nextUrl.searchParams.get("entityType") ?? undefined,
+    action: req.nextUrl.searchParams.get("action") ?? undefined,
+    limit: req.nextUrl.searchParams.get("limit") ?? undefined,
+    page: req.nextUrl.searchParams.get("page") ?? undefined,
+  }
+  const filter = parseWithZod(AuditFilterSchema, searchParams)
+  const { data, total, limit, page } = await getAuditLogs(filter);
+    
+  const { prev, next } = getLinks(total, limit, page, req.url);
+
+  return NextResponse.json({ 
+    success: true, 
+    data, 
+    meta: {
+      total,
+      limit,
+      page,
+    },
+    links: {
+      prev,
+      next,
+    }
+  })
+})
+
+export const POST = withErrorHandling(async (req: NextRequest) => {
+  const input = parseWithZod(LogEventSchema, await req.json())
+  const data = await logEvent(input);
+  
+  return NextResponse.json({ 
+    success: true, 
+    data
+  })
+})
