@@ -20,36 +20,27 @@ export interface RoleTable {
   readonly id: Generated<number>
   name: string
   description: string
-  readonly created_at: Generated<Date>
-  readonly updated_at: Generated<Date>
 }
 export type RoleSelect = Selectable<RoleTable>
-export type RoleInsert = Insertable<RoleTable> 
-export type RoleUpdate = Updateable<RoleTable>
 
 export interface PlantTable {
   readonly id: Generated<number>
   common_name: string
   scientific_name: string
+  kingdom: string
+  phylum: string
+  class: string
+  order: string
   family: string
   genus: string
+  species: string
   botanical_description: string
   ecological_information: string
   environmental_impact: string
-  botanical_description_en: string
-  botanical_description_id: string
-  ecological_information_en: string
-  ecological_information_id: string
-  environmental_impact_en: string
-  environmental_impact_id: string
+  source_reference: string
   image_path: string
-  kingdom: string
-  phylum: string
-  tax_class: string
-  order_rank: string
-  tax_species: string
-  source: string
-  image_source: string
+  image_reference: string
+  is_detectable: boolean
   readonly created_at: Generated<Date>
   readonly updated_at: Generated<Date>
 }
@@ -77,18 +68,10 @@ export interface ImageTable {
   file_size: number
   latitude: number
   longitude: number
+  elevation: number
   uploaded_at: Generated<Date>
 }
 export type ImageSelect = Selectable<ImageTable>
-
-export interface SessionTable {
-  readonly id: string
-  user_id: number
-  expires_at: Date
-  readonly created_at: Generated<Date>
-}
-export type SessionSelect = Selectable<SessionTable>
-export type SessionInsert = Insertable<SessionTable>
 
 export interface Database {
   users: UserTable
@@ -96,5 +79,4 @@ export interface Database {
   plants: PlantTable
   identifications: IdentificationTable
   images: ImageTable
-  sessions: SessionTable
 }

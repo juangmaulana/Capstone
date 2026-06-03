@@ -1,13 +1,15 @@
 import { z } from '@/lib/openapi/zod'
 
-export const ImageSchema = z.object({
-  image: z.any()
+export const ImageFileSchema = z.any()
   .refine(
-    (file) => file?.type?.startsWith("image/"), {
+    (file) => !file || file.type?.startsWith("image/"), {
     message: "File must be an image",
   })
   .openapi({
     type: "string",
     format: "binary",
-  }),
+  })
+  
+export const ImageSchema = z.object({
+  image: ImageFileSchema
 })

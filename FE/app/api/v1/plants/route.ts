@@ -1,35 +1,34 @@
 import { withErrorHandling } from '@/lib/api/errors/error-handler';
 import { parseWithZod } from '@/lib/validation/parse-with-zod';
 import { plant } from '@/server/features/plant';
-import { CreatePlantSchema } from '@/server/features/plant/schemas/create.schema';
+import { CreatePlantSchema, CreatePlantWithFileSchema } from '@/server/features/plant/schemas/create.schema';
 import { PlantFilterSchema } from '@/server/features/plant/schemas/filter.schema';
+import { uploadImage } from '@/server/upload';
 import { NextRequest, NextResponse } from "next/server";
 
 export const GET = withErrorHandling(async (req: NextRequest) => {
   const searchParams = {
     search: req.nextUrl.searchParams.get("search") ?? undefined,
-    family: req.nextUrl.searchParams.get("family") ?? undefined,
-    genus: req.nextUrl.searchParams.get("genus") ?? undefined,
     limit: req.nextUrl.searchParams.get("limit") ?? undefined,
-    offset: req.nextUrl.searchParams.get("offset") ?? undefined,
+    page: req.nextUrl.searchParams.get("page") ?? undefined,
   }
   const filter = parseWithZod(PlantFilterSchema, searchParams)
-  const { data, total, limit, offset } = await plant.query.list(filter)
+  const { data, total, limit, page } = await plant.query.list(filter)
 
-  const hasNext = offset + limit < total
-  const hasPrev = offset > 0
+  const hasNext = page * limit < total
+  const hasPrev = page > 1
   
   let next = null
   const nextUrl = new URL(req.url)
   if (hasNext) {
-    nextUrl.searchParams.set('offset', String(offset + limit))
+    nextUrl.searchParams.set('page', String(page + 1))
     next = nextUrl.toString()
   }
 
   let prev = null
   const prevUrl = new URL(req.url)
   if (hasPrev) {
-    prevUrl.searchParams.set('offset', String(Math.max(offset - limit, 0)))
+    prevUrl.searchParams.set('page', String(page - 1))
     prev = prevUrl.toString()
   }
 
@@ -39,9 +38,7 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
     meta: {
       total,
       limit,
-      offset,
-      totalPages: Math.ceil(total / limit),
-      currentPage: Math.floor(offset / limit) + 1,
+      page,
     },
     links: {
       prev,
@@ -51,10 +48,22 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
 })
 
 export const POST = withErrorHandling(async (req: NextRequest) => {
-  // TODO: add upload image logic and return the image url
-  const body = await req.json()
-  const input = parseWithZod(CreatePlantSchema, { ...body, imagePath: 'image/picture.jpg' })
-  const data = await plant.command.create(input)
+  const formData = await req.formData()
+  const bodyJson = Object.fromEntries(formData);
+  const imageFile = formData.get('imageFile');
 
-  return NextResponse.json({ success: true, data })
+  const formInput = parseWithZod(CreatePlantWithFileSchema, {
+    ...bodyJson,
+    imageFile
+  })
+
+  const uploadResult = await uploadImage(formInput.imageFile as File);
+  
+  const input = parseWithZod(CreatePlantSchema, {
+    ...formInput,
+    imagePath: uploadResult.path,
+  });
+  const data = await plant.command.create(input);
+
+  return NextResponse.json({ success: true, data }, { status: 201 })
 })

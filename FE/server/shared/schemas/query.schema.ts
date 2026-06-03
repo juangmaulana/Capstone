@@ -8,7 +8,7 @@ export const BaseQuerySchema = z.object({
   limit: z.coerce.number().min(1).max(100).default(20).optional().openapi({
     example: 20,
   }),
-  offset: z.coerce.number().min(0).optional().openapi({
-    example: 0,
+  page: z.coerce.number().min(1).optional().openapi({
+    example: 1,
   }),
 });

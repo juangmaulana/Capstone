@@ -1,17 +1,6 @@
 import { Kysely, sql } from 'kysely';
 import { Database } from '../db/types';
 
-const SCIENTIFIC_NAME_AUTHORS = [
-  'Vachellia nilotica (L.) P.J.H.Hurter & Mabb.',
-  'Lantana camara L.',
-  'Merremia hederacea (Burm.f.) Hallier f.',
-  'Clitoria ternatea L.',
-  'Ageratum conyzoides L.',
-] as const;
-
-const getBinomialName = (scientificName: string) =>
-  scientificName.trim().split(/\s+/).slice(0, 2).join(' ');
-
 export async function up(db: Kysely<Database>) {
   await db.schema
     .createTable('roles')
@@ -47,9 +36,10 @@ export async function up(db: Kysely<Database>) {
     .addColumn('botanical_description', 'text', (col) => col.notNull())
     .addColumn('ecological_information', 'text', (col) => col.notNull())
     .addColumn('environmental_impact', 'text', (col) => col.notNull())
-    .addColumn('source_references', 'text', (col) => col.notNull())
+    .addColumn('source_reference', 'text', (col) => col.notNull())
     .addColumn('image_path', 'text', (col) => col.notNull())
     .addColumn('image_reference', 'text', (col) => col.notNull())
+    .addColumn('is_detectable', 'boolean', (col) => col.notNull().defaultTo(false))
     .addColumn('created_at', 'timestamp', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
     .addColumn('updated_at', 'timestamp', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
     .execute()
@@ -143,14 +133,6 @@ export async function up(db: Kysely<Database>) {
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
     `.execute(db)
-
-  for (const scientificName of SCIENTIFIC_NAME_AUTHORS) {
-    await db
-      .updateTable('plants')
-      .set({ scientific_name: scientificName })
-      .where('scientific_name', '=', getBinomialName(scientificName))
-      .execute()
-  }
 }
 
 export async function down(db: Kysely<Database>) {

@@ -6,7 +6,11 @@ export const listPlants = (deps: {
   plantRepo: PlantRepo,
 }) => async (filter: PlantFilterRequest) => {
   try {
-    return await deps.plantRepo.findAll(filter)
+    return await deps.plantRepo.findAll({
+      search: filter.search,
+      limit: filter.limit ?? 20,
+      page: filter.page ?? 1,
+    })
   } catch (err) {
     throw mapDbError(err)
   }

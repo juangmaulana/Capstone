@@ -1,8 +1,9 @@
 import { withErrorHandling } from '@/lib/api/errors/error-handler';
 import { parseWithZod } from '@/lib/validation/parse-with-zod';
 import { plant } from '@/server/features/plant';
-import { UpdatePlantSchema } from '@/server/features/plant/schemas/update.schema';
+import { UpdatePlantSchema, UpdatePlantWithFileSchema } from '@/server/features/plant/schemas/update.schema';
 import { IdSchema } from '@/server/shared/schemas/id.schema';
+import { uploadImage } from '@/server/upload';
 import { NextRequest, NextResponse } from 'next/server';
 
 export const GET = withErrorHandling(async (
@@ -20,7 +21,26 @@ export const PATCH = withErrorHandling(async (
   { params }: { params: Promise<{ id: string }> },
 ) => {
   const { id } = parseWithZod(IdSchema, await params)
-  const input = parseWithZod(UpdatePlantSchema, await req.json())
+
+  const formData = await req.formData()
+  const bodyJson = Object.fromEntries(formData);
+  const imageFile = formData.get('imageFile');
+  const formInput = parseWithZod(UpdatePlantWithFileSchema, {
+    ...bodyJson,
+    imageFile
+  })
+
+  if (!formInput.imageFile) {
+    const input = parseWithZod(UpdatePlantSchema, formInput)
+    const data = await plant.command.update(id, input);
+    return NextResponse.json({ success: true, data })
+  }
+  
+  const uploadResult = await uploadImage(formInput.imageFile as File);
+  const input = parseWithZod(UpdatePlantSchema, {
+    ...formInput,
+    imagePath: uploadResult.path,
+  })
   const data = await plant.command.update(id, input)
 
   return NextResponse.json({ success: true, data })

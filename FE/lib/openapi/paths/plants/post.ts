@@ -1,6 +1,6 @@
 import { ImageSchema } from '@/server/shared/schemas/image.schema';
 import { registry } from '../../registry';
-import { CreatePlantSchema } from '@/server/features/plant/schemas/create.schema';
+import { CreatePlantWithFileSchema } from '@/server/features/plant/schemas/create.schema';
 
 registry.registerPath({
   method: 'post',
@@ -10,8 +10,8 @@ registry.registerPath({
   request: {
     body: {
       content: {
-        "application/json": {
-          schema: CreatePlantSchema,
+        "multipart/form-data": {
+          schema: CreatePlantWithFileSchema,
         },
       },
     },

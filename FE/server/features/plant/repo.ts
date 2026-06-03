@@ -4,18 +4,16 @@ import { toModel, toModelOrNull } from './mappers/to-model';
 
 export type PlantFilter = {
   search?: string
-  family?: string
-  genus?: string
-  limit?: number
-  offset?: number
+  limit: number
+  page: number
 }
 
 export type PlantRepo = {
-  findAll(filter?: PlantFilter): Promise<{
+  findAll(filter: PlantFilter): Promise<{
     data: Plant[],
     total: number,
     limit: number,
-    offset: number,
+    page: number,
   }>
   findById(id: number): Promise<Plant | null>
   create(data: PlantInsert): Promise<Plant>
@@ -24,9 +22,9 @@ export type PlantRepo = {
 }
 
 export const createPlantRepo = (db: DB): PlantRepo => ({
-  findAll: async (filter = {}) => {
-    const limit = Math.min(filter.limit ?? 20, 100)
-    const offset = filter.offset ?? 0
+  findAll: async (filter) => {
+    const limit = Math.min(filter.limit, 100)
+    const offset = (filter.page - 1) * limit
 
     let query = db.selectFrom('plants')
 
@@ -35,27 +33,18 @@ export const createPlantRepo = (db: DB): PlantRepo => ({
         eb.or([
           eb('common_name', 'ilike', `%${filter.search}%`),
           eb('scientific_name', 'ilike', `%${filter.search}%`),
+          eb('kingdom', 'ilike', `%${filter.search}%`),
+          eb('phylum', 'ilike', `%${filter.search}%`),
+          eb('class', 'ilike', `%${filter.search}%`),
+          eb('order', 'ilike', `%${filter.search}%`),
+          eb('family', 'ilike', `%${filter.search}%`),
+          eb('genus', 'ilike', `%${filter.search}%`),
+          eb('species', 'ilike', `%${filter.search}%`),
           eb('botanical_description', 'ilike', `%${filter.search}%`),
           eb('ecological_information', 'ilike', `%${filter.search}%`),
           eb('environmental_impact', 'ilike', `%${filter.search}%`),
-          eb('botanical_description_en', 'ilike', `%${filter.search}%`),
-          eb('botanical_description_id', 'ilike', `%${filter.search}%`),
-          eb('ecological_information_en', 'ilike', `%${filter.search}%`),
-          eb('ecological_information_id', 'ilike', `%${filter.search}%`),
-          eb('environmental_impact_en', 'ilike', `%${filter.search}%`),
-          eb('environmental_impact_id', 'ilike', `%${filter.search}%`),
-          eb('source', 'ilike', `%${filter.search}%`),
-          eb('image_source', 'ilike', `%${filter.search}%`),
         ])
       )
-    }
-
-    if (filter.family !== undefined) {
-      query = query.where('family', '=', filter.family)
-    }
-
-    if (filter.genus !== undefined) {
-      query = query.where('genus', '=', filter.genus)
     }
 
     const totalResult = await query
@@ -71,7 +60,7 @@ export const createPlantRepo = (db: DB): PlantRepo => ({
       .execute()
       .then(rows => rows.map(toModel))
 
-    return { data, total, limit, offset }
+    return { data, total, limit, page: filter.page }
   },
 
   findById: async (id) =>

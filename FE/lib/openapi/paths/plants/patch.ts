@@ -1,4 +1,4 @@
-import { UpdatePlantSchema } from '@/server/features/plant/schemas/update.schema';
+import { UpdatePlantWithFileSchema } from '@/server/features/plant/schemas/update.schema';
 import { registry } from '../../registry';
 import { IdSchema } from '@/server/shared/schemas/id.schema';
 
@@ -11,14 +11,14 @@ registry.registerPath({
     params: IdSchema,
     body: {
       content: {
-        "application/json": {
-          schema: UpdatePlantSchema,
+        "multipart/form-data": {
+          schema: UpdatePlantWithFileSchema,
         },
       },
     },
   },
   responses: {
-    201: {
+    200: {
       description: 'Plant updated'
     },
     400: {

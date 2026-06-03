@@ -1,7 +1,6 @@
 import { withErrorHandling } from '@/lib/api/errors/error-handler';
 import { parseWithZod } from '@/lib/validation/parse-with-zod';
 import { user } from '@/server/features/user';
-import { sendWelcomeEmail } from '@/server/lib/email';
 import { createUserSchema } from '@/server/features/user/schemas/create-user.schema';
 import { listUsersSchema } from '@/server/features/user/schemas/list-users.schema';
 import { NextRequest, NextResponse } from 'next/server';
@@ -23,17 +22,5 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   const input = parseWithZod(createUserSchema, await req.json())
   const data = await user.commands.create(input)
 
-  // Send welcome email with temporary password, but don't fail user creation if email fails
-  try {
-    const sent = await sendWelcomeEmail(input.email, input.name, input.password);
-
-    if (sent) {
-      console.log(`Welcome email sent to ${input.email}`);
-    } else {
-      console.warn(`Welcome email could not be sent to ${input.email} — check SMTP configuration`);
-    }
-  } catch (err) {
-    console.error(`Welcome email error for ${input.email}:`, err);
-  }
   return NextResponse.json({ success: true, data }, { status: 201 })
 })
