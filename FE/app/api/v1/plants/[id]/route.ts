@@ -3,7 +3,7 @@ import { parseWithZod } from '@/lib/validation/parse-with-zod';
 import { plant } from '@/server/features/plant';
 import { UpdatePlantSchema, UpdatePlantWithFileSchema } from '@/server/features/plant/schemas/update.schema';
 import { IdSchema } from '@/server/shared/schemas/id.schema';
-import { uploadImage } from '@/server/upload';
+import { deleteImage, uploadImage } from '@/server/upload';
 import { NextRequest, NextResponse } from 'next/server';
 
 export const GET = withErrorHandling(async (
@@ -35,6 +35,9 @@ export const PATCH = withErrorHandling(async (
     const data = await plant.command.update(id, input);
     return NextResponse.json({ success: true, data })
   }
+
+  const { imagePath } = await plant.query.byId(id);
+  await deleteImage(imagePath);
   
   const uploadResult = await uploadImage(formInput.imageFile as File);
   const input = parseWithZod(UpdatePlantSchema, {
