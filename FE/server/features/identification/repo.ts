@@ -1,22 +1,29 @@
 import { DB } from '@/server/db/types'
 import { Identification } from './model'
-import { IdentificationFilter } from './types/filter'
 import { toModel, toModelOrNull } from './mappers/to-model'
 
+export type IdentificationFilter = {
+  search?: string
+  plantId?: number
+  isSuccess?: boolean
+  limit: number
+  page: number
+}
+
 export type IdentificationRepo = {
-  findAll(filter?: IdentificationFilter): Promise<{
+  findAll(filter: IdentificationFilter): Promise<{
     data: Identification[],
     total: number,
     limit: number,
-    offset: number,
+    page: number,
   }>
   findById(id: number): Promise<Identification | null>
 }
 
 export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
-  findAll: async (filter = {}) => {
-    const limit = Math.min(filter.limit ?? 20, 100)
-    const offset = filter.offset ?? 0
+  findAll: async (filter) => {
+    const limit = filter.limit;
+    const offset = (filter.page - 1) * limit;
     
     let query = db.selectFrom('identifications')
 
@@ -49,7 +56,7 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
       .execute()
       .then(rows => rows.map(toModel))
 
-    return { data, total, limit, offset }
+    return { data, total, limit, page: filter.page }
   },
 
   findById: async (id) => 

@@ -1,16 +1,14 @@
-import { User } from '../model'
 import { UserRepo } from '../repo'
-import { ListUsersQuery } from '../schemas/list-users.schema'
+import { UserFilterRequest } from '../schemas/filter.schema'
 
 export function listUsers(deps: { userRepo: UserRepo }) {
   const { userRepo } = deps
 
-  return async (input: ListUsersQuery): Promise<User[]> => {
+  return async (filter: UserFilterRequest) => {
     return await userRepo.findAll({
-      search: input.search,
-      roleId: input.roleId,
-      limit: Math.min(input.limit ?? 20, 100),
-      offset: Math.max(input.offset ?? 0, 0),
+      ...filter,
+      limit: filter.limit ?? 20,
+      page: filter.page ?? 1,
     })
   }
 }

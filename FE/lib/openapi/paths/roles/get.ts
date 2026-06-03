@@ -1,4 +1,4 @@
-import { listRolesSchema } from '@/server/features/role/schemas/list-roles.schema'
+import { RoleFilterSchema } from '@/server/features/role/schemas/filter.schema'
 import { registry } from '../../registry'
 
 registry.registerPath({
@@ -7,7 +7,7 @@ registry.registerPath({
   tags: ['Roles'],
   summary: 'Fetch all roles',
   request: {
-    query: listRolesSchema,
+    query: RoleFilterSchema,
   },
   responses: {
     200: {

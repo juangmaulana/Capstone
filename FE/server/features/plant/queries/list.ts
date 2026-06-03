@@ -7,7 +7,7 @@ export const listPlants = (deps: {
 }) => async (filter: PlantFilterRequest) => {
   try {
     return await deps.plantRepo.findAll({
-      search: filter.search,
+      ...filter,
       limit: filter.limit ?? 20,
       page: filter.page ?? 1,
     })

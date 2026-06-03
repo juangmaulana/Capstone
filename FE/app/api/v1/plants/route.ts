@@ -1,4 +1,5 @@
 import { withErrorHandling } from '@/lib/api/errors/error-handler';
+import { getLinks } from '@/lib/next-pagination';
 import { parseWithZod } from '@/lib/validation/parse-with-zod';
 import { plant } from '@/server/features/plant';
 import { CreatePlantSchema, CreatePlantWithFileSchema } from '@/server/features/plant/schemas/create.schema';
@@ -15,22 +16,7 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
   const filter = parseWithZod(PlantFilterSchema, searchParams)
   const { data, total, limit, page } = await plant.query.list(filter)
 
-  const hasNext = page * limit < total
-  const hasPrev = page > 1
-  
-  let next = null
-  const nextUrl = new URL(req.url)
-  if (hasNext) {
-    nextUrl.searchParams.set('page', String(page + 1))
-    next = nextUrl.toString()
-  }
-
-  let prev = null
-  const prevUrl = new URL(req.url)
-  if (hasPrev) {
-    prevUrl.searchParams.set('page', String(page - 1))
-    prev = prevUrl.toString()
-  }
+  const { prev, next } = getLinks(total, limit, page, req.url);
 
   return NextResponse.json({ 
     success: true, 

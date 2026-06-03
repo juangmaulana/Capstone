@@ -1,10 +1,21 @@
 import { User } from './model';
 import { DB, UserInsert, UserUpdate } from '@/server/db/types';
-import { UserFilterDTO } from './dto/user-filter.dto';
 import { toDomain } from './mappers/to-domain';
 
+export type UserFilter = {
+  search?: string
+  roleId?: number
+  limit: number
+  page: number
+}
+
 export type UserRepo = {
-  findAll(filter?: UserFilterDTO): Promise<User[]>
+  findAll(filter: UserFilter): Promise<{
+    data: User[],
+    total: number,
+    limit: number,
+    page: number,
+  }>
   findById(id: number): Promise<User | null>
   findByEmail(email: string): Promise<User | null>
   create(data: UserInsert): Promise<User>
@@ -14,7 +25,10 @@ export type UserRepo = {
 }
 
 export const createUserRepo = (db: DB): UserRepo => ({
-  findAll: async (filter = {}) => {
+  findAll: async (filter) => {
+    const limit = filter.limit;
+    const offset = (filter.page - 1) * limit;
+
     let query = db.selectFrom('users')
 
     if (filter.search !== undefined) {
@@ -29,16 +43,21 @@ export const createUserRepo = (db: DB): UserRepo => ({
     if (filter.roleId !== undefined)
       query = query.where('role_id', '=', filter.roleId)
 
-    if (filter.limit !== undefined)
-      query = query.limit(filter.limit) 
+    const totalResult = await query
+      .select((eb) => eb.fn.count<number>('id').as('count'))
+      .executeTakeFirst()
+    const total = Number(totalResult?.count ?? 0)
 
-    if (filter.offset !== undefined)
-      query = query.offset(filter.offset)
-
-    return query.selectAll()
+    const data = await query
+      .limit(limit)
+      .offset(offset)
+      .selectAll()
+      .orderBy('created_at', 'desc')
       .execute()
       .then(rows => rows.map(toDomain))
-    },
+
+    return { data, total, limit, page: filter.page }
+  },
 
   findById: async (id) =>
     db.selectFrom('users')

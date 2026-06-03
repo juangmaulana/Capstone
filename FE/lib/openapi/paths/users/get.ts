@@ -1,7 +1,7 @@
 import { registry } from '../../registry'
 import { IdSchema } from '@/server/shared/schemas/id.schema';
-import { listUsersSchema } from '@/server/features/user/schemas/list-users.schema'
 import { userResponseSchema } from '@/server/features/user/schemas/user-response.schema'
+import { UserFilterSchema } from '@/server/features/user/schemas/filter.schema';
 
 registry.registerPath({
   method: 'get',
@@ -9,7 +9,7 @@ registry.registerPath({
   tags: ['Users'],
   summary: 'Fetch all users',
   request: {
-    query: listUsersSchema,
+    query: UserFilterSchema,
   },
   responses: {
     200: {

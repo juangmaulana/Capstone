@@ -1,4 +1,5 @@
 import { withErrorHandling } from '@/lib/api/errors/error-handler';
+import { getLinks } from '@/lib/next-pagination';
 import { parseWithZod } from '@/lib/validation/parse-with-zod';
 import { identification } from '@/server/features/identification';
 import { IdentificationFilterSchema } from '@/server/features/identification/schemas/filter.schema';
@@ -12,27 +13,12 @@ export const GET = withErrorHandling(async (
     plantId: req.nextUrl.searchParams.get("plant_id") ?? undefined,
     isSuccess: req.nextUrl.searchParams.get("is_success") ?? undefined,
     limit: req.nextUrl.searchParams.get("limit") ?? undefined,
-    offset: req.nextUrl.searchParams.get("offset") ?? undefined,
+    page: req.nextUrl.searchParams.get("page") ?? undefined,
   }
   const filter = parseWithZod(IdentificationFilterSchema, searchParams)
-  const { data, total, limit, offset } = await identification.query.all(filter)
+  const { data, total, limit, page } = await identification.query.all(filter)
 
-  const hasNext = offset + limit < total
-  const hasPrev = offset > 0
-  
-  let next = null
-  const nextUrl = new URL(req.url)
-  if (hasNext) {
-    nextUrl.searchParams.set('offset', String(offset + limit))
-    next = nextUrl.toString()
-  }
-
-  let prev = null
-  const prevUrl = new URL(req.url)
-  if (hasPrev) {
-    prevUrl.searchParams.set('offset', String(Math.max(offset - limit, 0)))
-    prev = prevUrl.toString()
-  }
+  const { prev, next } = getLinks(total, limit, page, req.url);
 
   return NextResponse.json({ 
     success: true, 
@@ -40,9 +26,7 @@ export const GET = withErrorHandling(async (
     meta: {
       total,
       limit,
-      offset,
-      totalPages: Math.ceil(total / limit),
-      currentPage: Math.floor(offset / limit) + 1,
+      page,
     },
     links: {
       prev,

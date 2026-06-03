@@ -23,7 +23,7 @@ export type PlantRepo = {
 
 export const createPlantRepo = (db: DB): PlantRepo => ({
   findAll: async (filter) => {
-    const limit = Math.min(filter.limit, 100)
+    const limit = filter.limit
     const offset = (filter.page - 1) * limit
 
     let query = db.selectFrom('plants')
@@ -40,9 +40,6 @@ export const createPlantRepo = (db: DB): PlantRepo => ({
           eb('family', 'ilike', `%${filter.search}%`),
           eb('genus', 'ilike', `%${filter.search}%`),
           eb('species', 'ilike', `%${filter.search}%`),
-          eb('botanical_description', 'ilike', `%${filter.search}%`),
-          eb('ecological_information', 'ilike', `%${filter.search}%`),
-          eb('environmental_impact', 'ilike', `%${filter.search}%`),
         ])
       )
     }

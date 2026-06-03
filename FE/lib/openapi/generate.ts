@@ -14,28 +14,24 @@ export const generateOpenApiDoc = () => {
     },
     tags: [
       {
-        name: 'Users',
-        description: 'Manage users, including creation, updates, deletion, role assignment, and user lookup.',
-      },
-      {
-        name: 'Roles',
-        description: 'Define and manage roles and permissions for role-based access control.',
+        name: 'Auth',
+        description: 'Authentication and Authorization related endpoints.'
       },
       {
         name: 'Plants',
         description: 'Manage plant records, including botanical data, taxonomy, and environmental information.',
       },
       {
-        name: 'Images',
-        description: 'Handle image uploads, storage, retrieval, and association with identifications.',
-      },
-      {
         name: 'Identifications',
         description: 'Manage plant identification records and related classification or matching results.',
       },
       {
-        name: 'Auth',
-        description: 'Authentication and Authorization related endpoints.'
+        name: 'Users',
+        description: 'Manage users, including creation, updates, deletion, and user lookup.',
+      },
+      {
+        name: 'Roles',
+        description: 'Retrieve catalog of roles used for RBAC.',
       },
     ],
   })
