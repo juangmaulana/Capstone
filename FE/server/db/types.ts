@@ -49,29 +49,27 @@ export type PlantInsert = Insertable<PlantTable>
 export type PlantUpdate = Updateable<PlantTable>
 
 export interface IdentificationTable {
-  readonly id: Generated<number>
+  readonly id: number
   plant_id: number
   image_id: number
   confidence: number
   ai_response: string
   is_success: boolean
-  identified_at: Generated<Date>
+  ranger_id: number
+  uploaded_by: number
+  readonly identified_at: Date
 }
-export type IdentificationSelect = Selectable<IdentificationTable>
 
 export interface ImageTable {
-  readonly id: Generated<number>
-  user_id: number
-  identification_id: number
+  readonly id: number
   file_name: string
   file_path: string
   file_size: number
   latitude: number
   longitude: number
   elevation: number
-  uploaded_at: Generated<Date>
+  readonly uploaded_at: Date
 }
-export type ImageSelect = Selectable<ImageTable>
 
 export interface Database {
   users: UserTable
@@ -80,3 +78,31 @@ export interface Database {
   identifications: IdentificationTable
   images: ImageTable
 }
+
+export interface EnrichedIdentification {
+  readonly id: number
+  confidence: number
+  ai_response: string
+  is_success: boolean
+
+  image_id: number | null
+  image_name: string | null
+  image_path: string | null
+  image_size: number | null
+  image_latitude: number | null
+  image_longitude: number | null
+  image_elevation: number | null
+  image_uploaded_at: Date | null
+
+  plant_id: number | null
+  plant_name: string | null
+
+  ranger_id: number | null
+  ranger_name: string | null
+
+  uploader_id: number | null
+  uploader_name: string | null
+
+  readonly identified_at: Generated<Date>
+}
+export type EnrichedIdentificationSelect = Selectable<EnrichedIdentification>;
