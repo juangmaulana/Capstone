@@ -13,7 +13,7 @@ export const listLocations = async (filter: LocationFilterRequest) => {
     throw new ApiError('UNKNOWN', `[Location Service] ${data.message}`)
   }
 
-  return data
+  return data?.data ?? data
 }
 
 export const getLocationDetails = async (req: LocationDetailRequest) => {

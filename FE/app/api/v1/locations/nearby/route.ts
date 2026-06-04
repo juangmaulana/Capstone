@@ -11,7 +11,11 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
     radius: req.nextUrl.searchParams.get("radius") ?? undefined,
   }
   const request = parseWithZod(NearbyImagesSchema, searchParams);
-  const data = await nearbyImages(request);
+  const data = await nearbyImages({
+    latitude: request.latitude,
+    longitude: request.longitude,
+    radius: request.radius,
+  });
 
   return NextResponse.json({ 
     success: true, 
