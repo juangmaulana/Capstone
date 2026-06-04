@@ -6,7 +6,7 @@ import { plant } from '@/server/features/plant';
 import { UpdatePlantSchema, UpdatePlantWithFileSchema } from '@/server/features/plant/schemas/update.schema';
 import { logEvent } from '@/server/services/audit';
 import { IdSchema } from '@/server/shared/schemas/id.schema';
-import { deleteImage, uploadImage } from '@/server/upload';
+import { deleteImage, uploadImage } from '@/server/services/upload';
 import { NextRequest, NextResponse } from 'next/server';
 
 export const GET = withErrorHandling(async (

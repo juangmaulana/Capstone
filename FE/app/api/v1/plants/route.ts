@@ -7,7 +7,7 @@ import { plant } from '@/server/features/plant';
 import { CreatePlantSchema, CreatePlantWithFileSchema } from '@/server/features/plant/schemas/create.schema';
 import { PlantFilterSchema } from '@/server/features/plant/schemas/filter.schema';
 import { logEvent } from '@/server/services/audit';
-import { uploadImage } from '@/server/upload';
+import { uploadImage } from '@/server/services/upload';
 import { NextRequest, NextResponse } from "next/server";
 
 export const GET = withErrorHandling(async (req: NextRequest) => {
