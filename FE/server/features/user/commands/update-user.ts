@@ -37,7 +37,7 @@ export const updateUser = (deps: {
     }
 
     if (Object.keys(updateData).length === 0)
-      throw new ApiError(ErrorCode.BAD_REQUEST, 'No fields to update')
+      return
 
     try {
       return await userRepo.update(id, updateData)

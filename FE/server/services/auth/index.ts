@@ -171,3 +171,26 @@ export const resetPassword = async (resetToken: string, newPassword: string) => 
   return json.data;
 }
 
+export const changePassword = async (accessToken: string, userId: number, newPassword: string) => {
+  const response = await fetch(`${AUTH_API_URL}/api/auth/change-password/${userId}`, {
+    method: 'POST',
+    headers: { 
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json' 
+    },
+    body: JSON.stringify({ newPassword })
+  })
+
+  const json = await response.json()
+  if (!json.success) {
+    if (json.error.statusCode === 401) {
+      throw new ApiError('UNAUTHORIZED', json.error.message);
+    }
+    if (json.error.statusCode === 403) {
+      throw new ApiError('FORBIDDEN', json.error.message);
+    }
+    throw new Error(`[Auth Service] ${json.error.code} | ${json.error.message}`)
+  }
+  
+  return json.data
+}

@@ -7,6 +7,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { authorize, getAuthUser } from '@/lib/auth';
 import { forbidden } from '@/lib/api/errors/http.error';
 import { logEvent } from '@/server/services/audit';
+import { changePassword } from '@/server/services/auth';
+import { cookies } from 'next/headers';
 
 export const GET = withErrorHandling(async (
   req: NextRequest, 
@@ -37,8 +39,16 @@ export const PATCH = withErrorHandling(async (
   if (!authorize(authUser, ['admin']) && input.roleId) 
     throw forbidden('Only admin can update roles');
 
-  // TODO: link with auth for password hashing
   const data = await user.commands.update(id, input)
+  if (input.password) {
+    const cookieStore = await cookies()
+
+    const accessToken = cookieStore.get('access_token')?.value
+    await changePassword(accessToken!, id, input.password)
+
+    cookieStore.delete("access_token");
+    cookieStore.delete("refresh_token");
+  }
 
   await logEvent({
     actorId: authUser.userId.toString(),
