@@ -2,9 +2,9 @@ import { ApiError } from '@/lib/api/api-error'
 import { UserRepo } from '../repo'
 import { ErrorCode } from '@/lib/api/errors/error-codes'
 import { RoleRepo } from '../../role/repo'
-import bcrypt from 'bcryptjs'
 import { mapDbError } from '@/lib/db/mappers'
 import { CreateUserRequest } from '../schemas/create-user.schema'
+import { register } from '@/server/services/auth'
 
 export const createUser = (deps: { 
   userRepo: UserRepo,
@@ -23,15 +23,13 @@ export const createUser = (deps: {
       throw new ApiError(ErrorCode.NOT_FOUND, 'Role not found')
     }
 
-    const passwordHash = await bcrypt.hash(input.password, 10)
-
     try {
-      return await userRepo.create({
-        role_id: input.roleId,
-        name: input.name,
-        email: input.email,
-        password: passwordHash,
-      })
+      return await register(
+        input.roleId, 
+        input.name, 
+        input.email, 
+        input.password
+      );
     } catch (err) {
       throw mapDbError(err)
     }

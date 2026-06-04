@@ -1,5 +1,5 @@
 import { withErrorHandling } from '@/lib/api/errors/error-handler';
-import { refresh } from '@/server/auth';
+import { refresh } from '@/server/services/auth';
 import { cookies } from 'next/headers';
 import { NextResponse } from "next/server"
 

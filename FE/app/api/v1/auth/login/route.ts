@@ -1,7 +1,7 @@
 import { withErrorHandling } from '@/lib/api/errors/error-handler';
 import { parseWithZod } from '@/lib/validation/parse-with-zod'
-import { login } from '@/server/auth';
-import { loginSchema } from '@/server/auth/schemas/login.schema'
+import { login } from '@/server/services/auth';
+import { loginSchema } from '@/server/services/auth/schemas/login.schema'
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from "next/server"
 

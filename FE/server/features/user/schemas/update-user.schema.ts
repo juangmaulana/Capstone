@@ -13,23 +13,7 @@ export const updateUserSchema = z.object({
   password: z.string().min(6).optional().openapi({
     example: 'secret123',
   }),
-  confirmPassword: z.string().min(6).optional().openapi({
-    example: 'secret123',
-  }),
 })
-
-.refine(
-  (data) => {
-    if (data.password !== undefined || data.confirmPassword !== undefined) {
-      return data.password === data.confirmPassword
-    }
-    return true
-  },
-  {
-    message: 'Passwords do not match',
-    path: ['confirmPassword'],
-  }
-)
 
 .transform((data) => {
   const result: {

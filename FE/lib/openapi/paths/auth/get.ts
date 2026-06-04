@@ -19,3 +19,23 @@ registry.registerPath({
     },
   },
 })
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/auth',
+  tags: ['Auth'],
+  summary: 'Authenticate',
+  security: [
+    {
+      bearerAuth: [],
+    }
+  ],
+  responses: {
+    200: {
+      description: 'User authenticated',
+    },
+    401: {
+      description: 'Unauthorized',
+    },
+  },
+})

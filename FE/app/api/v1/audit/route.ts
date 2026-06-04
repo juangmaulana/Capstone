@@ -1,4 +1,6 @@
 import { withErrorHandling } from '@/lib/api/errors/error-handler';
+import { forbidden } from '@/lib/api/errors/http.error';
+import { getAuthUser } from '@/lib/auth';
 import { getLinks } from '@/lib/next-pagination';
 import { parseWithZod } from '@/lib/validation/parse-with-zod';
 import { getAuditLogs, logEvent } from '@/server/services/audit';
@@ -7,6 +9,10 @@ import { LogEventSchema } from '@/server/services/audit/schema/log.schema';
 import { NextRequest, NextResponse } from 'next/server';
 
 export const GET = withErrorHandling(async (req: NextRequest) => {
+  const authUser = await getAuthUser()
+  if (!authUser)
+    throw forbidden('Unauthorized')
+
   const searchParams = {
     entityType: req.nextUrl.searchParams.get("entityType") ?? undefined,
     action: req.nextUrl.searchParams.get("action") ?? undefined,
@@ -34,6 +40,10 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
 })
 
 export const POST = withErrorHandling(async (req: NextRequest) => {
+  const authUser = await getAuthUser()
+  if (!authUser)
+    throw forbidden('Unauthorized')
+
   const input = parseWithZod(LogEventSchema, await req.json())
   const data = await logEvent(input);
   

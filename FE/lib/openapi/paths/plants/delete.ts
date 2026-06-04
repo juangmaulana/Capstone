@@ -6,6 +6,11 @@ registry.registerPath({
   path: '/api/v1/plants/{id}',
   tags: ['Plants'],
   summary: 'Delete plant',
+  security: [
+    {
+      bearerAuth: [],
+    }
+  ],
   request: {
     params: IdSchema,
   },

@@ -2,6 +2,43 @@ import { ApiError } from '@/lib/api/api-error';
 
 const AUTH_API_URL = process.env.AUTH_API_URL
 
+export const authenticate = async (accessToken: string) => {
+  const response = await fetch(`${AUTH_API_URL}/api/auth/authenticate`, {
+    method: 'GET',
+    headers: { 
+      'Authorization': `Bearer ${accessToken}`
+    }
+  });
+  
+  const json = await response.json();
+  if (!json.success) {
+    return null;
+  }
+
+  return json.data
+}
+
+export const register = async (roleId: number, name: string, email: string, password: string) => {
+  const response = await fetch(`${AUTH_API_URL}/api/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ roleId, name, email, password })
+  });
+
+  const json = await response.json();
+  if (!json.success) {
+    if (json.error.statusCode === 400 || json.error.statusCode === 409) {
+      throw new ApiError('BAD_REQUEST', json.error.message)
+    }
+    if (json.error.statusCode === 429) {
+      throw new ApiError('TOO_MANY_REQUEST', json.error.message)
+    }
+    throw new Error(`[Auth Service] ${json.error.code} | ${json.error.message}`)
+  }
+
+  return json.data
+}
+
 export const login = async (email: string, password: string) => {
   const response = await fetch(`${AUTH_API_URL}/api/auth/login`, {
     method: 'POST',
@@ -11,6 +48,9 @@ export const login = async (email: string, password: string) => {
 
   const json = await response.json();
   if (!json.success) {
+    if (json.error.statusCode == 400) {
+      throw new ApiError('BAD_REQUEST', json.error.message);
+    } 
     if (json.error.statusCode == 429) {
       throw new ApiError('TOO_MANY_REQUEST', json.error.message);
     } 

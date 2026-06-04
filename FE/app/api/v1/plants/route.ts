@@ -1,4 +1,6 @@
 import { withErrorHandling } from '@/lib/api/errors/error-handler';
+import { forbidden } from '@/lib/api/errors/http.error';
+import { authorize, getAuthUser } from '@/lib/auth';
 import { getLinks } from '@/lib/next-pagination';
 import { parseWithZod } from '@/lib/validation/parse-with-zod';
 import { plant } from '@/server/features/plant';
@@ -34,6 +36,12 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
 })
 
 export const POST = withErrorHandling(async (req: NextRequest) => {
+  const authUser = await getAuthUser();
+  if (!authUser)
+    throw forbidden('Unauthenticated');
+  if (!authorize(authUser, ['admin']))
+    throw forbidden('Plant creation only allowed for admins')
+
   const formData = await req.formData()
   const bodyJson = Object.fromEntries(formData);
   const imageFile = formData.get('imageFile');

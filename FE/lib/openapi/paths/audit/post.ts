@@ -6,6 +6,11 @@ registry.registerPath({
   path: 'api/v1/audit',
   tags: ['Audit'],
   summary: 'Record/log an event',
+  security: [
+    {
+      bearerAuth: [],
+    }
+  ],
   request: {
     body: {
       content: {

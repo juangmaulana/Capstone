@@ -1,8 +1,8 @@
-import { resetPasswordSchema } from '@/server/auth/schemas/reset-password.schema';
+import { resetPasswordSchema } from '@/server/services/auth/schemas/reset-password.schema';
 import { registry } from '../../registry';
-import { loginSchema } from '@/server/auth/schemas/login.schema';
-import { verifyResetCodeSchema } from '@/server/auth/schemas/verify-reset-code.schema';
-import { forgotPasswordSchema } from '@/server/auth/schemas/forgot-password.schema';
+import { loginSchema } from '@/server/services/auth/schemas/login.schema';
+import { verifyResetCodeSchema } from '@/server/services/auth/schemas/verify-reset-code.schema';
+import { forgotPasswordSchema } from '@/server/services/auth/schemas/forgot-password.schema';
 
 registry.registerPath({
   method: 'post',
