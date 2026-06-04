@@ -6,6 +6,7 @@ import { parseWithZod } from '@/lib/validation/parse-with-zod';
 import { plant } from '@/server/features/plant';
 import { CreatePlantSchema, CreatePlantWithFileSchema } from '@/server/features/plant/schemas/create.schema';
 import { PlantFilterSchema } from '@/server/features/plant/schemas/filter.schema';
+import { logEvent } from '@/server/services/audit';
 import { uploadImage } from '@/server/upload';
 import { NextRequest, NextResponse } from "next/server";
 
@@ -58,6 +59,13 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     imagePath: uploadResult.path,
   });
   const data = await plant.command.create(input);
+
+  await logEvent({
+    actorId: authUser.userId.toString(),
+    entityId: data.id.toString(),
+    entityType: 'Plant',
+    action: 'CREATE',
+  })
 
   return NextResponse.json({ success: true, data }, { status: 201 })
 })

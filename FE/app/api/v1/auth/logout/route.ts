@@ -6,7 +6,6 @@ import { NextResponse } from "next/server"
 export const POST = withErrorHandling(async () => {
   const cookieStore = await cookies();
   const refreshToken = cookieStore.get("refresh_token")?.value;
-  console.log(refreshToken);
   
  const data =  await logout(refreshToken!);
 

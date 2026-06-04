@@ -6,6 +6,7 @@ import { updateUserSchema } from '@/server/features/user/schemas/update-user.sch
 import { NextRequest, NextResponse } from 'next/server';
 import { authorize, getAuthUser } from '@/lib/auth';
 import { forbidden } from '@/lib/api/errors/http.error';
+import { logEvent } from '@/server/services/audit';
 
 export const GET = withErrorHandling(async (
   req: NextRequest, 
@@ -39,6 +40,13 @@ export const PATCH = withErrorHandling(async (
   // TODO: link with auth for password hashing
   const data = await user.commands.update(id, input)
 
+  await logEvent({
+    actorId: authUser.userId.toString(),
+    entityId: id.toString(),
+    entityType: 'User',
+    action: 'UPDATE',
+  })
+
   return NextResponse.json({ success: true, data })
 })
 
@@ -54,6 +62,13 @@ export const DELETE = withErrorHandling(async (
 
   const { id } = parseWithZod(IdSchema, await params)
   const data = await user.commands.delete(id)
+
+  await logEvent({
+    actorId: authUser.userId.toString(),
+    entityId: id.toString(),
+    entityType: 'User',
+    action: 'DELETE',
+  })
 
   return NextResponse.json({ success: true, data })
 })

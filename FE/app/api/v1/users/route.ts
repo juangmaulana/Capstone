@@ -6,6 +6,7 @@ import { parseWithZod } from '@/lib/validation/parse-with-zod';
 import { user } from '@/server/features/user';
 import { createUserSchema } from '@/server/features/user/schemas/create-user.schema';
 import { UserFilterSchema } from '@/server/features/user/schemas/filter.schema';
+import { logEvent } from '@/server/services/audit';
 import { NextRequest, NextResponse } from 'next/server';
 
 export const GET = withErrorHandling(async (req: NextRequest) => {
@@ -46,6 +47,13 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
 
   const input = parseWithZod(createUserSchema, await req.json())
   const data = await user.commands.create(input)
+
+  await logEvent({
+    actorId: authUser.userId.toString(),
+    entityId: data.user.id,
+    entityType: 'User',
+    action: 'CREATE',
+  })
 
   return NextResponse.json({ success: true, data }, { status: 201 })
 })

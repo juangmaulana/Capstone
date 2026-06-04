@@ -4,6 +4,7 @@ import { authorize, getAuthUser } from '@/lib/auth';
 import { parseWithZod } from '@/lib/validation/parse-with-zod';
 import { plant } from '@/server/features/plant';
 import { UpdatePlantSchema, UpdatePlantWithFileSchema } from '@/server/features/plant/schemas/update.schema';
+import { logEvent } from '@/server/services/audit';
 import { IdSchema } from '@/server/shared/schemas/id.schema';
 import { deleteImage, uploadImage } from '@/server/upload';
 import { NextRequest, NextResponse } from 'next/server';
@@ -54,6 +55,13 @@ export const PATCH = withErrorHandling(async (
   })
   const data = await plant.command.update(id, input)
 
+  await logEvent({
+    actorId: authUser.userId.toString(),
+    entityId: id.toString(),
+    entityType: 'Plant',
+    action: 'UPDATE',
+  })
+
   return NextResponse.json({ success: true, data })
 })
 
@@ -69,6 +77,13 @@ export const DELETE = withErrorHandling(async (
 
   const { id } = parseWithZod(IdSchema, await params)
   const data = await plant.command.delete(id)
+
+  await logEvent({
+    actorId: authUser.userId.toString(),
+    entityId: id.toString(),
+    entityType: 'Plant',
+    action: 'DELETE',
+  })
 
   return NextResponse.json({ success: true, data })
 })
