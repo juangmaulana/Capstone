@@ -150,6 +150,15 @@ interface PlantApiRecord {
   image_reference?: string;
 }
 
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (typeof error === "string" && error.trim()) return error;
+  if (typeof error === "object" && error !== null) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  return fallback;
+};
+
 const SPECIES_SOURCE_STORAGE_PREFIX = "biowatch_species_source_";
 const SPECIES_TAXONOMY_STORAGE_PREFIX = "biowatch_species_taxonomy_";
 
@@ -661,7 +670,7 @@ export default function SpeciesPage() {
       if (res.ok && json.success) {
         setDraft((prev) => ({ ...prev, imagePath: json.data.path }));
       } else {
-        toast.error(json.error || (language === "id" ? "Upload gagal" : "Upload failed"));
+        toast.error(getErrorMessage(json.error, language === "id" ? "Upload gagal" : "Upload failed"));
       }
     } catch {
       toast.error(language === "id" ? "Upload gagal" : "Upload failed");

@@ -192,6 +192,10 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
 
       const json = await response.json();
 
+      if (!response.ok || json.error) {
+        throw new Error(json.error?.message || copy.analysisFailed);
+      }
+
       if (json.success && json.data?.plants?.length > 0) {
         setDetectionResults(json.data.plants);
       } else {

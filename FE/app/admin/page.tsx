@@ -147,6 +147,15 @@ interface DisplaySpecies {
   lastUpdated: string;
 }
 
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (typeof error === "string" && error.trim()) return error;
+  if (typeof error === "object" && error !== null) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  return fallback;
+};
+
 const createSpeciesSlug = (scientificName: string) =>
   createScientificNameSlug(scientificName).replace(/--+/g, "-");
 
@@ -1098,7 +1107,7 @@ export default function AdminPage() {
       if (res.ok && json.success) {
         setSpeciesForm((prev) => ({ ...prev, imagePath: json.data.path }));
       } else {
-        alert(json.error || "Upload failed");
+        alert(getErrorMessage(json.error, "Upload failed"));
       }
     } catch {
       alert("Upload failed");

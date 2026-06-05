@@ -5,10 +5,30 @@ import { ImageSchema } from "@/server/shared/schemas/image.schema"
 import { NextRequest, NextResponse } from "next/server"
 import { Client } from "@gradio/client"
 
-const GRADIO_URL = process.env.DETECTION_API_URL
+const DETECTION_API_URL = process.env.DETECTION_API_URL
+const HF_SPACE_ID = process.env.HF_SPACE_ID
 
-if (!GRADIO_URL) {
-  throw new Error("DETECTION_API_URL is not defined in environment variables")
+async function connectDetectionClient() {
+  const targets = [DETECTION_API_URL, HF_SPACE_ID].filter(Boolean) as string[]
+
+  if (!targets.length) {
+    throw new Error("DETECTION_API_URL or HF_SPACE_ID must be defined in environment variables")
+  }
+
+  let lastError: unknown
+
+  for (const target of targets) {
+    try {
+      return await Client.connect(target)
+    } catch (err) {
+      lastError = err
+      console.warn(`[Detection] Failed to connect to ${target}`)
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Detection service is unavailable")
 }
 
 export const POST = withErrorHandling(async (req: NextRequest) => {
@@ -24,7 +44,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   const arrayBuffer = await file.arrayBuffer()
   const blob = new Blob([arrayBuffer], { type: file.type })
 
-  const client = await Client.connect(GRADIO_URL)
+  const client = await connectDetectionClient()
   const result = await client.predict("/predict", {
     image: blob,
   })
