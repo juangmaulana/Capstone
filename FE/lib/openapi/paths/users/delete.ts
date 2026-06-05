@@ -6,6 +6,11 @@ registry.registerPath({
   path: '/api/v1/users/{id}',
   tags: ['Users'],
   summary: 'Delete user',
+  security: [
+    {
+      bearerAuth: [],
+    }
+  ],
   request: {
     params: IdSchema,
   },

@@ -1,9 +1,9 @@
 import { z } from '@/lib/openapi/zod'
-import { LatitudeSchema, LongitudeSchema } from '@/server/shared/schemas/coordinate.schema'
+import { LatitudeParamSchema, LongitudeParamSchema } from '@/server/shared/schemas/coordinate.schema'
 
 export const LocationDetailSchema = z.object({
-  latitude: LatitudeSchema,
-  longitude: LongitudeSchema,
+  latitude: LatitudeParamSchema,
+  longitude: LongitudeParamSchema,
 })
 
 export type LocationDetailRequest = z.infer<typeof LocationDetailSchema>

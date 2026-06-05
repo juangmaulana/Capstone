@@ -6,6 +6,11 @@ registry.registerPath({
   path: '/api/v1/roles',
   tags: ['Roles'],
   summary: 'Fetch all roles',
+  security: [
+    {
+      bearerAuth: [],
+    }
+  ],
   request: {
     query: RoleFilterSchema,
   },

@@ -27,7 +27,10 @@ export function withErrorHandling<T extends unknown[]>(
       }
       
       if (err instanceof Error) {
-        console.error(err.message);
+        console.error({
+          message: err.message,
+          stack: err.stack,
+        })
       } else {
         console.error("Unknown error: ", err);
       }
