@@ -16,21 +16,25 @@ services:
   web-app:
     build: ./FE
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
+      # - "3000:3000"
+    env_file:                 
+      - ./FE/.env            
     depends_on:
       - postgres-db
+      - ai-service           
     restart: always
 
   ai-service:
     build: ./AI
     ports:
-      - "7860:7860"
+      - "127.0.0.1:7860:7860"
     restart: always
 
   audit-service:
     build: ./audit-service
     ports:
-      - "4001:4001"
+      - "127.0.0.1:4001:4001"
     env_file:
       - ./audit-service/.env
     depends_on:
@@ -46,7 +50,7 @@ services:
   auth-service:
     build: ./auth-service
     ports:
-      - "4000:4000"
+      - "127.0.0.1:4000:4000"
     env_file:
       - ./auth-service/.env
     depends_on:
@@ -57,7 +61,7 @@ services:
   upload-endpoint:
     build: ./upload-endpoint
     ports:
-      - "4002:4002"
+      - "127.0.0.1:4002:4002"
     env_file:
       - ./upload-endpoint/.env
     depends_on:
