@@ -1,6 +1,7 @@
 import { ApiError } from '@/lib/api/api-error';
 import { UserRepo } from '../repo';
 import { ErrorCode } from '@/lib/api/errors/error-codes';
+import bcrypt from 'bcryptjs';
 import { mapDbError } from '@/lib/db/mappers';
 import { RoleRepo } from '../../role/repo';
 import { UpdateUserRequest } from '../schemas/update-user.schema';
@@ -36,8 +37,11 @@ export const updateUser = (deps: {
       updateData.email = input.email
     }
 
+    if (input.password !== undefined) 
+      updateData.password_hash = await bcrypt.hash(input.password, 10)
+
     if (Object.keys(updateData).length === 0)
-      return
+      throw new ApiError(ErrorCode.BAD_REQUEST, 'No fields to update')
 
     try {
       return await userRepo.update(id, updateData)

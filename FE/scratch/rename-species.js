@@ -8,7 +8,7 @@ async function updateSpecies() {
   const db = new Kysely({
     dialect: new PostgresDialect({
       pool: new Pool({
-        connectionString: "postgresql://juangmaulana@localhost:5432/biowatch",
+        connectionString: "postgresql://juangmaulana@localhost:5432/capstone2",
       }),
     }),
   });

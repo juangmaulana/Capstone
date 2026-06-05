@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Leaf, Lock, Mail, Eye, EyeOff, ShieldCheck, AlertCircle, Loader2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -8,8 +9,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 const LOGIN_COPY = {
   en: {
     subtitle: "Sign in to access the administration panel",
-    emailLabel: "Email Address",
-    emailPlaceholder: "Enter your email address",
+    emailLabel: "Email / Username",
+    emailPlaceholder: "Enter email or admin",
     passwordLabel: "Password",
     passwordPlaceholder: "Enter your password",
     locked: "Locked",
@@ -26,13 +27,19 @@ const LOGIN_COPY = {
     backLogin: "Back to Login",
     forgotTitle: "Forgot Password",
     forgotDesc: "Enter your email address and we will send a link to reset your password.",
+    codeLabel: "Reset Code",
+    codePlaceholder: "Enter reset code",
+    codeDesc: "Enter the reset code from your email to continue.",
+    verifying: "Verifying...",
+    verifyCode: "Verify Code",
+    verifyFailed: "The reset code could not be verified.",
     sending: "Sending...",
     sendReset: "Send Reset Link",
   },
   id: {
     subtitle: "Masuk untuk mengakses panel administrasi",
-    emailLabel: "Alamat Email",
-    emailPlaceholder: "Masukkan alamat email",
+    emailLabel: "Email / Username",
+    emailPlaceholder: "Masukkan email atau admin",
     passwordLabel: "Password",
     passwordPlaceholder: "Masukkan password",
     locked: "Terkunci",
@@ -49,6 +56,12 @@ const LOGIN_COPY = {
     backLogin: "Kembali ke Login",
     forgotTitle: "Lupa Password",
     forgotDesc: "Masukkan alamat email Anda dan kami akan mengirimkan link untuk mereset password.",
+    codeLabel: "Kode Reset",
+    codePlaceholder: "Masukkan kode reset",
+    codeDesc: "Masukkan kode reset dari email untuk melanjutkan.",
+    verifying: "Memverifikasi...",
+    verifyCode: "Verifikasi Kode",
+    verifyFailed: "Kode reset tidak dapat diverifikasi.",
     sending: "Mengirim...",
     sendReset: "Kirim Link Reset",
   },
@@ -56,6 +69,7 @@ const LOGIN_COPY = {
 
 export function AdminLoginPage() {
   const { login } = useAuth();
+  const router = useRouter();
   const { language } = useLanguage();
   const copy = LOGIN_COPY[language];
   const [email, setEmail] = useState("");
@@ -66,8 +80,10 @@ export function AdminLoginPage() {
   const [shake, setShake] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotCode, setForgotCode] = useState("");
   const [forgotSuccess, setForgotSuccess] = useState(false);
   const [forgotSubmitting, setForgotSubmitting] = useState(false);
+  const [codeSubmitting, setCodeSubmitting] = useState(false);
   const [forgotError, setForgotError] = useState("");
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
@@ -148,8 +164,40 @@ export function AdminLoginPage() {
     }
   };
 
+  const handleVerifyResetCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotError("");
+    setCodeSubmitting(true);
+
+    try {
+      const res = await fetch("/api/v1/auth/verify-reset-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail, code: forgotCode }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setForgotError(data.error?.message || copy.verifyFailed);
+        return;
+      }
+
+      const resetToken = data.data?.resetToken || data.data?.reset_token || data.data?.token;
+      const query = resetToken
+        ? `token=${encodeURIComponent(resetToken)}`
+        : `email=${encodeURIComponent(forgotEmail)}&code=${encodeURIComponent(forgotCode)}`;
+      setShowForgot(false);
+      router.push(`/admin/reset-password?${query}`);
+    } catch {
+      setForgotError(copy.forgotNetworkError);
+    } finally {
+      setCodeSubmitting(false);
+    }
+  };
+
   const openForgot = () => {
     setForgotEmail("");
+    setForgotCode("");
     setForgotSuccess(false);
     setForgotError("");
     setShowForgot(true);
@@ -753,6 +801,47 @@ export function AdminLoginPage() {
                 <p className="admin-forgot-desc">
                   {copy.resetSent(forgotEmail)}
                 </p>
+                {forgotError && (
+                  <div className="admin-login-error">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{forgotError}</span>
+                  </div>
+                )}
+                <form onSubmit={handleVerifyResetCode} className="admin-forgot-form">
+                  <div className="admin-login-field">
+                    <label htmlFor="forgot-code" className="admin-login-label">
+                      {copy.codeLabel}
+                    </label>
+                    <div className="admin-login-input-wrapper">
+                      <Lock className="admin-login-input-icon" />
+                      <input
+                        id="forgot-code"
+                        type="text"
+                        value={forgotCode}
+                        onChange={(e) => setForgotCode(e.target.value)}
+                        placeholder={copy.codePlaceholder}
+                        required
+                        className="admin-login-input"
+                        disabled={codeSubmitting}
+                      />
+                    </div>
+                    <p className="admin-forgot-desc">{copy.codeDesc}</p>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={codeSubmitting || !forgotCode}
+                    className="admin-forgot-submit"
+                  >
+                    {codeSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {copy.verifying}
+                      </>
+                    ) : (
+                      <>{copy.verifyCode}</>
+                    )}
+                  </button>
+                </form>
                 <button
                   onClick={() => setShowForgot(false)}
                   className="admin-forgot-submit"

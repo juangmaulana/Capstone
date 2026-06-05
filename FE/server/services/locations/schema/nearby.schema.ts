@@ -1,13 +1,13 @@
 import { z } from '@/lib/openapi/zod'
-import { LatitudeParamSchema, LongitudeParamSchema } from '@/server/shared/schemas/coordinate.schema'
+import { LatitudeSchema, LongitudeSchema } from '@/server/shared/schemas/coordinate.schema'
 
 export const NearbyImagesSchema = z.object({
-  latitude: LatitudeParamSchema,
-  longitude: LongitudeParamSchema,
-  radius: z.string().openapi({
+  latitude: LatitudeSchema,
+  longitude: LongitudeSchema,
+  radius: z.coerce.number().min(0).max(100).openapi({
     example: 5,
     description: 'Circle radius (km) of nearby images: 0 <= radius <= 100',
-  }).transform(Number)
+  })
 })
 
 export type NearbyImagesRequest = z.infer<typeof NearbyImagesSchema>

@@ -7,11 +7,6 @@ registry.registerPath({
   path: '/api/v1/plants/{id}',
   tags: ['Plants'],
   summary: 'Update plant',
-  security: [
-    {
-      bearerAuth: [],
-    }
-  ],
   request: {
     params: IdSchema,
     body: {

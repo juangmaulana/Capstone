@@ -1,6 +1,6 @@
-import { User } from './models/user.model';
-import { DB, UserUpdate } from '@/server/db/types';
-import { toUser, toUserOrNull } from './mappers/to-model';
+import { User } from './model';
+import { DB, UserInsert, UserUpdate } from '@/server/db/types';
+import { toDomain } from './mappers/to-domain';
 
 export type UserFilter = {
   search?: string
@@ -18,8 +18,10 @@ export type UserRepo = {
   }>
   findById(id: number): Promise<User | null>
   findByEmail(email: string): Promise<User | null>
+  create(data: UserInsert): Promise<User>
   update(id: number, data: UserUpdate): Promise<User | null>
-  delete(id: number): Promise<boolean>
+  delete(id: number): Promise<User | null>
+  countByRoleId(roleId: number): Promise<number>
 }
 
 export const createUserRepo = (db: DB): UserRepo => ({
@@ -49,63 +51,54 @@ export const createUserRepo = (db: DB): UserRepo => ({
     const data = await query
       .limit(limit)
       .offset(offset)
-      .innerJoin('roles', 'roles.id', 'users.role_id')
-      .selectAll('users')
-      .select(['roles.name as role_name'])
+      .selectAll()
       .orderBy('created_at', 'desc')
       .execute()
-      .then(rows => rows.map(toUser)) 
+      .then(rows => rows.map(toDomain)) 
 
     return { data, total, limit, page: filter.page }
   },
 
   findById: async (id) =>
     db.selectFrom('users')
-      .innerJoin('roles', 'roles.id', 'users.role_id')
-      .selectAll('users')
-      .select(['roles.name as role_name'])
-      .where('users.id', '=', id)
+      .selectAll()
+      .where('id', '=', id)
       .executeTakeFirst()
-      .then(toUserOrNull),
+      .then(row => (row ? toDomain(row) : null)),
 
   findByEmail: async (email) =>
     db.selectFrom('users')
-      .innerJoin('roles', 'roles.id', 'users.role_id')
-      .selectAll('users')
-      .select(['roles.name as role_name'])
+      .selectAll()
       .where('email', '=', email)
       .executeTakeFirst()
-      .then(toUserOrNull),
+      .then(row => (row ? toDomain(row) : null)),
 
-  update: async (id, data) => {
-    return db.transaction().execute(async (trx) => {
-      const user = await trx
-        .updateTable('users')
-        .set(data)
-        .where('id', '=', id)
-        .returning('id')
-        .executeTakeFirstOrThrow();
+  create: async (data) =>
+    db.insertInto('users')
+      .values(data)
+      .returningAll()
+      .executeTakeFirstOrThrow()
+      .then(toDomain),
 
-      return trx
-        .selectFrom('users')
-        .innerJoin('roles', 'roles.id', 'users.role_id')
-        .selectAll('users')
-        .select(['roles.name as role_name'])
-        .where('users.id', '=', user.id)
-        .executeTakeFirstOrThrow()
-        .then(toUserOrNull);
-      })
-    },
-
-  delete: async (id) => {
-    const result = await db.deleteFrom('users')
+  update: async (id, data) =>
+    db.updateTable('users')
+      .set(data)
       .where('id', '=', id)
+      .returningAll()
       .executeTakeFirst()
+      .then(row => (row ? toDomain(row) : null)),
 
-    if (Number(result.numDeletedRows) === 0) {
-      return false;
-    }
+  delete: async (id) =>
+    db.deleteFrom('users')
+      .where('id', '=', id)
+      .returningAll()
+      .executeTakeFirst()
+      .then(row => (row ? toDomain(row) : null)),
 
-    return true;
-  }
+  countByRoleId: async (roleId) =>
+    db.selectFrom('users')
+      .select((eb) => eb.fn.countAll().as('count'))
+      .where('role_id', '=', roleId)
+      .executeTakeFirst()
+      .then((r) => Number(r?.count ?? 0))
 })

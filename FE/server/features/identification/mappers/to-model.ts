@@ -1,57 +1,33 @@
 import { EnrichedIdentificationSelect } from '@/server/db/types'
-import { Identification } from '../model/identification.model'
-import { Image } from '../model/image.model'
+import { Identification } from '../model'
 
-export const toIdentification = (row: EnrichedIdentificationSelect): Identification => {
+export const toModel = (row: EnrichedIdentificationSelect): Identification => {
   return new Identification(
     row.id,
+    row.image_id,
+    row.plant_id,
     row.confidence,
     row.ai_response,
     row.is_success,
     row.identified_at,
-
-    // image
-    row.image_id !== null
-      ? new Image(
-          row.image_id,
-          row.image_name!,
-          row.image_path!,
-          row.image_size!,
-          row.image_latitude!,
-          row.image_longitude!,
-          row.image_elevation!,
-          row.image_uploaded_at!
-        )
-      : undefined,
-
-    // plant
-    row.plant_id !== null
-      ? {
-          id: row.plant_id,
-          name: row.plant_name!,
-        }
-      : undefined,
-
-    // ranger
-    row.ranger_id !== null
-      ? {
-          id: row.ranger_id,
-          name: row.ranger_name!,
-        }
-      : undefined,
-
-    // uploader
-    row.uploader_id !== null
-      ? {
-          id: row.uploader_id,
-          name: row.uploader_name!,
-        }
-      : undefined,
+    row.plant_name,
+    row.scientific_name,
+    row.image_path,
+    row.image_name,
+    row.image_size,
+    row.image_latitude,
+    row.image_longitude,
+    row.image_elevation,
+    row.image_uploaded_at,
+    row.ranger_id,
+    row.ranger_name,
+    row.uploader_id,
+    row.uploader_name,
   )
 }
 
-export const toIdentificationOrNull = (
+export const toModelOrNull = (
   row: EnrichedIdentificationSelect | undefined
 ): Identification | null => {
-  return row ? toIdentification(row) : null
+  return row ? toModel(row) : null
 }

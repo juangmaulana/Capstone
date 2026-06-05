@@ -3892,8 +3892,7 @@ const getAuthStorage = () => sessionStorage;
 
 /* ─── Hardcoded fallback credentials (used when DB auth fails) ─── */
 const FALLBACK_CREDENTIALS = [
-  { email: "admin", password: "admin123", name: "Admin", role: "Super Admin" },
-  { email: "admin@biowatch.id", password: "admin123", name: "Admin", role: "Super Admin" },
+  { email: "admin@bio-inspector.id", password: "admin123", name: "Admin", role: "Super Admin" },
 ];
 
 export function AuthProvider({ children }: { children: ReactNode }) {

@@ -7,11 +7,6 @@ registry.registerPath({
   path: '/api/v1/users/{id}',
   tags: ['Users'],
   summary: 'Update user',
-  security: [
-    {
-      bearerAuth: [],
-    }
-  ],
   request: {
     params: IdSchema,
     body: {

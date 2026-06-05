@@ -23,8 +23,6 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { createScientificNameSlug, getScientificNameWithAuthor } from "@/lib/plant/scientific-name-author";
-import { type TranslateLanguage } from "@/lib/translation/client";
-import { translateSpeciesDescriptions } from "@/lib/translation/species";
 
 /* ───────────── TYPES ───────────── */
 
@@ -34,6 +32,9 @@ interface ApiUser {
   email: string;
   roleId: number;
   role_id?: number;
+  role?: string;
+  roleName?: string;
+  role_name?: string;
   status?: string;
   updatedAt?: string;
   updated_at?: string;
@@ -78,15 +79,36 @@ interface ApiPlant {
   phylum?: string;
   taxClass?: string;
   tax_class?: string;
+  class?: string;
   orderRank?: string;
   order_rank?: string;
+  order?: string;
   taxSpecies?: string;
   tax_species?: string;
+  species?: string;
   source?: string;
+  sourceReference?: string;
+  source_reference?: string;
   imageSource?: string;
   image_source?: string;
+  imageReference?: string;
+  image_reference?: string;
   updatedAt?: string;
   updated_at?: string;
+}
+
+interface ApiAuditLog {
+  id: string | number;
+  actorId?: string;
+  actor_id?: string;
+  entityId?: string;
+  entity_id?: string;
+  entityType?: string;
+  entity_type?: string;
+  action?: string;
+  message?: string;
+  createdAt?: string;
+  created_at?: string;
 }
 
 interface DisplayUser {
@@ -262,7 +284,7 @@ const writeStoredSpeciesTaxonomy = (speciesId: number, scientificName: string, t
 type LogLevel = "info" | "warning" | "error" | "success";
 
 interface LogEntry {
-  id: number;
+  id: string | number;
   timestamp: string;
   level: LogLevel;
   source: string;
@@ -270,25 +292,36 @@ interface LogEntry {
   user?: string;
 }
 
-const MOCK_LOGS: LogEntry[] = [
-  { id: 1, timestamp: "2026-04-15 09:32:14", level: "success", source: "Annotation", message: "Annotated image IMG_20260115_001.jpg — species: Vachellia nilotica", user: "Siti Nurhaliza" },
-  { id: 2, timestamp: "2026-04-15 09:28:05", level: "success", source: "Verification", message: "Validated annotation for IMG_20260115_001.jpg", user: "Dr. Andi Prasetyo" },
-  { id: 3, timestamp: "2026-04-15 09:15:42", level: "success", source: "Annotation", message: "Annotated image IMG_20260118_002.jpg — species: Lantana camara", user: "Budi Santoso" },
-  { id: 4, timestamp: "2026-04-15 08:55:30", level: "success", source: "Verification", message: "Validated annotation for IMG_20260118_002.jpg", user: "Dr. Andi Prasetyo" },
-  { id: 5, timestamp: "2026-04-15 08:40:11", level: "success", source: "Annotation", message: "Annotated image IMG_20260205_003.jpg — species: Ageratum conyzoides (corrected from Clitoria ternatea)", user: "Siti Nurhaliza" },
-  { id: 6, timestamp: "2026-04-15 08:22:00", level: "warning", source: "Annotation", message: "Annotation for IMG_20260305_006.jpg — image too blurry, marked as Unknown", user: "Siti Nurhaliza" },
-  { id: 7, timestamp: "2026-04-15 07:55:18", level: "error", source: "Verification", message: "Rejected annotation for IMG_20260305_006.jpg — image quality insufficient", user: "Dr. Andi Prasetyo" },
-  { id: 8, timestamp: "2026-04-14 23:00:00", level: "success", source: "Annotation", message: "Annotated image IMG_20260222_005.jpg — species: Merremia hederacea", user: "Rudi Hermawan" },
-  { id: 9, timestamp: "2026-04-14 22:15:33", level: "success", source: "Verification", message: "Validated annotation for IMG_20260210_004.jpg", user: "Dr. Andi Prasetyo" },
-  { id: 10, timestamp: "2026-04-14 21:30:00", level: "info", source: "Annotation", message: "Batch Q1 2026 — 2 images remaining for annotation", user: "Dr. Andi Prasetyo" },
-];
-
 const LEVEL_STYLES: Record<LogLevel, { bg: string; text: string; icon: typeof Info }> = {
   info: { bg: "bg-blue-100", text: "text-blue-700", icon: Info },
   warning: { bg: "bg-amber-100", text: "text-amber-700", icon: AlertTriangle },
   error: { bg: "bg-red-100", text: "text-red-700", icon: AlertCircle },
   success: { bg: "bg-green-100", text: "text-green-700", icon: CheckCircle2 },
 };
+
+const getLogLevelFromAction = (action?: string): LogLevel => {
+  const normalizedAction = action?.toLowerCase() ?? "";
+  if (normalizedAction.includes("error") || normalizedAction.includes("fail") || normalizedAction.includes("reject")) return "error";
+  if (normalizedAction.includes("warn")) return "warning";
+  if (normalizedAction.includes("info") || normalizedAction.includes("read") || normalizedAction.includes("view")) return "info";
+  return "success";
+};
+
+const formatAuditTimestamp = (value?: string) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toISOString().replace("T", " ").substring(0, 19);
+};
+
+const mapAuditLog = (log: ApiAuditLog): LogEntry => ({
+  id: log.id,
+  timestamp: formatAuditTimestamp(log.createdAt || log.created_at),
+  level: getLogLevelFromAction(log.action),
+  source: log.entityType || log.entity_type || "-",
+  message: log.message || log.action || "-",
+  user: log.actorId || log.actor_id || undefined,
+});
 
 /* ───────────── TABS ───────────── */
 
@@ -635,6 +668,17 @@ const ADMIN_COPY = {
   },
 } as const;
 
+const isSuperAdminRole = (role: string) => role.trim().toLowerCase() === "super admin";
+
+const formatUserLastLogin = (lastLoginAt: string | undefined, role: string, language: keyof typeof ADMIN_COPY) => {
+  if (isSuperAdminRole(role)) return "";
+
+  return lastLoginAt ? new Date(lastLoginAt).toLocaleString(language === "id" ? "id-ID" : "en-US", {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  }) : "-";
+};
+
 /* ───────────── COMPONENT ───────────── */
 
 export default function AdminPage() {
@@ -679,23 +723,22 @@ export default function AdminPage() {
       const usersJson = await usersRes.json();
       const roleMap: Record<number, string> = {};
       rolesData.forEach(r => { roleMap[r.id] = r.name; });
+      const mapApiUserToDisplayUser = (u: ApiUser): DisplayUser => {
+        const roleId = u.roleId || u.role_id || 0;
+        const roleName = u.roleName || u.role_name || u.role || roleMap[roleId] || "User";
+        return {
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          role: roleName === "Field Officer" ? "Ranger" : roleName,
+          roleId,
+          status: u.status || "Active",
+          lastLogin: formatUserLastLogin(u.lastLoginAt, roleName, language),
+        };
+      };
 
       if (usersJson.success && usersJson.data) {
-        setUsers(usersJson.data.map((u: ApiUser) => {
-          const roleName = roleMap[u.roleId || u.role_id || 0] || "User";
-          return {
-            id: u.id,
-            name: u.name,
-            email: u.email,
-            role: roleName === "Field Officer" ? "Ranger" : roleName,
-            roleId: u.roleId || u.role_id || 0,
-            status: "Active",
-            lastLogin: u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString(language === "id" ? "id-ID" : "en-US", {
-              dateStyle: 'medium',
-              timeStyle: 'short'
-            }) : "-",
-          };
-        }));
+        setUsers(usersJson.data.map(mapApiUserToDisplayUser));
       }
     } catch (e) { console.error("Failed to fetch users:", e); }
   }, [fetchRoles, language]);
@@ -724,11 +767,11 @@ export default function AdminPage() {
           imagePath: p.imagePath || p.image_path || "",
           kingdom: p.kingdom || "",
           phylum: p.phylum || "",
-          taxClass: p.taxClass || p.tax_class || "",
-          orderRank: p.orderRank || p.order_rank || "",
-          taxSpecies: p.taxSpecies || p.tax_species || "",
-          source: p.source || "",
-          imageSource: p.imageSource || p.image_source || "",
+          taxClass: p.taxClass || p.tax_class || p.class || "",
+          orderRank: p.orderRank || p.order_rank || p.order || "",
+          taxSpecies: p.taxSpecies || p.tax_species || p.species || "",
+          source: p.source || p.sourceReference || p.source_reference || "",
+          imageSource: p.imageSource || p.image_source || p.imageReference || p.image_reference || "",
           lastUpdated: p.updatedAt || p.updated_at || "-",
         })));
       }
@@ -849,10 +892,37 @@ export default function AdminPage() {
     }
   };
 
-  const handleEditRole = (u: DisplayUser) => {
+  const mapApiUserToDisplayUser = useCallback((u: ApiUser, rolesData = roles): DisplayUser => {
+    const roleId = u.roleId || u.role_id || 0;
+    const roleName = u.roleName || u.role_name || u.role || rolesData.find((role) => role.id === roleId)?.name || "User";
+
+    return {
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      role: roleName === "Field Officer" ? "Ranger" : roleName,
+      roleId,
+      status: u.status || "Active",
+      lastLogin: formatUserLastLogin(u.lastLoginAt, roleName, language),
+    };
+  }, [language, roles]);
+
+  const handleEditRole = async (u: DisplayUser) => {
     if (!isSuperAdmin) return;
-    setEditRoleUser(u);
-    setEditRoleValue(u.role);
+    let userDetail = u;
+
+    try {
+      const res = await fetch(`/api/v1/users/${u.id}`);
+      const json = await res.json();
+      if (res.ok && json.success && json.data) {
+        userDetail = mapApiUserToDisplayUser(json.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch user detail:", error);
+    }
+
+    setEditRoleUser(userDetail);
+    setEditRoleValue(userDetail.role);
   };
 
   const submitRoleChange = async () => {
@@ -904,12 +974,32 @@ export default function AdminPage() {
     currentPassword: "",
   });
 
-  const openProfile = () => {
-    const nameParts = (user?.name || "Admin").split(" ");
+  const openProfile = async () => {
+    let profileUser = user;
+
+    if (user?.id) {
+      try {
+        const res = await fetch(`/api/v1/users/${user.id}`);
+        const json = await res.json();
+        if (res.ok && json.success && json.data) {
+          const detail = mapApiUserToDisplayUser(json.data);
+          profileUser = {
+            id: detail.id,
+            name: detail.name,
+            email: detail.email,
+            role: detail.role,
+          };
+        }
+      } catch (error) {
+        console.error("Failed to fetch profile user detail:", error);
+      }
+    }
+
+    const nameParts = (profileUser?.name || "Admin").split(" ");
     setProfileForm({
       firstName: nameParts[0] || "",
       lastName: nameParts.slice(1).join(" ") || "",
-      email: user?.email || "",
+      email: profileUser?.email || "",
       country: "Indonesia",
     });
     setPasswordForm({ newPassword: "", repeatNewPassword: "", currentPassword: "" });
@@ -1107,7 +1197,6 @@ export default function AdminPage() {
 
   const handleSaveSpecies = async () => {
     if (!speciesForm.scientificName.trim() || !speciesForm.family.trim()) return;
-    const sourceLanguage = language as TranslateLanguage;
     const botanicalDescription = (
       language === "id"
         ? speciesForm.botanicalDescriptionId
@@ -1127,68 +1216,53 @@ export default function AdminPage() {
     const imageSourceText = speciesForm.imageSource?.trim() || "";
 
     try {
-      const translatedFields = await translateSpeciesDescriptions({
-        botanicalDescription,
-        ecologicalInformation,
-        environmentalImpact,
-        sourceLanguage,
-      });
+      const buildPlantFormData = (fields: Record<string, string>) => {
+        const fd = new FormData();
+        Object.entries(fields).forEach(([key, val]) => fd.append(key, val));
+        return fd;
+      };
 
       let res;
       if (speciesForm.id === 0) {
         res = await fetch("/api/v1/plants", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+          body: buildPlantFormData({
             commonName: speciesForm.commonName.trim() || speciesForm.scientificName.trim(),
             scientificName: speciesForm.scientificName.trim(),
             family: speciesForm.family.trim(),
             genus: speciesForm.genus.trim() || speciesForm.family.trim(),
             botanicalDescription,
-            botanicalDescriptionEn: translatedFields.botanicalDescriptionEn,
-            botanicalDescriptionId: translatedFields.botanicalDescriptionId,
             ecologicalInformation,
-            ecologicalInformationEn: translatedFields.ecologicalInformationEn,
-            ecologicalInformationId: translatedFields.ecologicalInformationId,
             environmentalImpact,
-            environmentalImpactEn: translatedFields.environmentalImpactEn,
-            environmentalImpactId: translatedFields.environmentalImpactId,
             imagePath: speciesForm.imagePath.trim(),
             kingdom: speciesForm.kingdom.trim(),
             phylum: speciesForm.phylum.trim(),
-            taxClass: speciesForm.taxClass.trim(),
-            orderRank: speciesForm.order.trim(),
-            taxSpecies: speciesForm.taxSpecies.trim(),
-            source: sourceText,
-            imageSource: imageSourceText,
+            class: speciesForm.taxClass.trim(),
+            order: speciesForm.order.trim(),
+            species: speciesForm.taxSpecies.trim(),
+            sourceReference: sourceText,
+            imageReference: imageSourceText,
           }),
         });
       } else {
         res = await fetch(`/api/v1/plants/${speciesForm.id}`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+          body: buildPlantFormData({
             commonName: speciesForm.commonName.trim(),
             scientificName: speciesForm.scientificName.trim(),
             family: speciesForm.family.trim(),
             genus: speciesForm.genus.trim(),
             botanicalDescription,
-            botanicalDescriptionEn: translatedFields.botanicalDescriptionEn,
-            botanicalDescriptionId: translatedFields.botanicalDescriptionId,
             ecologicalInformation,
-            ecologicalInformationEn: translatedFields.ecologicalInformationEn,
-            ecologicalInformationId: translatedFields.ecologicalInformationId,
             environmentalImpact,
-            environmentalImpactEn: translatedFields.environmentalImpactEn,
-            environmentalImpactId: translatedFields.environmentalImpactId,
             imagePath: speciesForm.imagePath.trim(),
             kingdom: speciesForm.kingdom.trim(),
             phylum: speciesForm.phylum.trim(),
-            taxClass: speciesForm.taxClass.trim(),
-            orderRank: speciesForm.order.trim(),
-            taxSpecies: speciesForm.taxSpecies.trim(),
-            source: sourceText,
-            imageSource: imageSourceText,
+            class: speciesForm.taxClass.trim(),
+            order: speciesForm.order.trim(),
+            species: speciesForm.taxSpecies.trim(),
+            sourceReference: sourceText,
+            imageReference: imageSourceText,
           }),
         });
       }
@@ -1244,20 +1318,57 @@ export default function AdminPage() {
     s.commonName.toLowerCase().includes(speciesSearch.toLowerCase())
   );
 
-  const [systemLogs, setSystemLogs] = useState<LogEntry[]>(MOCK_LOGS);
+  const [systemLogs, setSystemLogs] = useState<LogEntry[]>([]);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+
+  const fetchAuditLogs = useCallback(async () => {
+    setIsLoadingLogs(true);
+    try {
+      const res = await fetch("/api/v1/audit?limit=100");
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setSystemLogs(json.data.map(mapAuditLog));
+      }
+    } catch (error) {
+      console.error("Failed to fetch audit logs:", error);
+    } finally {
+      setIsLoadingLogs(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAuditLogs();
+  }, [fetchAuditLogs]);
 
   const addLog = (level: LogLevel, source: string, message: string, userStr?: string) => {
+    const actorId = user?.id ? String(user.id) : userStr || user?.email || user?.name || "Admin";
+    const optimisticLog: LogEntry = {
+      id: crypto.randomUUID(),
+      timestamp: new Date().toISOString().replace("T", " ").substring(0, 19),
+      level,
+      source,
+      message,
+      user: userStr || user?.name || "Admin",
+    };
+
     setSystemLogs(prev => [
-      {
-        id: Math.max(...prev.map(l => l.id), 0) + 1,
-        timestamp: new Date().toISOString().replace("T", " ").substring(0, 19),
-        level,
-        source,
-        message,
-        user: userStr || user?.name || "Admin",
-      },
+      optimisticLog,
       ...prev
     ]);
+
+    fetch("/api/v1/audit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        actorId,
+        entityId: String(optimisticLog.id),
+        entityType: source,
+        action: level.toUpperCase(),
+        message,
+      }),
+    })
+      .then((res) => res.ok ? fetchAuditLogs() : undefined)
+      .catch((error) => console.error("Failed to write audit log:", error));
   };
 
   const filteredLogs = logFilter === "all"
@@ -1304,7 +1415,7 @@ export default function AdminPage() {
     setConfirmAction(null);
 
     if (action === "logout") {
-      logout();
+      void logout();
       return;
     }
     if (action === "saveProfile") {
@@ -1549,7 +1660,17 @@ export default function AdminPage() {
               </div>
             </div>
             <div className="divide-y">
-              {filteredLogs.map((log) => {
+              {isLoadingLogs && (
+                <div className="px-6 py-8 text-center text-sm text-muted-foreground">
+                  Loading audit logs...
+                </div>
+              )}
+              {!isLoadingLogs && filteredLogs.length === 0 && (
+                <div className="px-6 py-8 text-center text-sm text-muted-foreground">
+                  No audit logs found.
+                </div>
+              )}
+              {!isLoadingLogs && filteredLogs.map((log) => {
                 const style = LEVEL_STYLES[log.level];
                 const Icon = style.icon;
                 return (
@@ -1756,8 +1877,8 @@ export default function AdminPage() {
               <label className="block text-sm font-medium">{copy.roleModal.role}</label>
               <div className="flex flex-wrap gap-2">
                 {roles
-                  .filter((r) => r.name === "Researcher" || r.name === "Ranger" || r.name === "Field Officer")
-                  .map((r) => (r.name === "Field Officer" ? "Ranger" : r.name))
+                  .filter((r) => ["researcher", "ranger", "field officer"].includes(r.name.toLowerCase()))
+                  .map((r) => r.name.toLowerCase() === "field officer" ? "Ranger" : r.name)
                   .map((role) => (
                     <button
                       key={role}
@@ -1947,8 +2068,8 @@ export default function AdminPage() {
                     <label className="block text-sm font-medium">{copy.addUser.role}</label>
                     <div className="flex flex-wrap gap-2">
                       {roles
-                        .filter((r) => r.name === "Researcher" || r.name === "Ranger" || r.name === "Field Officer")
-                        .map((r) => (r.name === "Field Officer" ? "Ranger" : r.name))
+                        .filter((r) => ["researcher", "ranger", "field officer"].includes(r.name.toLowerCase()))
+                        .map((r) => r.name.toLowerCase() === "field officer" ? "Ranger" : r.name)
                         .map((role) => (
                           <button
                             key={role}

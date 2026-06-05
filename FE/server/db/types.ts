@@ -49,27 +49,39 @@ export type PlantInsert = Insertable<PlantTable>
 export type PlantUpdate = Updateable<PlantTable>
 
 export interface IdentificationTable {
-  readonly id: number
+  readonly id: Generated<number>
   plant_id: number
   image_id: number
   confidence: number
   ai_response: string
   is_success: boolean
-  ranger_id: number
-  uploaded_by: number
-  readonly identified_at: Date
+  ranger_id: number | null
+  uploaded_by: number | null
+  readonly identified_at: Generated<Date>
 }
 
 export interface ImageTable {
-  readonly id: number
+  readonly id: Generated<number>
   file_name: string
   file_path: string
   file_size: number
   latitude: number
   longitude: number
   elevation: number
-  readonly uploaded_at: Date
+  readonly uploaded_at: Generated<Date>
 }
+
+export interface AuditLogTable {
+  id: string
+  actor_id: string
+  entity_id: string
+  entity_type: string
+  action: string
+  message: string
+  readonly created_at: Generated<Date>
+}
+export type AuditLogSelect = Selectable<AuditLogTable>
+export type AuditLogInsert = Insertable<AuditLogTable>
 
 export interface Database {
   users: UserTable
@@ -77,6 +89,7 @@ export interface Database {
   plants: PlantTable
   identifications: IdentificationTable
   images: ImageTable
+  audit_logs: AuditLogTable
 }
 
 export interface UserWithRole {
@@ -109,6 +122,7 @@ export interface EnrichedIdentification {
 
   plant_id: number | null
   plant_name: string | null
+  scientific_name: string | null
 
   ranger_id: number | null
   ranger_name: string | null

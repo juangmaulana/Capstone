@@ -1,7 +1,7 @@
 import { withErrorHandling } from '@/lib/api/errors/error-handler';
 import { parseWithZod } from '@/lib/validation/parse-with-zod';
-import { verifyResetCode } from '@/server/services/auth';
-import { verifyResetCodeSchema } from '@/server/services/auth/schemas/verify-reset-code.schema';
+import { verifyResetCode } from '@/server/auth';
+import { verifyResetCodeSchema } from '@/server/auth/schemas/verify-reset-code.schema';
 import { NextRequest, NextResponse } from 'next/server';
 
 export const POST = withErrorHandling(async (req: NextRequest) => {

@@ -23,8 +23,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         return stored;
       }
       return navigator.language.toLowerCase().startsWith("id") ? "id" : "en";
-    } catch (e) {
-      console.error("Failed to load language from storage:", e);
+    } catch {
       return "en";
     }
   });

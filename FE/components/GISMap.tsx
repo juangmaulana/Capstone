@@ -2,7 +2,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { MAP_OBSERVATIONS, MAP_SPECIES_COLOR, MAP_SPECIES_LIST } from "@/lib/map-observations";
+import {
+  fetchLocations,
+  fetchMapObservations,
+  fetchNearbyLocations,
+  MAP_SPECIES_COLOR,
+  type MapLocation,
+  type MapObservation,
+} from "@/lib/map-observations";
+
+const DEFAULT_CENTER: [number, number] = [-7.833, 114.366];
+
+const escapeHtml = (str: string): string =>
+  str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 const MAP_COPY = {
   en: {
@@ -13,6 +25,8 @@ const MAP_COPY = {
     date: "Date",
     elevation: "Elevation",
     viewDetails: "View details",
+    locations: "Locations",
+    nearby: "Nearby images",
   },
   id: {
     legend: "Legenda Spesies",
@@ -22,6 +36,8 @@ const MAP_COPY = {
     date: "Tanggal",
     elevation: "Elevasi",
     viewDetails: "Lihat detail",
+    locations: "Lokasi",
+    nearby: "Gambar sekitar",
   },
 } as const;
 
@@ -29,18 +45,28 @@ export function GISMap() {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<L.Map | null>(null);
   const markerLayer = useRef<L.LayerGroup | null>(null);
-  const [selectedSpecies, setSelectedSpecies] = useState<string[]>(MAP_SPECIES_LIST);
+  const [observations, setObservations] = useState<MapObservation[]>([]);
+  const [locations, setLocations] = useState<MapLocation[]>([]);
+  const [nearbyLocations, setNearbyLocations] = useState<MapLocation[]>([]);
+  const [selectedSpecies, setSelectedSpecies] = useState<string[]>([]);
   const { language } = useLanguage();
   const copy = MAP_COPY[language];
+  const speciesList = useMemo(() => Array.from(new Set(observations.map((observation) => observation.species))), [observations]);
+  const speciesColor = useMemo(() => {
+    const colors = ["#2E7D32", "#1565C0", "#6A1B9A", "#E65100", "#00838F", "#5D4037", "#AD1457"];
+    return Object.fromEntries(
+      speciesList.map((species, index) => [species, MAP_SPECIES_COLOR[species] || colors[index % colors.length]])
+    );
+  }, [speciesList]);
   const selectedSpeciesSet = useMemo(() => new Set(selectedSpecies), [selectedSpecies]);
   const filteredMarkers = useMemo(
-    () => MAP_OBSERVATIONS.filter((marker) => selectedSpeciesSet.has(marker.species)),
-    [selectedSpeciesSet],
+    () => observations.filter((marker) => selectedSpeciesSet.has(marker.species)),
+    [observations, selectedSpeciesSet],
   );
-  const allSelected = selectedSpecies.length === MAP_SPECIES_LIST.length;
+  const allSelected = speciesList.length > 0 && selectedSpecies.length === speciesList.length;
 
   const toggleAllSpecies = () => {
-    setSelectedSpecies((current) => current.length === MAP_SPECIES_LIST.length ? [] : MAP_SPECIES_LIST);
+    setSelectedSpecies((current) => current.length === speciesList.length ? [] : speciesList);
   };
 
   const toggleSpecies = (species: string) => {
@@ -52,10 +78,30 @@ export function GISMap() {
   };
 
   useEffect(() => {
+    let isMounted = true;
+
+    Promise.all([
+      fetchMapObservations(),
+      fetchLocations(),
+      fetchNearbyLocations(DEFAULT_CENTER[0], DEFAULT_CENTER[1], 10),
+    ]).then(([nextObservations, nextLocations, nextNearbyLocations]) => {
+      if (!isMounted) return;
+      setObservations(nextObservations);
+      setLocations(nextLocations);
+      setNearbyLocations(nextNearbyLocations);
+      setSelectedSpecies(Array.from(new Set(nextObservations.map((observation) => observation.species))));
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!mapRef.current || mapInstance.current) return;
 
     const map = L.map(mapRef.current, {
-      center: [-7.833, 114.366],
+      center: DEFAULT_CENTER,
       zoom: 12,
       zoomControl: false,
     });
@@ -93,7 +139,7 @@ export function GISMap() {
     layer.clearLayers();
 
     filteredMarkers.forEach((m) => {
-      const color = MAP_SPECIES_COLOR[m.species] || "#2E7D32";
+      const color = speciesColor[m.species] || "#2E7D32";
       const detailsHref = `/map/observations/${m.id}`;
       const marker = L.circleMarker([m.lat, m.lng], {
         radius: 8,
@@ -106,13 +152,13 @@ export function GISMap() {
 
       marker.bindPopup(`
         <div style="font-family:Inter,sans-serif;min-width:180px">
-          <h3 style="margin:0 0 6px;font-size:14px;font-weight:600">${m.species}</h3>
-          <p style="margin:4px 0;font-size:12px;color:#888;font-weight:500">${m.location}</p>
+          <h3 style="margin:0 0 6px;font-size:14px;font-weight:600">${escapeHtml(m.species)}</h3>
+          <p style="margin:4px 0;font-size:12px;color:#888;font-weight:500">${escapeHtml(m.location)}</p>
           <p style="margin:4px 0;font-size:12px;color:#888">${copy.elevation}: ${m.elevation} m dpl</p>
-          <p style="margin:4px 0;font-size:12px;color:#888">${copy.date}: ${m.date}</p>
+          <p style="margin:4px 0;font-size:12px;color:#888">${copy.date}: ${escapeHtml(m.date)}</p>
           <p style="margin:0;font-size:11px;color:#666">${m.lat.toFixed(2)}°, ${m.lng.toFixed(2)}°</p>
           <a
-            href="${detailsHref}"
+            href="${escapeHtml(detailsHref)}"
             style="display:inline-flex;align-items:center;justify-content:center;margin-top:10px;border-radius:6px;background:#2E7D32;color:white;padding:7px 10px;font-size:12px;font-weight:600;text-decoration:none"
           >
             ${copy.viewDetails}
@@ -120,7 +166,7 @@ export function GISMap() {
         </div>
       `);
     });
-  }, [copy.date, copy.elevation, copy.viewDetails, filteredMarkers]);
+  }, [copy.date, copy.elevation, copy.viewDetails, filteredMarkers, speciesColor]);
 
   return (
     <div className="relative isolate h-full w-full">
@@ -131,9 +177,12 @@ export function GISMap() {
         <div className="mb-2 flex items-center justify-between gap-3">
           <p className="text-xs font-bold text-foreground">{copy.filter}</p>
           <span className="text-[10px] font-medium text-muted-foreground">
-            {copy.showing} {filteredMarkers.length}/{MAP_OBSERVATIONS.length}
+            {copy.showing} {filteredMarkers.length}/{observations.length}
           </span>
         </div>
+        <p className="mb-2 text-[10px] font-medium text-muted-foreground">
+          {copy.locations}: {locations.length} · {copy.nearby}: {nearbyLocations.length}
+        </p>
         <label className="mb-2 flex cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/60">
           <input
             type="checkbox"
@@ -144,7 +193,7 @@ export function GISMap() {
           {copy.allPlants}
         </label>
         <div className="flex max-h-52 flex-col gap-1.5 overflow-y-auto">
-          {MAP_SPECIES_LIST.map((species) => (
+          {speciesList.map((species) => (
             <label key={species} className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1 hover:bg-muted/60">
               <input
                 type="checkbox"
@@ -154,7 +203,7 @@ export function GISMap() {
               />
               <span
                 className="h-3 w-3 shrink-0 rounded-full"
-                style={{ backgroundColor: MAP_SPECIES_COLOR[species] }}
+                style={{ backgroundColor: speciesColor[species] }}
               />
               <span className="text-[10px] font-medium leading-tight text-foreground">{species}</span>
             </label>
@@ -166,7 +215,7 @@ export function GISMap() {
       <div className="absolute bottom-6 left-6 z-[1000] bg-background/90 backdrop-blur-md p-3 rounded-lg shadow-lg border border-border">
         <p className="text-xs font-bold mb-2 text-foreground">{copy.legend}</p>
         <div className="flex flex-col gap-1.5">
-          {Object.entries(MAP_SPECIES_COLOR).map(([species, color]) => (
+          {Object.entries(speciesColor).map(([species, color]) => (
             <div key={species} className="flex items-center gap-2">
               <div 
                 className="h-3 w-3 rounded-full shrink-0" 

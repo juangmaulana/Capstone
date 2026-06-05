@@ -252,13 +252,13 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
     e.target.value = "";
 
     if (file) {
+      startAnalysis(file);
       const reader = new FileReader();
       reader.onload = (event) => {
         setImageSrc(event.target?.result as string);
+        setView("result");
       };
       reader.readAsDataURL(file);
-      setView("result");
-      startAnalysis(file);
     }
   };
 

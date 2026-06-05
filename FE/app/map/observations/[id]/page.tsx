@@ -4,10 +4,16 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, ExternalLink, Image as ImageIcon, MapPin, Sprout } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useEffect, useState } from "react";
 import {
-  getMapObservationById,
+  fetchNearbyLocations,
+  fetchPlantById,
+  getMapObservationByIdFromApi,
   getMapObservationSpeciesHref,
   MAP_SPECIES_COLOR,
+  type MapLocation,
+  type MapObservation,
+  type PlantDetail,
 } from "@/lib/map-observations";
 
 const OBSERVATION_COPY = {
@@ -23,10 +29,14 @@ const OBSERVATION_COPY = {
     longitude: "Longitude",
     elevation: "Elevation",
     source: "Source",
+    family: "Family",
+    imageSource: "Image Source",
+    nearbyImages: "Nearby Images",
     imageInfo: "Image Info",
     file: "File",
     size: "Size",
     capturedLocation: "Captured Location",
+    loading: "Loading observation...",
   },
   id: {
     back: "Kembali",
@@ -40,10 +50,14 @@ const OBSERVATION_COPY = {
     longitude: "Longitude",
     elevation: "Elevasi",
     source: "Sumber",
+    family: "Famili",
+    imageSource: "Sumber Gambar",
+    nearbyImages: "Gambar Sekitar",
     imageInfo: "Info Gambar",
     file: "File",
     size: "Ukuran",
     capturedLocation: "Lokasi Pengambilan",
+    loading: "Memuat observasi...",
   },
 } as const;
 
@@ -60,7 +74,58 @@ export default function MapObservationDetailPage() {
   const { language } = useLanguage();
   const copy = OBSERVATION_COPY[language];
   const id = typeof params?.id === "string" ? params.id : "";
-  const observation = getMapObservationById(id);
+  const [observation, setObservation] = useState<MapObservation | null>(null);
+  const [plantDetail, setPlantDetail] = useState<PlantDetail | null>(null);
+  const [nearbyLocations, setNearbyLocations] = useState<MapLocation[]>([]);
+  const [isLoading, setIsLoading] = useState(id.length > 0);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchObservation() {
+      setIsLoading(true);
+      const nextObservation = await getMapObservationByIdFromApi(id);
+      if (!isMounted) return;
+      setObservation(nextObservation);
+      setIsLoading(false);
+    }
+
+    fetchObservation();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchContext() {
+      if (!observation) return;
+      const [nextPlantDetail, nextNearbyLocations] = await Promise.all([
+        observation.plantId ? fetchPlantById(observation.plantId) : Promise.resolve(null),
+        fetchNearbyLocations(observation.lat, observation.lng, 5),
+      ]);
+
+      if (!isMounted) return;
+      setPlantDetail(nextPlantDetail);
+      setNearbyLocations(nextNearbyLocations);
+    }
+
+    fetchContext();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [observation]);
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[calc(100vh-64px)] flex-col items-center justify-center gap-4 bg-muted/30 p-6 text-center">
+        <p className="text-lg font-semibold text-muted-foreground">{copy.loading}</p>
+      </div>
+    );
+  }
 
   if (!observation) {
     return (
@@ -79,6 +144,7 @@ export default function MapObservationDetailPage() {
 
   const speciesColor = MAP_SPECIES_COLOR[observation.species] || "#2E7D32";
   const speciesHref = getMapObservationSpeciesHref(observation);
+  const detectedSpecies = plantDetail?.scientificName || observation.species;
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-muted/40">
@@ -113,7 +179,7 @@ export default function MapObservationDetailPage() {
             >
               {observation.confidence.toFixed(1)}% confidence
             </span>
-            <h1 className="mt-1.5 text-xl font-semibold text-white lg:mt-2 lg:text-2xl">{observation.species}</h1>
+            <h1 className="mt-1.5 text-xl font-semibold text-white lg:mt-2 lg:text-2xl">{detectedSpecies}</h1>
             <p className="mt-1 hidden text-sm font-medium text-white/80 lg:block">{observation.location}</p>
           </div>
         </section>
@@ -131,10 +197,11 @@ export default function MapObservationDetailPage() {
                 href={speciesHref}
                 className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
               >
-                {observation.species}
+                {detectedSpecies}
                 <ExternalLink className="h-3.5 w-3.5" />
               </Link>
             </DetailRow>
+            {plantDetail?.family && <DetailRow label={copy.family}>{plantDetail.family}</DetailRow>}
             <DetailRow label={copy.confidence}>{observation.confidence.toFixed(1)}%</DetailRow>
             <DetailRow label={copy.identifiedAt}>{observation.identifiedAt}</DetailRow>
           </section>
@@ -151,6 +218,7 @@ export default function MapObservationDetailPage() {
             <div className="hidden lg:block">
               <DetailRow label={copy.elevation}>{observation.elevation} m dpl</DetailRow>
               <DetailRow label={copy.capturedLocation}>{observation.location}</DetailRow>
+              <DetailRow label={copy.nearbyImages}>{nearbyLocations.length}</DetailRow>
             </div>
           </section>
 
@@ -164,6 +232,8 @@ export default function MapObservationDetailPage() {
             <DetailRow label={copy.file}>{observation.imageFile}</DetailRow>
             <DetailRow label={copy.size}>{observation.imageSize}</DetailRow>
             <DetailRow label={copy.source}>{observation.source}</DetailRow>
+            {plantDetail?.source && <DetailRow label={copy.source}>{plantDetail.source}</DetailRow>}
+            {plantDetail?.imageSource && <DetailRow label={copy.imageSource}>{plantDetail.imageSource}</DetailRow>}
           </section>
         </main>
       </div>

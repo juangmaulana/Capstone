@@ -56,6 +56,8 @@ function ResetPasswordContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get("token");
+  const email = searchParams.get("email");
+  const code = searchParams.get("code");
   const { language } = useLanguage();
   const copy = RESET_COPY[language];
 
@@ -65,16 +67,26 @@ function ResetPasswordContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const [isValidToken, setIsValidToken] = useState<boolean | null>(() => (token ? null : false));
+  const [resetToken, setResetToken] = useState(token || "");
+  const [isValidToken, setIsValidToken] = useState<boolean | null>(() => token ? true : (email && code ? null : false));
 
   // Validate token on mount
   useEffect(() => {
-    if (!token) return;
-    fetch(`/api/v1/auth/reset-password?token=${token}`)
-      .then((res) => res.json())
-      .then((data) => setIsValidToken(data.valid === true))
+    if (token || !email || !code) return;
+
+    fetch("/api/v1/auth/verify-reset-code", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, code }),
+    })
+      .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+      .then(({ ok, data }) => {
+        const nextToken = data.data?.resetToken || data.data?.reset_token || data.data?.token;
+        setResetToken(nextToken || "");
+        setIsValidToken(ok && data.success && Boolean(nextToken));
+      })
       .catch(() => setIsValidToken(false));
-  }, [token]);
+  }, [code, email, token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,7 +106,7 @@ function ResetPasswordContent() {
       const res = await fetch("/api/v1/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, password }),
+        body: JSON.stringify({ resetToken, newPassword: password }),
       });
       const data = await res.json();
       if (!res.ok) {

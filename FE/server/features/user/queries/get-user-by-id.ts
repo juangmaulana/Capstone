@@ -1,7 +1,7 @@
 import { UserRepo } from '../repo'
 import { ApiError } from '@/lib/api/api-error'
 import { ErrorCode } from '@/lib/api/errors/error-codes'
-import { User } from '../models/user.model'
+import { User } from '../model'
 
 export function getUserById(deps: { userRepo: UserRepo }) {
   const { userRepo } = deps

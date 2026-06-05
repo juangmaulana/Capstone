@@ -6,7 +6,7 @@ import { Search, Camera, Loader2, CalendarClock, Database, MapPinned, ScanSearch
 import { CameraSearchDialog } from "@/components/CameraSearchDialog";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { MAP_OBSERVATIONS } from "@/lib/map-observations";
+import { fetchLocationStats, fetchMapObservations, type LocationStats, type MapObservation } from "@/lib/map-observations";
 import { createScientificNameSlug, getScientificNameWithAuthor } from "@/lib/plant/scientific-name-author";
 
 interface PlantSearchRecord {
@@ -88,28 +88,32 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [speciesList, setSpeciesList] = useState<string[]>([]);
+  const [observations, setObservations] = useState<MapObservation[]>([]);
+  const [locationStats, setLocationStats] = useState<LocationStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { language } = useLanguage();
   const copy = COPY[language];
-  const latestObservation = MAP_OBSERVATIONS.reduce((latest, observation) =>
-    observation.date > latest.date ? observation : latest
-  );
-  const averageConfidence = Math.round(
-    MAP_OBSERVATIONS.reduce((total, observation) => total + observation.confidence, 0) / MAP_OBSERVATIONS.length
-  );
+  const latestObservation = observations.length > 0
+    ? observations.reduce((latest, observation) => observation.date > latest.date ? observation : latest)
+    : null;
+  const averageConfidence = observations.length > 0
+    ? Math.round(observations.reduce((total, observation) => total + observation.confidence, 0) / observations.length)
+    : 0;
   const quickStats = [
-    { label: copy.stats.records, value: MAP_OBSERVATIONS.length.toLocaleString("id-ID"), icon: Database },
-    { label: copy.stats.species, value: new Set(MAP_OBSERVATIONS.map((observation) => observation.species)).size.toString(), icon: Sprout },
-    { label: copy.stats.hotspots, value: new Set(MAP_OBSERVATIONS.map((observation) => observation.location)).size.toString(), icon: MapPinned },
+    { label: copy.stats.records, value: (locationStats?.totalImages || observations.length).toLocaleString("id-ID"), icon: Database },
+    { label: copy.stats.species, value: new Set(observations.map((observation) => observation.species)).size.toString(), icon: Sprout },
+    { label: copy.stats.hotspots, value: (locationStats?.totalLocations || new Set(observations.map((observation) => observation.location)).size).toString(), icon: MapPinned },
     {
       label: copy.stats.latest,
-      value: new Intl.DateTimeFormat(language === "id" ? "id-ID" : "en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      }).format(new Date(`${latestObservation.date}T00:00:00`)),
+      value: latestObservation
+        ? new Intl.DateTimeFormat(language === "id" ? "id-ID" : "en-GB", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          }).format(new Date(`${latestObservation.date}T00:00:00`))
+        : "-",
       icon: CalendarClock,
     },
     { label: copy.stats.confidence, value: `${averageConfidence}%`, icon: ScanSearch },
@@ -146,6 +150,19 @@ export default function Dashboard() {
     }
 
     fetchSpeciesList();
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    Promise.all([fetchMapObservations(), fetchLocationStats()]).then(([nextObservations, nextLocationStats]) => {
+      if (isMounted) setObservations(nextObservations);
+      if (isMounted) setLocationStats(nextLocationStats);
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleSearch = (e?: React.FormEvent, queryOverride?: string) => {

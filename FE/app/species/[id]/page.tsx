@@ -96,6 +96,8 @@ interface PlantData {
   taxSpecies: string;
   source?: string;
   imageSource?: string;
+  sourceReference?: string;
+  imageReference?: string;
 }
 
 interface PlantApiRecord {
@@ -132,13 +134,20 @@ interface PlantApiRecord {
   phylum?: string;
   taxClass?: string;
   tax_class?: string;
+  class?: string;
   orderRank?: string;
   order_rank?: string;
+  order?: string;
   taxSpecies?: string;
   tax_species?: string;
+  species?: string;
   source?: string;
+  sourceReference?: string;
+  source_reference?: string;
   imageSource?: string;
   image_source?: string;
+  imageReference?: string;
+  image_reference?: string;
 }
 
 const SPECIES_SOURCE_STORAGE_PREFIX = "biowatch_species_source_";
@@ -491,11 +500,13 @@ export default function SpeciesPage() {
     imagePath: record.imagePath || record.image_path || "",
     kingdom: record.kingdom || "",
     phylum: record.phylum || "",
-    taxClass: record.taxClass || record.tax_class || "",
-    orderRank: record.orderRank || record.order_rank || "",
-    taxSpecies: record.taxSpecies || record.tax_species || "",
-    source: record.source || "",
-    imageSource: record.imageSource || record.image_source || "",
+    taxClass: record.taxClass || record.tax_class || record.class || "",
+    orderRank: record.orderRank || record.order_rank || record.order || "",
+    taxSpecies: record.taxSpecies || record.tax_species || record.species || "",
+    source: record.source || record.sourceReference || record.source_reference || "",
+    imageSource: record.imageSource || record.image_source || record.imageReference || record.image_reference || "",
+    sourceReference: record.sourceReference || record.source_reference || record.source || "",
+    imageReference: record.imageReference || record.image_reference || record.imageSource || record.image_source || "",
   });
 
   useEffect(() => {
@@ -698,8 +709,8 @@ export default function SpeciesPage() {
             environmentalImpactEn: translatedFields.environmentalImpactEn,
             environmentalImpactId: translatedFields.environmentalImpactId,
             imagePath: draft.imagePath.trim(),
-            imageSource: draft.imageSource.trim(),
-            source: draft.source.trim(),
+            imageReference: draft.imageSource.trim(),
+            sourceReference: draft.source.trim(),
           }
         : {
             scientificName,
@@ -716,21 +727,22 @@ export default function SpeciesPage() {
             environmentalImpactEn: translatedFields.environmentalImpactEn,
             environmentalImpactId: translatedFields.environmentalImpactId,
             imagePath: draft.imagePath.trim(),
-            imageSource: draft.imageSource.trim(),
+            imageReference: draft.imageSource.trim(),
             kingdom: draft.kingdom.trim(),
             phylum: draft.phylum.trim(),
-            taxClass: draft.taxClass.trim(),
-            orderRank: draft.order.trim(),
-            taxSpecies: draft.taxSpecies.trim(),
-            source: draft.source.trim(),
+            class: draft.taxClass.trim(),
+            order: draft.order.trim(),
+            species: draft.taxSpecies.trim(),
+            sourceReference: draft.source.trim(),
           };
 
+      const fd = new FormData();
+      Object.entries(payload).forEach(([key, val]) => {
+        if (val !== undefined && val !== null) fd.append(key, String(val));
+      });
       const response = await fetch(`/api/v1/plants/${plant.id}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+        body: fd,
       });
 
       const result = await response.json();

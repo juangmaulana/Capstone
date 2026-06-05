@@ -8,11 +8,6 @@ registry.registerPath({
   path: '/api/v1/users',
   tags: ['Users'],
   summary: 'Fetch all users',
-  security: [
-    {
-      bearerAuth: [],
-    }
-  ],
   request: {
     query: UserFilterSchema,
   },
@@ -28,11 +23,6 @@ registry.registerPath({
   path: '/api/v1/users/{id}',
   tags: ['Users'],
   summary: 'Fetch user',
-  security: [
-    {
-      bearerAuth: [],
-    }
-  ],
   request: {
     params: IdSchema,
   },

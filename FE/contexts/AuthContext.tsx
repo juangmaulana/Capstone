@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 
 interface AuthUser {
   id?: number;
@@ -13,7 +13,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   user: AuthUser | null;
   login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
   registerUser: (email: string, password: string, name: string, role: string) => void;
   updatePassword: (email: string, currentPassword: string, newPassword: string) => Promise<boolean>;
   isLoading: boolean;
@@ -23,70 +23,126 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_STORAGE_KEY = "biowatch_admin_auth";
 const REGISTERED_USERS_KEY = "biowatch_registered_users";
+const ADMIN_LOGIN_ALIAS = "admin";
+const ADMIN_EMAIL = "admin@bio-inspector.id";
 
 const getAuthStorage = () => sessionStorage;
 
-/* ─── Hardcoded fallback credentials (used when DB auth fails) ─── */
-const FALLBACK_CREDENTIALS = [
-  { email: "admin", password: "admin123", name: "Admin", role: "Super Admin" },
-  { email: "admin@biowatch.id", password: "admin123", name: "Admin", role: "Super Admin" },
-];
+const normalizeLoginEmail = (email: string) => {
+  const value = email.trim().toLowerCase();
+  return value === ADMIN_LOGIN_ALIAS ? ADMIN_EMAIL : value;
+};
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Helper to get all credentials (hardcoded + dynamically registered)
-  const getAllLocalCredentials = () => {
+  const normalizeAuthUser = useCallback((authUser: Record<string, unknown>): AuthUser => ({
+    id: typeof authUser.id === "number" ? authUser.id : Number(authUser.id) || undefined,
+    name: String(authUser.name || "Admin"),
+    email: String(authUser.email || ""),
+    role: String(authUser.role || authUser.roleName || authUser.role_name || "Admin"),
+  }), []);
+
+  const applyAuthUser = useCallback((authUser: AuthUser) => {
+    setUser(authUser);
+    setIsAuthenticated(true);
+    getAuthStorage().setItem(AUTH_STORAGE_KEY, JSON.stringify(authUser));
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+  }, []);
+
+  const fetchServerProfile = useCallback(async (): Promise<AuthUser | null> => {
+    const profileRes = await fetch("/api/v1/auth/profile");
+    if (!profileRes.ok) return null;
+
+    const profileJson = await profileRes.json();
+    const authUser = profileJson.data?.user || profileJson.user || profileJson.data;
+    return profileJson.success && authUser ? normalizeAuthUser(authUser) : null;
+  }, [normalizeAuthUser]);
+
+  const hydrateServerSession = useCallback(async (): Promise<AuthUser | null> => {
+    try {
+      const profile = await fetchServerProfile();
+      if (profile) return profile;
+
+      const refreshRes = await fetch("/api/v1/auth/refresh", { method: "POST" });
+      if (!refreshRes.ok) return null;
+
+      return await fetchServerProfile();
+    } catch (error) {
+      console.warn("Server session profile unavailable:", error);
+      return null;
+    }
+  }, [fetchServerProfile]);
+
+  interface LocalCredential {
+    email: string;
+    password: string;
+    name: string;
+    role: string;
+  }
+
+  const getAllLocalCredentials = (): LocalCredential[] => {
     try {
       const stored = localStorage.getItem(REGISTERED_USERS_KEY);
-      const registered = stored ? JSON.parse(stored) : [];
-      return [...FALLBACK_CREDENTIALS, ...registered];
+      return stored ? JSON.parse(stored) : [];
     } catch {
-      return FALLBACK_CREDENTIALS;
+      return [];
     }
   };
 
   // Check for existing session on mount
   useEffect(() => {
+    let isMounted = true;
+    let localSession: AuthUser | null = null;
+
     try {
       const stored = getAuthStorage().getItem(AUTH_STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
+        localSession = parsed;
         setUser(parsed);
         setIsAuthenticated(true);
       }
     } catch {
       getAuthStorage().removeItem(AUTH_STORAGE_KEY);
       localStorage.removeItem(AUTH_STORAGE_KEY);
-    } finally {
-      setIsLoading(false);
     }
-  }, []);
+
+    hydrateServerSession().then((serverUser) => {
+      if (!isMounted) return;
+      if (serverUser) {
+        applyAuthUser(serverUser);
+      } else if (!localSession) {
+        setUser(null);
+        setIsAuthenticated(false);
+      }
+      setIsLoading(false);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [applyAuthUser, hydrateServerSession]);
 
   const login = async (email: string, password: string): Promise<boolean> => {
+    const loginEmail = normalizeLoginEmail(email);
+
     // Try DB auth first via API
     try {
       const res = await fetch("/api/v1/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: loginEmail, password }),
       });
 
       if (res.ok) {
         const json = await res.json();
-        if (json.success && json.user) {
-          const userData: AuthUser = {
-            id: json.user.id,
-            name: json.user.name,
-            email: json.user.email,
-            role: json.user.role,
-          };
-          setUser(userData);
-          setIsAuthenticated(true);
-          getAuthStorage().setItem(AUTH_STORAGE_KEY, JSON.stringify(userData));
-          localStorage.removeItem(AUTH_STORAGE_KEY);
+        const authUser = json.data?.user || json.user || json.data;
+        if (json.success && authUser) {
+          const userData = normalizeAuthUser(authUser);
+          applyAuthUser(userData);
           return true;
         }
       }
@@ -99,15 +155,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const allCredentials = getAllLocalCredentials();
     const found = allCredentials.find(
-      (cred) => cred.email === email && cred.password === password
+      (cred) => cred.email.toLowerCase() === loginEmail && cred.password === password
     );
 
     if (found) {
       const userData = { name: found.name, email: found.email, role: found.role };
-      setUser(userData);
-      setIsAuthenticated(true);
-      getAuthStorage().setItem(AUTH_STORAGE_KEY, JSON.stringify(userData));
-      localStorage.removeItem(AUTH_STORAGE_KEY);
+      applyAuthUser(userData);
       return true;
     }
 
@@ -161,26 +214,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return true;
       }
 
-      // Check fallback credentials
-      const fallbackIdx = FALLBACK_CREDENTIALS.findIndex(
-        (cred) => cred.email === email && cred.password === currentPassword
-      );
-      if (fallbackIdx !== -1) {
-        FALLBACK_CREDENTIALS[fallbackIdx].password = newPassword;
-        return true;
-      }
-
       return false;
     } catch {
       return false;
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    setIsAuthenticated(false);
-    getAuthStorage().removeItem(AUTH_STORAGE_KEY);
-    localStorage.removeItem(AUTH_STORAGE_KEY);
+  const logout = async () => {
+    try {
+      await fetch("/api/v1/auth/logout", {
+        method: "POST",
+      });
+    } catch (error) {
+      console.warn("Server logout unavailable, clearing local session:", error);
+    } finally {
+      setUser(null);
+      setIsAuthenticated(false);
+      getAuthStorage().removeItem(AUTH_STORAGE_KEY);
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+    }
   };
 
   return (
