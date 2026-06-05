@@ -1,0 +1,1282 @@
+"use client";
+
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { ArrowLeft, Network, FileText, Image as ImageIcon, Loader2, Pencil } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { getScientificNameWithAuthor } from "@/lib/plant/scientific-name-author";
+import { type TranslateLanguage } from "@/lib/translation/client";
+import { translateSpeciesDescriptions } from "@/lib/translation/species";
+
+// Taxonomy data for the 5 invasive species
+const TAXONOMY_DB: Record<string, { rank: string; value: string }[]> = {
+  "vachellia nilotica": [
+    { rank: "Kerajaan", value: "Plantae" },
+    { rank: "Filum", value: "Tracheophyta" },
+    { rank: "Kelas", value: "Magnoliopsida" },
+    { rank: "Ordo", value: "Fabales" },
+    { rank: "Famili", value: "Fabaceae" },
+    { rank: "Genus", value: "Vachellia" },
+    { rank: "Spesies", value: "V. nilotica" },
+  ],
+  "lantana camara": [
+    { rank: "Kerajaan", value: "Plantae" },
+    { rank: "Filum", value: "Tracheophyta" },
+    { rank: "Kelas", value: "Magnoliopsida" },
+    { rank: "Ordo", value: "Lamiales" },
+    { rank: "Famili", value: "Verbenaceae" },
+    { rank: "Genus", value: "Lantana" },
+    { rank: "Spesies", value: "L. camara" },
+  ],
+  "merremia hederacea": [
+    { rank: "Kerajaan", value: "Plantae" },
+    { rank: "Filum", value: "Tracheophyta" },
+    { rank: "Kelas", value: "Magnoliopsida" },
+    { rank: "Ordo", value: "Solanales" },
+    { rank: "Famili", value: "Convolvulaceae" },
+    { rank: "Genus", value: "Merremia" },
+    { rank: "Spesies", value: "M. hederacea" },
+  ],
+  "clitoria ternatea": [
+    { rank: "Kerajaan", value: "Plantae" },
+    { rank: "Filum", value: "Tracheophyta" },
+    { rank: "Kelas", value: "Magnoliopsida" },
+    { rank: "Ordo", value: "Fabales" },
+    { rank: "Famili", value: "Fabaceae" },
+    { rank: "Genus", value: "Clitoria" },
+    { rank: "Spesies", value: "C. ternatea" },
+  ],
+  "ageratum conyzoides": [
+    { rank: "Kerajaan", value: "Plantae" },
+    { rank: "Filum", value: "Tracheophyta" },
+    { rank: "Kelas", value: "Magnoliopsida" },
+    { rank: "Ordo", value: "Asterales" },
+    { rank: "Famili", value: "Asteraceae" },
+    { rank: "Genus", value: "Ageratum" },
+    { rank: "Spesies", value: "A. conyzoides" },
+  ],
+};
+
+interface PlantData {
+  id: number;
+  commonName: string;
+  scientificName: string;
+  family: string;
+  genus: string;
+  botanicalDescription: string;
+  botanicalDescriptionEn?: string;
+  botanicalDescriptionId?: string;
+  ecologicalInformation: string;
+  ecologicalInformationEn?: string;
+  ecologicalInformationId?: string;
+  environmentalImpact: string;
+  environmentalImpactEn?: string;
+  environmentalImpactId?: string;
+  imagePath: string;
+  kingdom: string;
+  phylum: string;
+  taxClass: string;
+  orderRank: string;
+  taxSpecies: string;
+  source?: string;
+  imageSource?: string;
+  sourceReference?: string;
+  imageReference?: string;
+}
+
+interface PlantApiRecord {
+  id: number;
+  commonName?: string;
+  common_name?: string;
+  scientificName?: string;
+  scientific_name?: string;
+  family?: string;
+  genus?: string;
+  botanicalDescription?: string;
+  botanical_description?: string;
+  botanicalDescriptionEn?: string;
+  botanical_description_en?: string;
+  botanicalDescriptionId?: string;
+  botanical_description_id?: string;
+  ecologicalInformation?: string;
+  ecological_information?: string;
+  ecologicalInformationEn?: string;
+  ecological_information_en?: string;
+  ecologicalInformationId?: string;
+  ecological_information_id?: string;
+  environmentalImpact?: string;
+  environmental_impact?: string;
+  environmentalImpactEn?: string;
+  environmental_impact_en?: string;
+  environmentalImpactId?: string;
+  environmental_impact_id?: string;
+  description?: string;
+  ecology?: string;
+  imagePath?: string;
+  image_path?: string;
+  kingdom?: string;
+  phylum?: string;
+  taxClass?: string;
+  tax_class?: string;
+  class?: string;
+  orderRank?: string;
+  order_rank?: string;
+  order?: string;
+  taxSpecies?: string;
+  tax_species?: string;
+  species?: string;
+  source?: string;
+  sourceReference?: string;
+  source_reference?: string;
+  imageSource?: string;
+  image_source?: string;
+  imageReference?: string;
+  image_reference?: string;
+}
+
+const SPECIES_SOURCE_STORAGE_PREFIX = "biowatch_species_source_";
+const SPECIES_TAXONOMY_STORAGE_PREFIX = "biowatch_species_taxonomy_";
+
+const readStoredSpeciesTaxonomy = (speciesId: number, scientificName: string): { kingdom: string; phylum: string; taxClass: string; order: string; taxSpecies: string } | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const key = speciesId > 0
+      ? `${SPECIES_TAXONOMY_STORAGE_PREFIX}${speciesId}`
+      : `${SPECIES_TAXONOMY_STORAGE_PREFIX}tmp_${scientificName.trim().toLowerCase().replace(/\s+/g, "-")}`;
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    return JSON.parse(raw) as { kingdom: string; phylum: string; taxClass: string; order: string; taxSpecies: string };
+  } catch {
+    return null;
+  }
+};
+
+const createSpeciesSlug = (scientificName: string) =>
+  scientificName.trim().toLowerCase().replace(/\s+/g, "-");
+
+const getSpeciesSourceStorageKey = (speciesId: number, scientificName: string) =>
+  speciesId > 0 ? `${SPECIES_SOURCE_STORAGE_PREFIX}${speciesId}` : `${SPECIES_SOURCE_STORAGE_PREFIX}tmp_${createSpeciesSlug(scientificName)}`;
+
+const readStoredSpeciesSourceText = (speciesId: number, scientificName: string) => {
+  if (typeof window === "undefined") return "";
+
+  try {
+    const primaryKey = getSpeciesSourceStorageKey(speciesId, scientificName);
+    const fallbackKey = `${SPECIES_SOURCE_STORAGE_PREFIX}tmp_${createSpeciesSlug(scientificName)}`;
+    const raw = localStorage.getItem(primaryKey) || localStorage.getItem(fallbackKey);
+    if (!raw) return "";
+
+    const parsed = JSON.parse(raw) as string;
+    return typeof parsed === "string" ? parsed : raw;
+  } catch {
+    return "";
+  }
+};
+
+const writeStoredSpeciesSourceText = (speciesId: number, scientificName: string, sourceText: string) => {
+  if (typeof window === "undefined") return;
+
+  const storageKey = getSpeciesSourceStorageKey(speciesId, scientificName);
+  const fallbackKey = `${SPECIES_SOURCE_STORAGE_PREFIX}tmp_${createSpeciesSlug(scientificName)}`;
+  const normalizedText = sourceText.trim();
+
+  if (!normalizedText) {
+    localStorage.removeItem(storageKey);
+    localStorage.removeItem(fallbackKey);
+    return;
+  }
+
+  localStorage.setItem(storageKey, JSON.stringify(normalizedText));
+  if (speciesId > 0) {
+    localStorage.removeItem(fallbackKey);
+  }
+};
+
+const SPECIES_IMAGE_SOURCE_STORAGE_PREFIX = "biowatch_species_image_source_";
+
+const getSpeciesImageSourceStorageKey = (speciesId: number, scientificName: string) =>
+  speciesId > 0 ? `${SPECIES_IMAGE_SOURCE_STORAGE_PREFIX}${speciesId}` : `${SPECIES_IMAGE_SOURCE_STORAGE_PREFIX}tmp_${createSpeciesSlug(scientificName)}`;
+
+const readStoredSpeciesImageSourceText = (speciesId: number, scientificName: string) => {
+  if (typeof window === "undefined") return "";
+
+  try {
+    const primaryKey = getSpeciesImageSourceStorageKey(speciesId, scientificName);
+    const fallbackKey = `${SPECIES_IMAGE_SOURCE_STORAGE_PREFIX}tmp_${createSpeciesSlug(scientificName)}`;
+    const raw = localStorage.getItem(primaryKey) || localStorage.getItem(fallbackKey);
+    if (!raw) return "";
+    const parsed = JSON.parse(raw) as string;
+    return typeof parsed === "string" ? parsed : raw;
+  } catch {
+    return "";
+  }
+};
+
+const writeStoredSpeciesImageSourceText = (speciesId: number, scientificName: string, sourceText: string) => {
+  if (typeof window === "undefined") return;
+
+  const storageKey = getSpeciesImageSourceStorageKey(speciesId, scientificName);
+  const fallbackKey = `${SPECIES_IMAGE_SOURCE_STORAGE_PREFIX}tmp_${createSpeciesSlug(scientificName)}`;
+  const normalizedText = sourceText.trim();
+
+  if (!normalizedText) {
+    localStorage.removeItem(storageKey);
+    localStorage.removeItem(fallbackKey);
+    return;
+  }
+
+  localStorage.setItem(storageKey, JSON.stringify(normalizedText));
+  if (speciesId > 0) {
+    localStorage.removeItem(fallbackKey);
+  }
+};
+
+const SPECIES_COPY = {
+  en: {
+    loading: "Loading species data...",
+    notFound: "Species was not found in the database.",
+    loadFailed: "Failed to load species data.",
+    speciesMissing: "Species not found",
+    back: "Back",
+    cancel: "Cancel",
+    saveSpecies: "Save Species",
+    saving: "Saving...",
+    confirmEditTitle: "Save species changes?",
+    confirmEditDesc: "This will update this species record with the current form data.",
+    confirmEditAction: "Save Changes",
+    editSpecies: "Edit Species",
+    updateDetails: "Update the details for",
+    scientificName: "Scientific Name",
+    commonName: "Common Name",
+    family: "Family",
+    genus: "Genus",
+    descriptionTitle: "Species Description",
+    botanicalDescription: "Botanical Description",
+    ecologicalInformation: "Ecological Information",
+    environmentalImpact: "Environmental Impact",
+    source: "Source",
+    herbariumSketch: "Herbarium Sketch",
+    herbariumSketchUpload: "Click to upload JPG or PNG",
+    herbariumSketchMaxSize: "Max 10 MB",
+    herbariumSketchUploading: "Uploading...",
+    herbariumSketchChange: "Change",
+    herbariumSketchRemove: "Remove",
+    imageSource: "Image Source",
+    imageSourcePlaceholder: "Add the herbarium sketch source, credit, or link...",
+    imageSourceEmpty: "No image source available.",
+    taxonomy: "Plant Taxonomy",
+    kingdom: "Kingdom",
+    phylum: "Phylum",
+    taxClass: "Class",
+    order: "Order",
+    taxSpecies: "Species",
+    kingdomPlaceholder: "e.g., Plantae",
+    phylumPlaceholder: "e.g., Tracheophyta",
+    classPaceholder: "e.g., Magnoliopsida",
+    orderPlaceholder: "e.g., Asterales",
+    taxSpeciesPlaceholder: "e.g., V. nilotica",
+    herbariumAlt: "Herbarium sketch of",
+    sourceEmpty: "No source available.",
+    ranks: {
+      Kerajaan: "Kingdom",
+      Filum: "Phylum",
+      Kelas: "Class",
+      Ordo: "Order",
+      Famili: "Family",
+      Genus: "Genus",
+      Spesies: "Species",
+    },
+  },
+  id: {
+    loading: "Memuat data spesies...",
+    notFound: "Spesies tidak ditemukan dalam database.",
+    loadFailed: "Gagal memuat data spesies.",
+    speciesMissing: "Spesies tidak ditemukan",
+    back: "Kembali",
+    cancel: "Batal",
+    saveSpecies: "Simpan Spesies",
+    saving: "Menyimpan...",
+    confirmEditTitle: "Simpan perubahan spesies?",
+    confirmEditDesc: "Data spesies ini akan diperbarui dengan isi form saat ini.",
+    confirmEditAction: "Simpan Perubahan",
+    editSpecies: "Edit Spesies",
+    updateDetails: "Perbarui detail untuk",
+    scientificName: "Nama Ilmiah",
+    commonName: "Nama Umum",
+    family: "Famili",
+    genus: "Genus",
+    descriptionTitle: "Keterangan Spesies",
+    botanicalDescription: "Deskripsi Botani",
+    ecologicalInformation: "Informasi Ekologi",
+    environmentalImpact: "Dampak Lingkungan",
+    source: "Sumber",
+    herbariumSketch: "Sketsa Herbarium",
+    herbariumSketchUpload: "Klik untuk upload JPG atau PNG",
+    herbariumSketchMaxSize: "Maks 10 MB",
+    herbariumSketchUploading: "Mengupload...",
+    herbariumSketchChange: "Ganti",
+    herbariumSketchRemove: "Hapus",
+    imageSource: "Sumber Gambar",
+    imageSourcePlaceholder: "Tambahkan sumber, kredit, atau tautan sketsa herbarium...",
+    imageSourceEmpty: "Sumber gambar tidak tersedia.",
+    taxonomy: "Taksonomi Tanaman",
+    kingdom: "Kerajaan",
+    phylum: "Filum",
+    taxClass: "Kelas",
+    order: "Ordo",
+    taxSpecies: "Spesies",
+    kingdomPlaceholder: "contoh: Plantae",
+    phylumPlaceholder: "contoh: Tracheophyta",
+    classPaceholder: "contoh: Magnoliopsida",
+    orderPlaceholder: "contoh: Asterales",
+    taxSpeciesPlaceholder: "contoh: V. nilotica",
+    herbariumAlt: "Sketsa herbarium",
+    sourceEmpty: "Sumber tidak tersedia.",
+    ranks: {
+      Kerajaan: "Kerajaan",
+      Filum: "Filum",
+      Kelas: "Kelas",
+      Ordo: "Ordo",
+      Famili: "Famili",
+      Genus: "Genus",
+      Spesies: "Spesies",
+    },
+  },
+} as const;
+
+const HERBARIUM_IMAGE_DIMENSIONS: Record<string, { width: number; height: number }> = {
+  "/sketsa-herbarium-acacia-nilotica.gif": { width: 376, height: 563 },
+  "/sketsa-herbarium-lantana-camara.jpg": { width: 1985, height: 2810 },
+  "/sketsa-herbarium-merremia-hederacea.jpg": { width: 1985, height: 2810 },
+  "/sketsa-herbarium-clitoria-ternatea.jpg": { width: 2474, height: 2029 },
+  "/sketsa-herbarium-Ageratum-conyzoides.webp": { width: 850, height: 1109 },
+};
+
+// Fallback data for species not yet in the database
+const FALLBACK_PLANTS: Record<string, PlantData> = {
+  "merremia hederacea": {
+    id: 901,
+    commonName: "Kangkung Pagar",
+    scientificName: "Merremia hederacea (Burm.f.) Hallier f.",
+    family: "Convolvulaceae",
+    genus: "Merremia",
+    botanicalDescription: "Tanaman merambat herba tahunan dari keluarga Convolvulaceae. Daun berbentuk jantung hingga berlekuk 3-5 jari, tipis, dan berwarna hijau cerah. Bunga berbentuk corong berwarna kuning pucat hingga putih. Buah kapsul membulat berisi biji kecil.",
+    botanicalDescriptionEn: "Merremia hederacea is an annual herbaceous climber in the Convolvulaceae family. It has thin bright-green leaves that are heart-shaped to 3-5 lobed, pale yellow to white funnel-shaped flowers, and rounded capsules containing small seeds.",
+    botanicalDescriptionId: "Tanaman merambat herba tahunan dari keluarga Convolvulaceae. Daun berbentuk jantung hingga berlekuk 3-5 jari, tipis, dan berwarna hijau cerah. Bunga berbentuk corong berwarna kuning pucat hingga putih. Buah kapsul membulat berisi biji kecil.",
+    ecologicalInformation: "Tumbuh agresif di tepi hutan, lahan terbuka, dan area terganggu di kawasan tropis. Merremia hederacea merambat cepat menutupi vegetasi bawah dan mampu memanjat pohon hingga menaungi tajuknya.",
+    ecologicalInformationEn: "Grows aggressively along forest edges, open land, and disturbed tropical areas. Merremia hederacea spreads rapidly over understory vegetation and can climb trees, shading their crowns.",
+    ecologicalInformationId: "Tumbuh agresif di tepi hutan, lahan terbuka, dan area terganggu di kawasan tropis. Merremia hederacea merambat cepat menutupi vegetasi bawah dan mampu memanjat pohon hingga menaungi tajuknya.",
+    environmentalImpact: "Menutupi tanaman asli sehingga menghambat fotosintesis, menekan regenerasi alami hutan, dan mengubah struktur vegetasi di sabana dan tepi hutan Taman Nasional Baluran.",
+    environmentalImpactEn: "Covers native plants and reduces photosynthesis, suppresses natural forest regeneration, and changes vegetation structure in savannas and forest edges of Baluran National Park.",
+    environmentalImpactId: "Menutupi tanaman asli sehingga menghambat fotosintesis, menekan regenerasi alami hutan, dan mengubah struktur vegetasi di sabana dan tepi hutan Taman Nasional Baluran.",
+    imagePath: "/sketsa-herbarium-merremia-hederacea.jpg",
+    kingdom: "Plantae", phylum: "Tracheophyta", taxClass: "Magnoliopsida", orderRank: "Solanales", taxSpecies: "M. hederacea",
+  },
+  "clitoria ternatea": {
+    id: 902,
+    commonName: "Telang",
+    scientificName: "Clitoria ternatea L.",
+    family: "Fabaceae",
+    genus: "Clitoria",
+    botanicalDescription: "Tanaman merambat herba perennial dari keluarga Fabaceae. Daun majemuk menyirip ganjil dengan 5-7 anak daun. Bunga berbentuk kupu-kupu berwarna biru tua hingga ungu, kadang putih. Polong pipih berisi biji berbentuk ginjal.",
+    botanicalDescriptionEn: "Clitoria ternatea is a perennial herbaceous climber in the Fabaceae family. It has odd-pinnate compound leaves with 5-7 leaflets, butterfly-shaped deep blue to purple flowers that are sometimes white, and flat pods with kidney-shaped seeds.",
+    botanicalDescriptionId: "Tanaman merambat herba perennial dari keluarga Fabaceae. Daun majemuk menyirip ganjil dengan 5-7 anak daun. Bunga berbentuk kupu-kupu berwarna biru tua hingga ungu, kadang putih. Polong pipih berisi biji berbentuk ginjal.",
+    ecologicalInformation: "Tumbuh di daerah tropis dan subtropis, toleran terhadap berbagai jenis tanah. Di Taman Nasional Baluran, tanaman ini menyebar di area sabana dan pinggiran hutan, bersaing dengan vegetasi asli untuk mendapatkan sinar matahari dan nutrisi.",
+    ecologicalInformationEn: "Grows in tropical and subtropical areas and tolerates many soil types. In Baluran National Park, it spreads through savanna areas and forest margins, competing with native vegetation for sunlight and nutrients.",
+    ecologicalInformationId: "Tumbuh di daerah tropis dan subtropis, toleran terhadap berbagai jenis tanah. Di Taman Nasional Baluran, tanaman ini menyebar di area sabana dan pinggiran hutan, bersaing dengan vegetasi asli untuk mendapatkan sinar matahari dan nutrisi.",
+    environmentalImpact: "Mampu menekan pertumbuhan rumput asli melalui naungan yang padat, mengubah komposisi vegetasi sabana, dan mengganggu ketersediaan pakan bagi herbivora asli seperti Banteng Jawa.",
+    environmentalImpactEn: "Can suppress native grasses through dense shading, alter savanna vegetation composition, and disrupt forage availability for native herbivores such as the Javan banteng.",
+    environmentalImpactId: "Mampu menekan pertumbuhan rumput asli melalui naungan yang padat, mengubah komposisi vegetasi sabana, dan mengganggu ketersediaan pakan bagi herbivora asli seperti Banteng Jawa.",
+    imagePath: "/sketsa-herbarium-clitoria-ternatea.jpg",
+    kingdom: "Plantae", phylum: "Tracheophyta", taxClass: "Magnoliopsida", orderRank: "Fabales", taxSpecies: "C. ternatea",
+  },
+};
+
+export default function SpeciesPage() {
+  const params = useParams();
+  const router = useRouter();
+  const id = typeof params?.id === "string" ? params.id : "lantana-camara";
+  const { language } = useLanguage();
+  const copy = SPECIES_COPY[language];
+
+  const [plant, setPlant] = useState<PlantData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [isUploadingSketch, setIsUploadingSketch] = useState(false);
+  const sketchFileInputRef = useRef<HTMLInputElement>(null);
+  const [draft, setDraft] = useState({
+    scientificName: "",
+    commonName: "",
+    family: "",
+    genus: "",
+    botanicalDescription: "",
+    ecologicalInformation: "",
+    environmentalImpact: "",
+    imagePath: "",
+    imageSource: "",
+    kingdom: "",
+    phylum: "",
+    taxClass: "",
+    order: "",
+    taxSpecies: "",
+    source: "",
+  });
+  const [sourceText, setSourceText] = useState("");
+
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem("biowatch_admin_auth");
+      if (!stored) {
+        setIsAdmin(false);
+        return;
+      }
+
+      const parsed = JSON.parse(stored) as { role?: string };
+      setIsAdmin(Boolean(parsed.role && parsed.role.toLowerCase().includes("admin")));
+    } catch {
+      setIsAdmin(false);
+    }
+  }, []);
+
+  const mapPlantRecord = (record: PlantApiRecord): PlantData => ({
+    id: record.id,
+    commonName: record.commonName || record.common_name || "",
+    scientificName: record.scientificName || record.scientific_name || "",
+    family: record.family || "",
+    genus: record.genus || "",
+    botanicalDescription: record.botanicalDescription || record.botanical_description || record.description || "",
+    botanicalDescriptionEn:
+      record.botanicalDescriptionEn
+      || record.botanical_description_en
+      || record.botanicalDescription
+      || record.botanical_description
+      || record.description
+      || "",
+    botanicalDescriptionId:
+      record.botanicalDescriptionId
+      || record.botanical_description_id
+      || record.botanicalDescription
+      || record.botanical_description
+      || record.description
+      || "",
+    ecologicalInformation: record.ecologicalInformation || record.ecological_information || record.ecology || "",
+    ecologicalInformationEn:
+      record.ecologicalInformationEn
+      || record.ecological_information_en
+      || record.ecologicalInformation
+      || record.ecological_information
+      || record.ecology
+      || "",
+    ecologicalInformationId:
+      record.ecologicalInformationId
+      || record.ecological_information_id
+      || record.ecologicalInformation
+      || record.ecological_information
+      || record.ecology
+      || "",
+    environmentalImpact: record.environmentalImpact || record.environmental_impact || "",
+    environmentalImpactEn: record.environmentalImpactEn || record.environmental_impact_en || "",
+    environmentalImpactId: record.environmentalImpactId || record.environmental_impact_id || "",
+    imagePath: record.imagePath || record.image_path || "",
+    kingdom: record.kingdom || "",
+    phylum: record.phylum || "",
+    taxClass: record.taxClass || record.tax_class || record.class || "",
+    orderRank: record.orderRank || record.order_rank || record.order || "",
+    taxSpecies: record.taxSpecies || record.tax_species || record.species || "",
+    source: record.source || record.sourceReference || record.source_reference || "",
+    imageSource: record.imageSource || record.image_source || record.imageReference || record.image_reference || "",
+    sourceReference: record.sourceReference || record.source_reference || record.source || "",
+    imageReference: record.imageReference || record.image_reference || record.imageSource || record.image_source || "",
+  });
+
+  useEffect(() => {
+    async function fetchPlant() {
+      setIsLoading(true);
+      setError(null);
+      try {
+        // Convert slug to search query (e.g. "acacia-nilotica" -> "Acacia nilotica")
+        const searchTerm = id.replace(/-/g, " ").trim();
+        let res = await fetch(`/api/v1/plants?search=${encodeURIComponent(searchTerm)}&limit=1`);
+        let json = await res.json();
+
+        // If no exact match, try a broader search with just the first word (usually the Genus)
+        if (!(json.success && json.data && json.data.length > 0)) {
+          const firstWord = searchTerm.split(" ")[0];
+          if (firstWord && firstWord.length > 2) {
+            res = await fetch(`/api/v1/plants?search=${encodeURIComponent(firstWord)}&limit=1`);
+            json = await res.json();
+          }
+        }
+
+        if (json.success && json.data && json.data.length > 0) {
+          setPlant(mapPlantRecord(json.data[0]));
+        } else {
+          // Try fallback data for species not yet in the database
+          const fallback = FALLBACK_PLANTS[searchTerm.toLowerCase()];
+          if (fallback) {
+            setPlant(fallback);
+          } else {
+            setError(copy.notFound);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch plant:", err);
+        // Try fallback on network error too
+        const searchTerm = id.replace(/-/g, " ").trim();
+        const fallback = FALLBACK_PLANTS[searchTerm.toLowerCase()];
+        if (fallback) {
+          setPlant(fallback);
+        } else {
+          setError(copy.loadFailed);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchPlant();
+  }, [copy.loadFailed, copy.notFound, id]);
+
+  useEffect(() => {
+    if (!plant || isEditing) return;
+    const savedTaxonomy = readStoredSpeciesTaxonomy(plant.id, plant.scientificName);
+    setDraft({
+      scientificName: plant.scientificName,
+      commonName: plant.commonName,
+      family: plant.family,
+      genus: plant.genus,
+      botanicalDescription: language === "id"
+        ? plant.botanicalDescriptionId || plant.botanicalDescription
+        : plant.botanicalDescriptionEn || plant.botanicalDescription,
+      ecologicalInformation: language === "id"
+        ? plant.ecologicalInformationId || plant.ecologicalInformation
+        : plant.ecologicalInformationEn || plant.ecologicalInformation,
+      environmentalImpact: language === "id"
+        ? plant.environmentalImpactId || plant.environmentalImpact
+        : plant.environmentalImpactEn || plant.environmentalImpact,
+      imagePath: plant.imagePath || "",
+      imageSource: plant.imageSource || readStoredSpeciesImageSourceText(plant.id, plant.scientificName),
+      kingdom: plant.kingdom || savedTaxonomy?.kingdom || "",
+      phylum: plant.phylum || savedTaxonomy?.phylum || "",
+      taxClass: plant.taxClass || savedTaxonomy?.taxClass || "",
+      order: plant.orderRank || savedTaxonomy?.order || "",
+      taxSpecies: plant.taxSpecies || savedTaxonomy?.taxSpecies || "",
+      source: sourceText,
+    });
+  }, [language, isEditing, plant, sourceText]);
+
+  useEffect(() => {
+    if (!plant) {
+      setSourceText("");
+      return;
+    }
+
+    setSourceText(plant.source || readStoredSpeciesSourceText(plant.id, plant.scientificName));
+  }, [plant]);
+
+  const handleStartEditing = () => {
+    if (!plant) return;
+    const savedTaxonomy = readStoredSpeciesTaxonomy(plant.id, plant.scientificName);
+    setDraft({
+      scientificName: plant.scientificName,
+      commonName: plant.commonName,
+      family: plant.family,
+      genus: plant.genus,
+      botanicalDescription: language === "id"
+        ? plant.botanicalDescriptionId || plant.botanicalDescription
+        : plant.botanicalDescriptionEn || plant.botanicalDescription,
+      ecologicalInformation: language === "id"
+        ? plant.ecologicalInformationId || plant.ecologicalInformation
+        : plant.ecologicalInformationEn || plant.ecologicalInformation,
+      environmentalImpact: language === "id"
+        ? plant.environmentalImpactId || plant.environmentalImpact
+        : plant.environmentalImpactEn || plant.environmentalImpact,
+      imagePath: plant.imagePath || "",
+      imageSource: plant.imageSource || readStoredSpeciesImageSourceText(plant.id, plant.scientificName),
+      kingdom: plant.kingdom || savedTaxonomy?.kingdom || "",
+      phylum: plant.phylum || savedTaxonomy?.phylum || "",
+      taxClass: plant.taxClass || savedTaxonomy?.taxClass || "",
+      order: plant.orderRank || savedTaxonomy?.order || "",
+      taxSpecies: plant.taxSpecies || savedTaxonomy?.taxSpecies || "",
+      source: plant.source || readStoredSpeciesSourceText(plant.id, plant.scientificName),
+    });
+    setIsEditing(true);
+  };
+
+  const handleCancelEditing = () => {
+    setIsEditing(false);
+    if (!plant) return;
+    const savedTaxonomy = readStoredSpeciesTaxonomy(plant.id, plant.scientificName);
+    setDraft({
+      scientificName: plant.scientificName,
+      commonName: plant.commonName,
+      family: plant.family,
+      genus: plant.genus,
+      botanicalDescription: language === "id"
+        ? plant.botanicalDescriptionId || plant.botanicalDescription
+        : plant.botanicalDescriptionEn || plant.botanicalDescription,
+      ecologicalInformation: language === "id"
+        ? plant.ecologicalInformationId || plant.ecologicalInformation
+        : plant.ecologicalInformationEn || plant.ecologicalInformation,
+      environmentalImpact: language === "id"
+        ? plant.environmentalImpactId || plant.environmentalImpact
+        : plant.environmentalImpactEn || plant.environmentalImpact,
+      imagePath: plant.imagePath || "",
+      imageSource: plant.imageSource || readStoredSpeciesImageSourceText(plant.id, plant.scientificName),
+      kingdom: plant.kingdom || savedTaxonomy?.kingdom || "",
+      phylum: plant.phylum || savedTaxonomy?.phylum || "",
+      taxClass: plant.taxClass || savedTaxonomy?.taxClass || "",
+      order: plant.orderRank || savedTaxonomy?.order || "",
+      taxSpecies: plant.taxSpecies || savedTaxonomy?.taxSpecies || "",
+      source: sourceText,
+    });
+  };
+
+  const handleSketchUpload = async (file: File) => {
+    setIsUploadingSketch(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/v1/plants/upload-sketch", { method: "POST", body: fd });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setDraft((prev) => ({ ...prev, imagePath: json.data.path }));
+      } else {
+        toast.error(json.error || (language === "id" ? "Upload gagal" : "Upload failed"));
+      }
+    } catch {
+      toast.error(language === "id" ? "Upload gagal" : "Upload failed");
+    } finally {
+      setIsUploadingSketch(false);
+    }
+  };
+
+  const handleSaveSpecies = async () => {
+    if (!plant) return;
+
+    setIsSaving(true);
+    try {
+      const scientificName = draft.scientificName.trim();
+      const commonName = draft.commonName.trim();
+      const family = draft.family.trim();
+      const genus = draft.genus.trim();
+
+      if (!scientificName || !family || !genus) {
+        toast.error(language === "id" ? "Nama ilmiah, famili, dan genus wajib diisi" : "Scientific name, family, and genus are required");
+        return;
+      }
+
+      const sourceLanguage = language as TranslateLanguage;
+      const translatedFields = await translateSpeciesDescriptions({
+        botanicalDescription: draft.botanicalDescription,
+        ecologicalInformation: draft.ecologicalInformation,
+        environmentalImpact: draft.environmentalImpact,
+        sourceLanguage,
+      });
+
+      const payload = language === "id"
+        ? {
+            scientificName,
+            commonName: commonName || scientificName,
+            family,
+            genus,
+            botanicalDescription: draft.botanicalDescription,
+            botanicalDescriptionEn: translatedFields.botanicalDescriptionEn,
+            botanicalDescriptionId: translatedFields.botanicalDescriptionId,
+            ecologicalInformation: draft.ecologicalInformation,
+            ecologicalInformationEn: translatedFields.ecologicalInformationEn,
+            ecologicalInformationId: translatedFields.ecologicalInformationId,
+            environmentalImpact: draft.environmentalImpact,
+            environmentalImpactEn: translatedFields.environmentalImpactEn,
+            environmentalImpactId: translatedFields.environmentalImpactId,
+            imagePath: draft.imagePath.trim(),
+            imageReference: draft.imageSource.trim(),
+            sourceReference: draft.source.trim(),
+          }
+        : {
+            scientificName,
+            commonName: commonName || scientificName,
+            family,
+            genus,
+            botanicalDescription: draft.botanicalDescription,
+            botanicalDescriptionEn: translatedFields.botanicalDescriptionEn,
+            botanicalDescriptionId: translatedFields.botanicalDescriptionId,
+            ecologicalInformation: draft.ecologicalInformation,
+            ecologicalInformationEn: translatedFields.ecologicalInformationEn,
+            ecologicalInformationId: translatedFields.ecologicalInformationId,
+            environmentalImpact: draft.environmentalImpact,
+            environmentalImpactEn: translatedFields.environmentalImpactEn,
+            environmentalImpactId: translatedFields.environmentalImpactId,
+            imagePath: draft.imagePath.trim(),
+            imageReference: draft.imageSource.trim(),
+            kingdom: draft.kingdom.trim(),
+            phylum: draft.phylum.trim(),
+            class: draft.taxClass.trim(),
+            order: draft.order.trim(),
+            species: draft.taxSpecies.trim(),
+            sourceReference: draft.source.trim(),
+          };
+
+      const fd = new FormData();
+      Object.entries(payload).forEach(([key, val]) => {
+        if (val !== undefined && val !== null) fd.append(key, String(val));
+      });
+      const response = await fetch(`/api/v1/plants/${plant.id}`, {
+        method: "PATCH",
+        body: fd,
+      });
+
+      const result = await response.json();
+      if (!result.success || !result.data) {
+        throw new Error(result.error?.message || "Failed to update species");
+      }
+
+      const updatedPlant = mapPlantRecord(result.data);
+      setPlant(updatedPlant);
+      writeStoredSpeciesSourceText(plant.id, scientificName, draft.source);
+      writeStoredSpeciesImageSourceText(plant.id, scientificName, draft.imageSource);
+
+      // Persist taxonomy fields to localStorage
+      const taxonomyKey = `${SPECIES_TAXONOMY_STORAGE_PREFIX}${plant.id}`;
+      const taxonomy = { kingdom: draft.kingdom.trim(), phylum: draft.phylum.trim(), taxClass: draft.taxClass.trim(), order: draft.order.trim(), taxSpecies: draft.taxSpecies.trim() };
+      if (Object.values(taxonomy).some((v) => v)) {
+        localStorage.setItem(taxonomyKey, JSON.stringify(taxonomy));
+      } else {
+        localStorage.removeItem(taxonomyKey);
+      }
+
+      setSourceText(updatedPlant.source || draft.source.trim());
+      setIsEditing(false);
+      toast.success(language === "id" ? "Detail spesies berhasil diperbarui" : "Species details updated successfully");
+    } catch (err) {
+      console.error("Failed to update plant details:", err);
+      toast.error(language === "id" ? "Gagal memperbarui detail spesies" : "Failed to update species details");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Get taxonomy for the species — localStorage overrides TAXONOMY_DB
+  const taxonomy = (() => {
+    if (!plant) return [];
+    const saved = readStoredSpeciesTaxonomy(plant.id, plant.scientificName);
+    // API data takes priority; localStorage is a fallback for older records
+    const apiHasTaxonomy = plant.kingdom || plant.phylum || plant.taxClass || plant.orderRank || plant.taxSpecies;
+    if (apiHasTaxonomy) {
+      return [
+        { rank: "Kerajaan", value: plant.kingdom || "Plantae" },
+        ...(plant.phylum ? [{ rank: "Filum", value: plant.phylum }] : []),
+        ...(plant.taxClass ? [{ rank: "Kelas", value: plant.taxClass }] : []),
+        ...(plant.orderRank ? [{ rank: "Ordo", value: plant.orderRank }] : []),
+        { rank: "Famili", value: plant.family },
+        { rank: "Genus", value: plant.genus },
+        { rank: "Spesies", value: plant.taxSpecies || plant.scientificName },
+      ];
+    }
+    if (saved && (saved.kingdom || saved.phylum || saved.taxClass || saved.order || saved.taxSpecies)) {
+      return [
+        { rank: "Kerajaan", value: saved.kingdom || "Plantae" },
+        ...(saved.phylum ? [{ rank: "Filum", value: saved.phylum }] : []),
+        ...(saved.taxClass ? [{ rank: "Kelas", value: saved.taxClass }] : []),
+        ...(saved.order ? [{ rank: "Ordo", value: saved.order }] : []),
+        { rank: "Famili", value: plant.family },
+        { rank: "Genus", value: plant.genus },
+        { rank: "Spesies", value: saved.taxSpecies || plant.scientificName },
+      ];
+    }
+    return TAXONOMY_DB[plant.scientificName.toLowerCase()] || [
+      { rank: "Kerajaan", value: "Plantae" },
+      { rank: "Famili", value: plant.family },
+      { rank: "Genus", value: plant.genus },
+      { rank: "Spesies", value: plant.scientificName },
+    ];
+  })();
+  const botanicalDescription = language === "id"
+    ? plant?.botanicalDescriptionId || plant?.botanicalDescription
+    : plant?.botanicalDescriptionEn || plant?.botanicalDescription;
+  const ecologicalInformation = language === "id"
+    ? plant?.ecologicalInformationId || plant?.ecologicalInformation
+    : plant?.ecologicalInformationEn || plant?.ecologicalInformation;
+  const environmentalImpact = language === "id"
+    ? plant?.environmentalImpactId || plant?.environmentalImpact
+    : plant?.environmentalImpactEn || plant?.environmentalImpact;
+
+  if (isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center bg-muted/20 p-8">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">{copy.loading}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !plant) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center bg-muted/20 p-8">
+        <p className="text-lg font-semibold text-muted-foreground">{error || copy.speciesMissing}</p>
+        <button
+          onClick={() => router.back()}
+          className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+        >
+          {copy.back}
+        </button>
+      </div>
+    );
+  }
+
+  const displayScientificName = getScientificNameWithAuthor(plant.scientificName);
+  const imageSourceText = plant.imageSource || readStoredSpeciesImageSourceText(plant.id, plant.scientificName);
+
+  return (
+    <div className="flex h-full flex-col overflow-y-auto bg-muted/20 p-4 md:p-6 lg:p-8">
+      {/* Header */}
+      <div className="mb-6 flex items-center gap-4">
+        <button
+          onClick={() => router.back()}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-background border shadow-sm hover:bg-muted transition-colors"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <div>
+          <h1 className="text-2xl font-bold md:text-3xl italic">{displayScientificName}</h1>
+          <p className="text-sm text-muted-foreground">{plant.commonName}</p>
+        </div>
+      </div>
+
+      <div className="mx-auto w-full max-w-3xl">
+        <div className="flex flex-col gap-6">
+
+          {/* Description */}
+          <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
+            <div className="flex items-center justify-between gap-2 border-b bg-muted/50 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" />
+                <h2 className="font-semibold text-sm">{copy.descriptionTitle}</h2>
+              </div>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={handleStartEditing}
+                  className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Edit
+                </button>
+              )}
+            </div>
+            <div className="p-4 space-y-4">
+              <div>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{copy.botanicalDescription}</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">{botanicalDescription}</p>
+              </div>
+              <div>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{copy.ecologicalInformation}</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">{ecologicalInformation}</p>
+              </div>
+              <div>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{copy.environmentalImpact}</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">{environmentalImpact}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Sketch */}
+          {plant.imagePath && (
+            <div className="rounded-xl border bg-card text-card-foreground shadow-sm overflow-hidden flex flex-col">
+              <div className="flex items-center gap-2 border-b bg-muted/50 px-4 py-3">
+                <ImageIcon className="h-4 w-4 text-primary" />
+                <h2 className="font-semibold text-sm">{copy.herbariumSketch}</h2>
+              </div>
+              <div
+                className="relative w-full overflow-hidden bg-white"
+                style={{
+                  aspectRatio: HERBARIUM_IMAGE_DIMENSIONS[plant.imagePath]
+                    ? `${HERBARIUM_IMAGE_DIMENSIONS[plant.imagePath].width} / ${HERBARIUM_IMAGE_DIMENSIONS[plant.imagePath].height}`
+                    : "4 / 5",
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={plant.imagePath}
+                  alt={`${copy.herbariumAlt} ${plant.scientificName}`}
+                  className="block h-full w-full object-contain"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Image Source */}
+          <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
+            <div className="flex items-center gap-2 border-b bg-muted/50 px-4 py-3">
+              <FileText className="h-4 w-4 text-primary" />
+              <h2 className="font-semibold text-sm">{copy.imageSource}</h2>
+            </div>
+            <div className="p-4">
+              <div className="rounded-lg border bg-background px-3 py-3">
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                  {imageSourceText.trim() || copy.imageSourceEmpty}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Taxonomy */}
+          <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
+            <div className="flex items-center gap-2 border-b bg-muted/50 px-4 py-3">
+              <Network className="h-4 w-4 text-primary" />
+              <h2 className="font-semibold text-sm">{copy.taxonomy}</h2>
+            </div>
+            <div className="p-4">
+              <div className="flex flex-col space-y-2">
+                {taxonomy.map((item, idx) => (
+                  <div key={idx} className="flex justify-between text-sm py-1 border-b last:border-0 border-muted">
+                    <span className="text-muted-foreground">{copy.ranks[item.rank as keyof typeof copy.ranks] || item.rank}</span>
+                    <span className="font-medium">{item.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Source */}
+          <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
+            <div className="flex items-center gap-2 border-b bg-muted/50 px-4 py-3">
+              <FileText className="h-4 w-4 text-primary" />
+              <h2 className="font-semibold text-sm">{copy.source}</h2>
+            </div>
+            <div className="p-4">
+              <div className="rounded-lg border bg-background px-3 py-3">
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                  {sourceText.trim() || copy.sourceEmpty}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <Dialog open={isEditing} onOpenChange={(open) => (open ? handleStartEditing() : handleCancelEditing())}>
+        <DialogContent className="w-[min(100vw-2rem,44rem)] max-w-none overflow-hidden rounded-lg p-0 shadow-2xl">
+          <div className="border-b bg-muted/40 px-6 py-5">
+            <DialogHeader className="space-y-1 pr-8 text-left">
+              <DialogTitle className="text-xl font-semibold">{copy.editSpecies}</DialogTitle>
+              <DialogDescription className="text-sm">
+                {copy.updateDetails} <span className="italic">({plant.scientificName})</span>
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!draft.scientificName.trim() || !draft.family.trim() || !draft.genus.trim()) {
+                toast.error(language === "id" ? "Nama ilmiah, famili, dan genus wajib diisi" : "Scientific name, family, and genus are required");
+                return;
+              }
+              setShowSaveConfirm(true);
+            }}
+            className="max-h-[calc(90vh-6.5rem)] space-y-5 overflow-y-auto bg-card px-6 py-5"
+          >
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="edit-scientific-name">{copy.scientificName}</Label>
+                <Input
+                  id="edit-scientific-name"
+                  value={draft.scientificName}
+                  onChange={(event) => setDraft((current) => ({ ...current, scientificName: event.target.value }))}
+                  className="italic"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-common-name">{copy.commonName}</Label>
+                <Input
+                  id="edit-common-name"
+                  value={draft.commonName}
+                  onChange={(event) => setDraft((current) => ({ ...current, commonName: event.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="edit-family">{copy.family}</Label>
+                <Input
+                  id="edit-family"
+                  value={draft.family}
+                  onChange={(event) => setDraft((current) => ({ ...current, family: event.target.value }))}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-genus">{copy.genus}</Label>
+                <Input
+                  id="edit-genus"
+                  value={draft.genus}
+                  onChange={(event) => setDraft((current) => ({ ...current, genus: event.target.value }))}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-botanical-description" className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {copy.botanicalDescription}
+              </Label>
+              <Textarea
+                id="edit-botanical-description"
+                value={draft.botanicalDescription}
+                onChange={(event) => setDraft((current) => ({ ...current, botanicalDescription: event.target.value }))}
+                rows={4}
+                className="min-h-[112px] rounded-xl"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-ecological-information" className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {copy.ecologicalInformation}
+              </Label>
+              <Textarea
+                id="edit-ecological-information"
+                value={draft.ecologicalInformation}
+                onChange={(event) => setDraft((current) => ({ ...current, ecologicalInformation: event.target.value }))}
+                rows={4}
+                className="min-h-[112px] rounded-xl"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-environmental-impact" className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {copy.environmentalImpact}
+              </Label>
+              <Textarea
+                id="edit-environmental-impact"
+                value={draft.environmentalImpact}
+                onChange={(event) => setDraft((current) => ({ ...current, environmentalImpact: event.target.value }))}
+                rows={4}
+                className="min-h-[112px] rounded-xl"
+              />
+            </div>
+
+            {/* Herbarium Sketch */}
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {copy.herbariumSketch}
+              </Label>
+              <input
+                ref={sketchFileInputRef}
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleSketchUpload(file);
+                  e.target.value = "";
+                }}
+              />
+              {draft.imagePath.trim() ? (
+                <div className="relative rounded-xl border overflow-hidden bg-muted/30">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={draft.imagePath.trim()}
+                    alt="Herbarium preview"
+                    className="max-h-56 w-full object-contain"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  />
+                  <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-black/40 px-3 py-2">
+                    <span className="text-xs text-white truncate">{draft.imagePath.split("/").pop()}</span>
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => sketchFileInputRef.current?.click()}
+                        disabled={isUploadingSketch}
+                        className="rounded-md bg-white/20 hover:bg-white/30 px-2.5 py-1 text-xs text-white font-medium transition-colors"
+                      >
+                        {isUploadingSketch ? copy.herbariumSketchUploading : copy.herbariumSketchChange}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDraft((prev) => ({ ...prev, imagePath: "" }))}
+                        className="rounded-md bg-destructive/80 hover:bg-destructive px-2.5 py-1 text-xs text-white font-medium transition-colors"
+                      >
+                        {copy.herbariumSketchRemove}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => sketchFileInputRef.current?.click()}
+                  disabled={isUploadingSketch}
+                  className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/20 py-8 text-muted-foreground transition-colors hover:bg-muted/40 hover:border-primary/40 disabled:opacity-60"
+                >
+                  <ImageIcon className="h-8 w-8 opacity-40" />
+                  <span className="text-sm font-medium">
+                    {isUploadingSketch ? copy.herbariumSketchUploading : copy.herbariumSketchUpload}
+                  </span>
+                  <span className="text-xs opacity-60">{copy.herbariumSketchMaxSize}</span>
+                </button>
+              )}
+              <div className="space-y-1.5 pt-1">
+                <Label htmlFor="edit-image-source" className="text-xs text-muted-foreground">
+                  {copy.imageSource}
+                </Label>
+                <Textarea
+                  id="edit-image-source"
+                  value={draft.imageSource}
+                  onChange={(event) => setDraft((current) => ({ ...current, imageSource: event.target.value }))}
+                  placeholder={copy.imageSourcePlaceholder}
+                  rows={2}
+                  className="min-h-[72px] rounded-xl"
+                />
+              </div>
+            </div>
+
+            {/* Plant Taxonomy */}
+            <div className="space-y-3">
+              <Label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {copy.taxonomy}
+              </Label>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-kingdom" className="text-xs text-muted-foreground">{copy.kingdom}</Label>
+                  <Input
+                    id="edit-kingdom"
+                    value={draft.kingdom}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, kingdom: e.target.value }))}
+                    placeholder={copy.kingdomPlaceholder}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-phylum" className="text-xs text-muted-foreground">{copy.phylum}</Label>
+                  <Input
+                    id="edit-phylum"
+                    value={draft.phylum}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, phylum: e.target.value }))}
+                    placeholder={copy.phylumPlaceholder}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-taxClass" className="text-xs text-muted-foreground">{copy.taxClass}</Label>
+                  <Input
+                    id="edit-taxClass"
+                    value={draft.taxClass}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, taxClass: e.target.value }))}
+                    placeholder={copy.classPaceholder}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-order" className="text-xs text-muted-foreground">{copy.order}</Label>
+                  <Input
+                    id="edit-order"
+                    value={draft.order}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, order: e.target.value }))}
+                    placeholder={copy.orderPlaceholder}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-taxFamily" className="text-xs text-muted-foreground">{copy.family}</Label>
+                  <Input
+                    id="edit-taxFamily"
+                    value={draft.family}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, family: e.target.value }))}
+                    placeholder="e.g., Asteraceae"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-taxGenus" className="text-xs text-muted-foreground">{copy.genus}</Label>
+                  <Input
+                    id="edit-taxGenus"
+                    value={draft.genus}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, genus: e.target.value }))}
+                    placeholder="e.g., Ageratum"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-taxSpecies" className="text-xs text-muted-foreground">{copy.taxSpecies}</Label>
+                  <Input
+                    id="edit-taxSpecies"
+                    value={draft.taxSpecies}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, taxSpecies: e.target.value }))}
+                    placeholder={copy.taxSpeciesPlaceholder}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-source" className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {copy.source}
+              </Label>
+              <Textarea
+                id="edit-source"
+                value={draft.source}
+                onChange={(event) => setDraft((current) => ({ ...current, source: event.target.value }))}
+                rows={4}
+                className="min-h-[112px] rounded-xl"
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={handleCancelEditing} disabled={isSaving}>
+                {copy.cancel}
+              </Button>
+              <Button type="submit" disabled={isSaving || !draft.scientificName.trim() || !draft.family.trim() || !draft.genus.trim()}>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {copy.saving}
+                  </>
+                ) : (
+                  copy.saveSpecies
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={showSaveConfirm} onOpenChange={setShowSaveConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{copy.confirmEditTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{copy.confirmEditDesc}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSaving}>{copy.cancel}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isSaving}
+              onClick={() => {
+                setShowSaveConfirm(false);
+                void handleSaveSpecies();
+              }}
+            >
+              {copy.confirmEditAction}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

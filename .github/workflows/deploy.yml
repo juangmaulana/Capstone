@@ -1,0 +1,26 @@
+name: Auto Deploy to Server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Execute SSH to Server and Deploy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST_IP }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd /var/www/caps12
+            
+            git pull origin main
+            
+            # Restart (opsional)
+            docker-compose down
+            docker-compose up -d --build

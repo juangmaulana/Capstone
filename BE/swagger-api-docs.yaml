@@ -1,0 +1,637 @@
+openapi: 3.0.0
+info:
+  title: Dashboard CAPSTONE 12 BRIN
+  description: Official API documentation for Dashboard CAPSTONE 12 BRIN
+  version: 1.0.0
+tags:
+  - name: Users
+    description: Manage users, including creation, updates, deletion, role
+      assignment, and user lookup.
+  - name: Roles
+    description: Define and manage roles and permissions for role-based access control.
+  - name: Plants
+    description: Manage plant records, including botanical data, taxonomy, and
+      environmental information.
+  - name: Images
+    description: Handle image uploads, storage, retrieval, and association with
+      identifications.
+  - name: Identifications
+    description: Manage plant identification records and related classification or
+      matching results.
+components:
+  schemas: {}
+  parameters: {}
+paths:
+  /api/v1/users:
+    get:
+      tags:
+        - Users
+      summary: Fetch all users
+      parameters:
+        - schema:
+            type: string
+            example: john
+            description: Searched through names and emails (Case Insensitive)
+          required: false
+          description: Searched through names and emails (Case Insensitive)
+          name: search
+          in: query
+        - schema:
+            type: number
+            minimum: 1
+            example: 1
+          required: false
+          name: roleId
+          in: query
+        - schema:
+            type: number
+            minimum: 1
+            maximum: 100
+            default: 20
+            example: 20
+          required: false
+          name: limit
+          in: query
+        - schema:
+            type: number
+            nullable: true
+            minimum: 0
+            example: 0
+          required: false
+          name: offset
+          in: query
+      responses:
+        "200":
+          description: Users fetched
+    post:
+      tags:
+        - Users
+      summary: Create user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                roleId:
+                  type: number
+                  minimum: 1
+                  example: 1
+                name:
+                  type: string
+                  minLength: 1
+                  example: John Doe
+                email:
+                  type: string
+                  format: email
+                  example: john@example.com
+                password:
+                  type: string
+                  minLength: 6
+                  example: secret123
+                confirmPassword:
+                  type: string
+                  minLength: 6
+                  example: secret123
+              required:
+                - roleId
+                - name
+                - email
+                - password
+                - confirmPassword
+              title: CreateUserRequest
+      responses:
+        "201":
+          description: User created
+        "400":
+          description: Invalid input
+        "409":
+          description: User already exists
+  /api/v1/users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Fetch user
+      parameters:
+        - schema:
+            type: number
+            minimum: 1
+          required: true
+          name: id
+          in: path
+      responses:
+        "200":
+          description: User fetched
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: number
+                      name:
+                        type: string
+                      email:
+                        type: string
+                    required:
+                      - id
+                      - name
+                      - email
+                required:
+                  - success
+                  - data
+                example:
+                  success: true
+                  data:
+                    id: 1
+                    name: John Doe
+                    email: john@example.com
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      status:
+                        type: number
+                      message:
+                        type: string
+              example:
+                success: true
+                error:
+                  code: NOT_FOUND
+                  status: 404
+                  message: User not found
+    patch:
+      tags:
+        - Users
+      summary: Update user
+      parameters:
+        - schema:
+            type: number
+            minimum: 1
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                roleId:
+                  type: number
+                  minimum: 1
+                  example: 1
+                name:
+                  type: string
+                  minLength: 1
+                  example: John Doe
+                email:
+                  type: string
+                  format: email
+                  example: john@example.com
+                password:
+                  type: string
+                  minLength: 6
+                  example: secret123
+                confirmPassword:
+                  type: string
+                  minLength: 6
+                  example: secret123
+              title: UpdateUserRequest
+      responses:
+        "200":
+          description: User updated
+        "404":
+          description: User not found
+    delete:
+      tags:
+        - Users
+      summary: Delete user
+      parameters:
+        - schema:
+            type: number
+            minimum: 1
+          required: true
+          name: id
+          in: path
+      responses:
+        "200":
+          description: User deleted
+        "404":
+          description: User not found
+  /api/v1/roles:
+    get:
+      tags:
+        - Roles
+      summary: Fetch all roles
+      parameters:
+        - schema:
+            type: string
+            example: Admin
+            description: Searched through names and descriptions (Case Insensitive)
+          required: false
+          description: Searched through names and descriptions (Case Insensitive)
+          name: search
+          in: query
+        - schema:
+            type: number
+            minimum: 1
+            maximum: 100
+            default: 20
+            example: 20
+          required: false
+          name: limit
+          in: query
+        - schema:
+            type: number
+            nullable: true
+            minimum: 0
+            example: 0
+          required: false
+          name: offset
+          in: query
+      responses:
+        "200":
+          description: Roles fetched
+    post:
+      tags:
+        - Roles
+      summary: Create role
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  example: Admin
+                description:
+                  type: string
+                  example: Privillage user with CRUD abilities
+              required:
+                - name
+                - description
+              title: CreateRoleRequest
+      responses:
+        "201":
+          description: Role created
+        "400":
+          description: Invalid input
+  /api/v1/roles/{id}:
+    get:
+      tags:
+        - Roles
+      summary: Fetch role
+      parameters:
+        - schema:
+            type: number
+            minimum: 1
+          required: true
+          name: id
+          in: path
+      responses:
+        "200":
+          description: Role fetched
+        "404":
+          description: Role not found
+    patch:
+      tags:
+        - Roles
+      summary: Update role
+      parameters:
+        - schema:
+            type: number
+            minimum: 1
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  example: Admin
+                description:
+                  type: string
+                  example: Privillage user with CRUD abilities
+              title: UpdateRoleRequest
+      responses:
+        "200":
+          description: Role updated
+        "404":
+          description: Role not found
+    delete:
+      tags:
+        - Roles
+      summary: Delete role
+      parameters:
+        - schema:
+            type: number
+            minimum: 1
+          required: true
+          name: id
+          in: path
+      responses:
+        "200":
+          description: Role deleted
+        "404":
+          description: Role not found
+  /api/v1/plants:
+    get:
+      tags:
+        - Plants
+      summary: Fetch all plants
+      parameters:
+        - schema:
+            type: string
+            example: Test
+            description: Searched through attributes (Case Insensitive)
+          required: false
+          description: Searched through attributes (Case Insensitive)
+          name: search
+          in: query
+        - schema:
+            type: number
+            minimum: 1
+            maximum: 100
+            default: 20
+            example: 20
+          required: false
+          name: limit
+          in: query
+        - schema:
+            type: number
+            nullable: true
+            minimum: 0
+            example: 0
+          required: false
+          name: offset
+          in: query
+        - schema:
+            type: string
+            example: Sapindaceae
+          required: false
+          name: family
+          in: query
+        - schema:
+            type: string
+            example: Acer
+          required: false
+          name: genus
+          in: query
+      responses:
+        "200":
+          description: Plants fetched
+    post:
+      tags:
+        - Plants
+      summary: Create plant
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                commonName:
+                  type: string
+                  example: Red Maple
+                scientificName:
+                  type: string
+                  example: Acer rubrum
+                family:
+                  type: string
+                  example: Sapindaceae
+                genus:
+                  type: string
+                  example: Acer
+                botanicalDescription:
+                  type: string
+                  example: Deciduous tree, medium-sized, red flowers in spring, red fall foliage.
+                ecologicalInformation:
+                  type: string
+                  example: Supports a variety of pollinators and birds; common in wetland areas.
+                environmentalImpact:
+                  type: string
+                  example: Generally beneficial; can dominate small wetland areas if unchecked.
+                referenceImagePath:
+                  type: string
+                  example: /images/red-maple.jpg
+              required:
+                - commonName
+                - scientificName
+                - family
+                - genus
+                - botanicalDescription
+                - ecologicalInformation
+                - environmentalImpact
+                - referenceImagePath
+      responses:
+        "201":
+          description: Plant created
+        "400":
+          description: Invalid request
+  /api/v1/plants/{id}:
+    get:
+      tags:
+        - Plants
+      summary: Fetch plant
+      parameters:
+        - schema:
+            type: number
+            minimum: 1
+          required: true
+          name: id
+          in: path
+      responses:
+        "200":
+          description: Plant fetched
+        "404":
+          description: Plant not found
+    patch:
+      tags:
+        - Plants
+      summary: Update plant
+      parameters:
+        - schema:
+            type: number
+            minimum: 1
+          required: true
+          name: id
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                commonName:
+                  type: string
+                  example: Red Maple
+                scientificName:
+                  type: string
+                  example: Acer rubrum
+                family:
+                  type: string
+                  example: Sapindaceae
+                genus:
+                  type: string
+                  example: Acer
+                botanicalDescription:
+                  type: string
+                  example: Deciduous tree, medium-sized, red flowers in spring, red fall foliage.
+                ecologicalInformation:
+                  type: string
+                  example: Supports a variety of pollinators and birds; common in wetland areas.
+                environmentalImpact:
+                  type: string
+                  example: Generally beneficial; can dominate small wetland areas if unchecked.
+                referenceImagePath:
+                  type: string
+                  example: /images/red-maple.jpg
+      responses:
+        "201":
+          description: Plant updated
+        "400":
+          description: Invalid request
+        "404":
+          description: Plant not found
+    delete:
+      tags:
+        - Plants
+      summary: Delete plant
+      parameters:
+        - schema:
+            type: number
+            minimum: 1
+          required: true
+          name: id
+          in: path
+      responses:
+        "200":
+          description: Plant deleted
+        "404":
+          description: Plant not found
+  /api/v1/plants/detect:
+    post:
+      tags:
+        - Plants
+      summary: Detect plant
+      description: Detecting plant from an image
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+              required:
+                - image
+      responses:
+        "200":
+          description: Plants detected
+        "400":
+          description: Detection failed
+  api/v1/identifications:
+    get:
+      tags:
+        - Identifications
+      summary: Fetch all identifications
+      parameters:
+        - schema:
+            type: string
+            example: Test
+            description: Searched through attributes (Case Insensitive)
+          required: false
+          description: Searched through attributes (Case Insensitive)
+          name: search
+          in: query
+        - schema:
+            type: number
+            minimum: 1
+            maximum: 100
+            default: 20
+            example: 20
+          required: false
+          name: limit
+          in: query
+        - schema:
+            type: number
+            nullable: true
+            minimum: 0
+            example: 0
+          required: false
+          name: offset
+          in: query
+        - schema:
+            type: number
+            minimum: 1
+            example: 1
+          required: false
+          name: plantId
+          in: query
+        - schema:
+            type: boolean
+            example: true
+          required: false
+          name: isSuccess
+          in: query
+      responses:
+        "200":
+          description: Identifications fetched
+  api/v1/identifications/{id}:
+    get:
+      tags:
+        - Identifications
+      summary: Fetch identification
+      parameters:
+        - schema:
+            type: number
+            minimum: 1
+          required: true
+          name: id
+          in: path
+      responses:
+        "200":
+          description: Identification fetched
+        "404":
+          description: Identification not found
+  api/v1/images/{id}:
+    get:
+      tags:
+        - Images
+      summary: Fetch image
+      parameters:
+        - schema:
+            type: number
+            minimum: 1
+          required: true
+          name: id
+          in: path
+      responses:
+        "200":
+          description: Image fetched
+        "404":
+          description: Image not found

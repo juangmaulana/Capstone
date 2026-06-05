@@ -1,0 +1,8 @@
+FE/node_modules/
+FE/.env
+FE/build/
+FE/dist/
+FE/.next/
+FE/.vscode/TN_baluran/
+FE/.next/
+.DS_Store
