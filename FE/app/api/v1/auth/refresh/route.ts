@@ -1,15 +1,13 @@
 import { withErrorHandling } from '@/lib/api/errors/error-handler';
-import { refresh } from '@/server/auth';
-import { ApiError } from '@/lib/api/api-error';
+import { refresh } from '@/server/services/auth';
 import { cookies } from 'next/headers';
 import { NextResponse } from "next/server"
 
 export const POST = withErrorHandling(async () => {
   const cookieStore = await cookies();
   const refreshToken = cookieStore.get("refresh_token")?.value;
-  if (!refreshToken) throw new ApiError('UNAUTHORIZED');
-
-  const data = await refresh(refreshToken);
+  
+  const data = await refresh(refreshToken!);
 
   cookieStore.set("refresh_token", data.refreshToken, {
     httpOnly: true,

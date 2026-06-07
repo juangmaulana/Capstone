@@ -7,6 +7,11 @@ registry.registerPath({
   path: '/api/v1/plants',
   tags: ['Plants'],
   summary: 'Create plant',
+  security: [
+    {
+      bearerAuth: [],
+    }
+  ],
   request: {
     body: {
       content: {

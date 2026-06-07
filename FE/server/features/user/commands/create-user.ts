@@ -2,20 +2,19 @@ import { ApiError } from '@/lib/api/api-error'
 import { UserRepo } from '../repo'
 import { ErrorCode } from '@/lib/api/errors/error-codes'
 import { RoleRepo } from '../../role/repo'
-import bcrypt from 'bcryptjs'
 import { mapDbError } from '@/lib/db/mappers'
 import { CreateUserRequest } from '../schemas/create-user.schema'
-import { sendWelcomeEmail } from '@/server/services/email'
+import { register } from '@/server/services/auth'
 
-export const createUser = (deps: {
+export const createUser = (deps: { 
   userRepo: UserRepo,
-  roleRepo: RoleRepo,
+  roleRepo: RoleRepo, 
 }) => {
   const { userRepo, roleRepo } = deps
 
   return async (input: CreateUserRequest) => {
-    const existing = await userRepo.findByEmail(input.email)
-    if (existing) {
+    const user = await userRepo.findByEmail(input.email)
+    if (user) {
       throw new ApiError(ErrorCode.BAD_REQUEST, 'Email already exist')
     }
 
@@ -24,28 +23,15 @@ export const createUser = (deps: {
       throw new ApiError(ErrorCode.NOT_FOUND, 'Role not found')
     }
 
-    const passwordHash = await bcrypt.hash(input.password, 10)
-
-    let created
     try {
-      created = await userRepo.create({
-        role_id: input.roleId,
-        name: input.name,
-        email: input.email,
-        password_hash: passwordHash,
-      })
+      return await register(
+        input.roleId, 
+        input.name, 
+        input.email, 
+        input.password
+      );
     } catch (err) {
       throw mapDbError(err)
     }
-
-    sendWelcomeEmail({
-      to: input.email,
-      name: input.name,
-      email: input.email,
-      password: input.password,
-      role: role.name,
-    }).catch(err => console.error('[Email] Failed to send welcome email:', err))
-
-    return created
   }
 }

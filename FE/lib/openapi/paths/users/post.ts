@@ -6,6 +6,11 @@ registry.registerPath({
   path: '/api/v1/users',
   tags: ['Users'],
   summary: 'Create user',
+  security: [
+    {
+      bearerAuth: [],
+    }
+  ],
   request: {
     body: {
       content: {

@@ -10,8 +10,8 @@ export const GET = withErrorHandling(async (
 ) => {
   const searchParams = {
     search: req.nextUrl.searchParams.get("search") ?? undefined,
-    plantId: req.nextUrl.searchParams.get("plant_id") ?? undefined,
-    isSuccess: req.nextUrl.searchParams.get("is_success") ?? undefined,
+    plantId: req.nextUrl.searchParams.get("plantId") ?? undefined,
+    isSuccess: req.nextUrl.searchParams.get("isSuccess") ?? undefined,
     limit: req.nextUrl.searchParams.get("limit") ?? undefined,
     page: req.nextUrl.searchParams.get("page") ?? undefined,
   }
