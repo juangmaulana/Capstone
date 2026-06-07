@@ -1,13 +1,13 @@
 import { z } from '@/lib/openapi/zod'
 import { BooleanFromStringSchema } from '@/server/shared/schemas/boolean.schema'
 
-export const ImageIdSchema = z.number().min(1).openapi({
+export const ImageIdSchema = z.coerce.number().min(1).openapi({
   example: 1,
 })
-export const PlantIdSchema = z.number().min(1).openapi({
+export const PlantIdSchema = z.coerce.number().min(1).openapi({
   example: 1,
 })
-export const CondifenceSchema = z.number().min(0).max(1).openapi({
+export const CondifenceSchema = z.coerce.number().min(0).max(1).openapi({
   example: 0.95,
   description: '0 <= confidence <= 1'
 })

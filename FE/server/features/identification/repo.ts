@@ -1,6 +1,7 @@
 import { DB } from '@/server/db/types'
 import { Identification } from './model/identification.model'
 import { toIdentification, toIdentificationOrNull } from './mappers/to-model'
+import { sql } from 'kysely'
 
 export type IdentificationFilter = {
   search?: string
@@ -8,6 +9,11 @@ export type IdentificationFilter = {
   isSuccess?: boolean
   limit: number
   page: number
+}
+export type StatisticFilter = {
+  startDate: Date,
+  endDate: Date,
+  plantId?: number,
 }
 
 export type IdentificationRepo = {
@@ -18,6 +24,17 @@ export type IdentificationRepo = {
     page: number,
   }>
   findById(id: number): Promise<Identification | null>
+  statistics(filter: StatisticFilter): Promise<{
+    total: number,
+    monthly: {
+      month: number,
+      count: number,
+    }[],
+    species: {
+      plantId: number,
+      count: number,
+    }[]
+  }>
 }
 
 export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
@@ -119,4 +136,47 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
       .where('identifications.id', '=', id)
       .executeTakeFirst()
       .then(toIdentificationOrNull),
+
+  statistics: async (filter) => {
+    let query = db.selectFrom('identifications')
+    
+    query = query
+      .where('identifications.identified_at', '>=', filter.startDate)
+      .where('identifications.identified_at', '<', filter.endDate)
+
+    if (filter.plantId) {
+      query = query.where('plant_id', '=', filter.plantId)
+    }
+    
+    const total = await query
+      .select([
+        sql<number>`COUNT(id)::integer`.as('count')
+      ])
+      .executeTakeFirst()
+      .then(r => r?.count ?? 0)
+
+    const monthly = await query
+      .select([
+        sql<number>`EXTRACT(MONTH FROM identified_at)::integer`.as('month'),
+        sql<number>`COUNT(id)::integer`.as('count'),
+      ])
+      .groupBy('month')
+      .orderBy('month')
+      .execute()
+
+    const species = await query
+      .select([
+        'plant_id as plantId',
+        sql<number>`COUNT(*)::integer`.as('count'),
+      ])
+      .groupBy('plantId')
+      .orderBy('plantId')
+      .execute()
+      
+    return {
+      total,
+      monthly,
+      species,
+    }
+  }
 })  
