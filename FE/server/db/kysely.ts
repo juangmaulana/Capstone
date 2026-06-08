@@ -3,7 +3,7 @@ import { Pool } from "pg";
 import { Kysely, PostgresDialect } from "kysely";
 
 export function createDb(connectionString: string) {
-  const pool = new Pool({ 
+  const pool = new Pool({
     connectionString,
   })
 

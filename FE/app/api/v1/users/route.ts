@@ -11,7 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const GET = withErrorHandling(async (req: NextRequest) => {
   await getAuthUser();
-  
+
   const searchParams = {
     search: req.nextUrl.searchParams.get("search") ?? undefined,
     roleId: req.nextUrl.searchParams.get("roleId") ?? undefined,
@@ -20,12 +20,12 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
   }
   const filter = parseWithZod(UserFilterSchema, searchParams)
   const { data, total, limit, page } = await user.queries.all(filter);
-    
+
   const { prev, next } = getLinks(total, limit, page, req.url);
 
-  return NextResponse.json({ 
-    success: true, 
-    data, 
+  return NextResponse.json({
+    success: true,
+    data,
     meta: {
       total,
       limit,
@@ -40,9 +40,9 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
 
 export const POST = withErrorHandling(async (req: NextRequest) => {
   const authUser = await getAuthUser();
-  if (!authUser) 
+  if (!authUser)
     throw forbidden('Unauthenticated');
-  if (!authorize(authUser, ['admin'])) 
+  if (!authorize(authUser, ['admin']))
     throw forbidden('User creation only allowed for admins');
 
   const input = parseWithZod(createUserSchema, await req.json())

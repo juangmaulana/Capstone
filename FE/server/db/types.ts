@@ -8,6 +8,7 @@ export interface UserTable {
   name: string
   email: string
   password_hash: string
+  country: string | null
   last_login_at: Date | null
   readonly created_at: Generated<Date>
   readonly updated_at: Generated<Date>
@@ -55,6 +56,10 @@ export interface IdentificationTable {
   confidence: number
   ai_response: string
   is_success: boolean
+  validation_status: 'pending' | 'validated' | 'rejected'
+  validated_by: number | null
+  validated_at: Date | null
+  notes: string | null
   ranger_id: number
   uploaded_by: number
   readonly identified_at: Date
@@ -86,6 +91,7 @@ export interface UserWithRole {
   name: string;
   email: string;
   password_hash: string;
+  country: string | null;
   last_login_at: Date | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
@@ -97,6 +103,9 @@ export interface EnrichedIdentification {
   confidence: number
   ai_response: string
   is_success: boolean
+  validation_status: 'pending' | 'validated' | 'rejected'
+  validated_at: Date | null
+  notes: string | null
 
   image_id: number | null
   image_name: string | null
@@ -115,6 +124,10 @@ export interface EnrichedIdentification {
 
   uploader_id: number | null
   uploader_name: string | null
+
+  validator_id: number | null
+  validator_name: string | null
+  validator_email: string | null
 
   readonly identified_at: Generated<Date>
 }

@@ -54,7 +54,7 @@ export const createUserRepo = (db: DB): UserRepo => ({
       .select(['roles.name as role_name'])
       .orderBy('created_at', 'desc')
       .execute()
-      .then(rows => rows.map(toUser)) 
+      .then(rows => rows.map(toUser))
 
     return { data, total, limit, page: filter.page }
   },

@@ -21,9 +21,9 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
 
   const { prev, next } = getLinks(total, limit, page, req.url);
 
-  return NextResponse.json({ 
-    success: true, 
-    data, 
+  return NextResponse.json({
+    success: true,
+    data,
     meta: {
       total,
       limit,
@@ -53,7 +53,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   })
 
   const uploadResult = await uploadImage(formInput.imageFile as File);
-  
+
   const input = parseWithZod(CreatePlantSchema, {
     ...formInput,
     imagePath: uploadResult.path,

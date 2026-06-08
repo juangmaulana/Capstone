@@ -19,13 +19,13 @@ export function withErrorHandling<T extends unknown[]>(
               code: err.code,
               status: err.status,
               message: err.message,
-              details: err.details 
-            }, 
-          }, 
+              details: err.details
+            },
+          },
           { status: err.status }
         )
       }
-      
+
       if (err instanceof Error) {
         console.error({
           message: err.message,
@@ -37,13 +37,13 @@ export function withErrorHandling<T extends unknown[]>(
 
       return NextResponse.json(
         {
-          success: false, 
+          success: false,
           error: {
             code: ErrorCode.UNKNOWN,
             status: ErrorStatusMap[ErrorCode.UNKNOWN],
-            message: ErrorMessageMap[ErrorCode.UNKNOWN], 
+            message: ErrorMessageMap[ErrorCode.UNKNOWN],
           },
-        }, 
+        },
         { status: ErrorStatusMap[ErrorCode.UNKNOWN] }
       )
     }

@@ -9,9 +9,9 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const GET = withErrorHandling(async (req: NextRequest) => {
   const authUser = await getAuthUser();
-  if (!authUser) 
+  if (!authUser)
     throw forbidden('Unauthenticated');
-  
+
   const searchParams = {
     search: req.nextUrl.searchParams.get("search") ?? undefined,
     limit: req.nextUrl.searchParams.get("limit") ?? undefined,
@@ -20,12 +20,12 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
   const filter = parseWithZod(RoleFilterSchema, searchParams)
 
   const { data, total, limit, page } = await role.queries.all(filter);
-  
+
   const { prev, next } = getLinks(total, limit, page, req.url);
 
-  return NextResponse.json({ 
-    success: true, 
-    data, 
+  return NextResponse.json({
+    success: true,
+    data,
     meta: {
       total,
       limit,

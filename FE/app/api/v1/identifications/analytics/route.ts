@@ -12,6 +12,6 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
 
   const filter = parseWithZod(IdentificationStatisticsFilterSchema, searchParams);
   const data = await identification.query.statistics(filter)
-  
+
   return NextResponse.json({ success: true, data })
 })

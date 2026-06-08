@@ -6,8 +6,13 @@ import { usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
+const canAccessAdminSystem = (role?: string) => {
+  const normalized = role?.trim().toLowerCase();
+  return normalized === "super admin" || normalized === "admin" || normalized === "researcher";
+};
+
 function AdminGate({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const pathname = usePathname();
   const { language } = useLanguage();
 
@@ -27,7 +32,7 @@ function AdminGate({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !canAccessAdminSystem(user?.role)) {
     return <AdminLoginPage />;
   }
 

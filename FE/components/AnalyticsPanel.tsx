@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { fetchLocationStats, fetchMapObservations, type LocationStats, type MapObservation } from "@/lib/map-observations";
+import { fetchLocationStats, type LocationStats } from "@/lib/map-observations";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"] as const;
 const DEFAULT_YEARS = ["2026", "2025", "2024"] as const;
@@ -38,6 +38,7 @@ type SpeciesDefinition = {
   key: SpeciesKey;
   label: string;
   color: string;
+  plantId?: number;
 };
 
 type DiversityDatum = SpeciesDefinition & {
@@ -54,6 +55,23 @@ const SPECIES: SpeciesDefinition[] = [
   { key: "merremia", label: "Merremia hederacea", color: "hsl(271, 81%, 56%)" },
 ];
 
+type IdentificationAnalytics = {
+  total: number;
+  monthly: Array<{
+    month: number;
+    count: number;
+  }>;
+  species: Array<{
+    plantId: number;
+    count: number;
+  }>;
+};
+
+type PlantRecord = {
+  id: number;
+  scientificName?: string;
+  scientific_name?: string;
+};
 
 const getSpeciesKey = (speciesName: string): SpeciesKey | null => {
   const normalized = speciesName.toLowerCase();
@@ -76,28 +94,62 @@ const createEmptyMonthlyObservations = (years: readonly string[] = DEFAULT_YEARS
 const sortYearsDescending = (years: string[]) =>
   Array.from(new Set(years)).sort((a, b) => Number(b) - Number(a));
 
-const buildMonthlyObservations = (observations: MapObservation[]) => {
-  const apiYears = observations
-    .map((observation) => {
-      const date = new Date(`${observation.date}T00:00:00`);
-      return Number.isNaN(date.getTime()) ? null : String(date.getFullYear());
-    })
-    .filter((year): year is string => Boolean(year));
-  const years = sortYearsDescending([...DEFAULT_YEARS, ...apiYears]);
-  const nextObservations = createEmptyMonthlyObservations(years);
+const EMPTY_ANALYTICS: IdentificationAnalytics = {
+  total: 0,
+  monthly: [],
+  species: [],
+};
 
-  observations.forEach((observation) => {
-    const date = new Date(`${observation.date}T00:00:00`);
-    const year = String(date.getFullYear());
-    const speciesKey = getSpeciesKey(observation.species);
+const buildMonthlyObservationsFromAnalytics = (analytics: IdentificationAnalytics, speciesKey: SpeciesKey) => {
+  const nextObservations = createEmptySpeciesMonthlyObservations();
 
-    if (!speciesKey || Number.isNaN(date.getTime())) return;
-
-    const monthIndex = date.getMonth();
-    nextObservations[year][speciesKey][monthIndex] = (nextObservations[year][speciesKey][monthIndex] ?? 0) + 1;
+  analytics.monthly.forEach((item) => {
+    const monthIndex = item.month - 1;
+    if (monthIndex < 0 || monthIndex >= MONTHS.length) return;
+    nextObservations[speciesKey][monthIndex] = item.count;
   });
 
-  return { years, observations: nextObservations };
+  return nextObservations;
+};
+
+const fetchIdentificationAnalytics = async (year: string, plantId?: number): Promise<IdentificationAnalytics> => {
+  const params = new URLSearchParams({ year });
+  if (plantId !== undefined) params.set("plantId", String(plantId));
+
+  const response = await fetch(`/api/v1/identifications/analytics?${params.toString()}`);
+  if (!response.ok) throw new Error("Failed to fetch identification analytics");
+
+  const json = await response.json();
+  if (!json.success) throw new Error(json.error?.message || "Failed to fetch identification analytics");
+
+  return {
+    total: Number(json.data?.total ?? 0),
+    monthly: Array.isArray(json.data?.monthly) ? json.data.monthly : [],
+    species: Array.isArray(json.data?.species) ? json.data.species : [],
+  };
+};
+
+const fetchPlantRecords = async (): Promise<PlantRecord[]> => {
+  const response = await fetch("/api/v1/plants?limit=100");
+  if (!response.ok) return [];
+
+  const json = await response.json();
+  return Array.isArray(json.data) ? json.data : [];
+};
+
+const mergeSpeciesWithPlants = (plants: PlantRecord[]) => {
+  const plantIdBySpecies = new Map<SpeciesKey, number>();
+
+  plants.forEach((plant) => {
+    const speciesName = plant.scientificName || plant.scientific_name || "";
+    const speciesKey = getSpeciesKey(speciesName);
+    if (speciesKey) plantIdBySpecies.set(speciesKey, plant.id);
+  });
+
+  return SPECIES.map((species) => ({
+    ...species,
+    plantId: plantIdBySpecies.get(species.key),
+  }));
 };
 
 const COPY = {
@@ -185,46 +237,38 @@ export function AnalyticsPanel() {
   const [trendMode, setTrendMode] = useState<"bar" | "line">("line");
   const [activeDiversityIndex, setActiveDiversityIndex] = useState<number | null>(null);
   const [monthlyObservations, setMonthlyObservations] = useState<MonthlyObservations>(() => createEmptyMonthlyObservations());
+  const [analyticsData, setAnalyticsData] = useState<IdentificationAnalytics>(EMPTY_ANALYTICS);
+  const [speciesDefinitions, setSpeciesDefinitions] = useState<SpeciesDefinition[]>(SPECIES);
   const [locationStats, setLocationStats] = useState<LocationStats | null>(null);
   const selectedYearObservations = monthlyObservations[selectedYear] ?? createEmptySpeciesMonthlyObservations();
 
-  const selectedSpeciesDefinition = SPECIES.find((species) => species.key === selectedSpecies);
+  const selectedSpeciesDefinition = speciesDefinitions.find((species) => species.key === selectedSpecies);
   const trendColor = selectedSpeciesDefinition?.color ?? AGGREGATE_COLOR;
 
   const speciesTotals = useMemo(
     () =>
-      SPECIES.map((species) => ({
+      speciesDefinitions.map((species) => ({
         ...species,
-        value: selectedYearObservations[species.key].reduce<number>(
-          (sum, value) => sum + (value ?? 0),
-          0,
-        ),
+        value: analyticsData.species.find((item) => item.plantId === species.plantId)?.count ?? 0,
       })),
-    [selectedYearObservations],
+    [analyticsData.species, speciesDefinitions],
   );
 
   const totalObservations = speciesTotals.reduce((sum, species) => sum + species.value, 0);
-  const visibleMonths = selectedYearObservations.vachellia.filter((value) => value !== null).length;
+  const visibleMonths = analyticsData.monthly.length;
   const selectedObservationTotal =
     selectedSpeciesDefinition
-      ? speciesTotals.find((species) => species.key === selectedSpeciesDefinition.key)?.value ?? 0
-      : totalObservations;
+      ? analyticsData.total
+      : totalObservations || analyticsData.total;
   const monthlyAverage = visibleMonths > 0 ? Math.round(selectedObservationTotal / visibleMonths) : 0;
 
   const trendData = useMemo(
     () =>
       MONTHS.map((month, monthIndex) => {
-        const values = SPECIES.map((species) => selectedYearObservations[species.key][monthIndex]);
-        const hasObservation = values.some((value) => value !== null);
-        const value = selectedSpeciesDefinition
-          ? selectedYearObservations[selectedSpeciesDefinition.key][monthIndex]
-          : hasObservation
-            ? values.reduce<number>((sum, item) => sum + (item ?? 0), 0)
-            : null;
-
+        const value = selectedYearObservations[selectedSpeciesDefinition?.key ?? "vachellia"][monthIndex];
         return { month, value };
       }),
-    [selectedSpeciesDefinition, selectedYearObservations],
+    [selectedSpeciesDefinition?.key, selectedYearObservations],
   );
 
   const diversityData: DiversityDatum[] = speciesTotals.map((species) => {
@@ -241,7 +285,7 @@ export function AnalyticsPanel() {
 
   const stats = [
     { label: copy.totalObservations, value: selectedObservationTotal.toLocaleString("id-ID"), icon: Activity },
-    { label: copy.observedSpecies, value: selectedSpeciesDefinition ? "1" : String(SPECIES.length), icon: Sprout },
+    { label: copy.observedSpecies, value: selectedSpeciesDefinition ? "1" : String(speciesTotals.filter((species) => species.value > 0).length), icon: Sprout },
     { label: copy.monitoredLocations, value: (locationStats?.totalLocations ?? 0).toLocaleString("id-ID"), icon: MapPinned },
     { label: copy.monthlyAverage, value: monthlyAverage.toLocaleString("id-ID"), icon: CalendarDays },
   ];
@@ -249,12 +293,11 @@ export function AnalyticsPanel() {
   useEffect(() => {
     let isMounted = true;
 
-    Promise.all([fetchMapObservations(), fetchLocationStats()]).then(([observations, nextLocationStats]) => {
+    Promise.all([fetchPlantRecords(), fetchLocationStats()]).then(([plants, nextLocationStats]) => {
       if (!isMounted) return;
-      const monthlyData = buildMonthlyObservations(observations);
-      setAvailableYears(monthlyData.years);
-      setMonthlyObservations(monthlyData.observations);
-      setSelectedYear((currentYear) => monthlyData.years.includes(currentYear) ? currentYear : monthlyData.years[0]);
+      const nextSpeciesDefinitions = mergeSpeciesWithPlants(plants);
+      setSpeciesDefinitions(nextSpeciesDefinitions);
+      setAvailableYears(sortYearsDescending([...DEFAULT_YEARS, String(new Date().getFullYear())]));
       setLocationStats(nextLocationStats);
     });
 
@@ -262,6 +305,35 @@ export function AnalyticsPanel() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    const selectedPlantId = selectedSpeciesDefinition?.plantId;
+
+    fetchIdentificationAnalytics(selectedYear, selectedPlantId)
+      .then((analytics) => {
+        if (!isMounted) return;
+        setAnalyticsData(analytics);
+        const targetSpeciesKey = selectedSpeciesDefinition?.key ?? "vachellia";
+        setMonthlyObservations((current) => ({
+          ...current,
+          [selectedYear]: buildMonthlyObservationsFromAnalytics(analytics, targetSpeciesKey),
+        }));
+      })
+      .catch((error) => {
+        console.error("Failed to fetch identification analytics:", error);
+        if (!isMounted) return;
+        setAnalyticsData(EMPTY_ANALYTICS);
+        setMonthlyObservations((current) => ({
+          ...current,
+          [selectedYear]: createEmptySpeciesMonthlyObservations(),
+        }));
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedSpeciesDefinition?.key, selectedSpeciesDefinition?.plantId, selectedYear]);
 
   return (
     <div className="flex h-full flex-col gap-3 p-4 lg:p-5">
@@ -290,7 +362,7 @@ export function AnalyticsPanel() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={ALL_SPECIES}>{copy.allSpecies}</SelectItem>
-                {SPECIES.map((species) => <SelectItem key={species.key} value={species.key}>{species.label}</SelectItem>)}
+                {speciesDefinitions.map((species) => <SelectItem key={species.key} value={species.key}>{species.label}</SelectItem>)}
               </SelectContent>
             </Select>
           </label>

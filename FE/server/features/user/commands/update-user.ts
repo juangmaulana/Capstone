@@ -6,7 +6,7 @@ import { RoleRepo } from '../../role/repo';
 import { UpdateUserRequest } from '../schemas/update-user.schema';
 import { UserUpdate } from '@/server/db/types';
 
-export const updateUser = (deps: { 
+export const updateUser = (deps: {
   userRepo: UserRepo,
   roleRepo: RoleRepo,
 }) => {
@@ -34,6 +34,10 @@ export const updateUser = (deps: {
 
     if (input.email !== undefined) {
       updateData.email = input.email
+    }
+
+    if (input.country !== undefined) {
+      updateData.country = input.country
     }
 
     if (Object.keys(updateData).length === 0)

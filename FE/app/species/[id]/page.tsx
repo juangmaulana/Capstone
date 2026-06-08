@@ -3,6 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Network, FileText, Image as ImageIcon, Loader2, Pencil } from "lucide-react";
+import { ExternalSourceText } from "@/components/ExternalSourceText";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
 import {
@@ -149,15 +150,6 @@ interface PlantApiRecord {
   imageReference?: string;
   image_reference?: string;
 }
-
-const getErrorMessage = (error: unknown, fallback: string) => {
-  if (typeof error === "string" && error.trim()) return error;
-  if (typeof error === "object" && error !== null) {
-    const message = (error as { message?: unknown }).message;
-    if (typeof message === "string" && message.trim()) return message;
-  }
-  return fallback;
-};
 
 const SPECIES_SOURCE_STORAGE_PREFIX = "biowatch_species_source_";
 const SPECIES_TAXONOMY_STORAGE_PREFIX = "biowatch_species_taxonomy_";
@@ -432,6 +424,8 @@ export default function SpeciesPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [isUploadingSketch, setIsUploadingSketch] = useState(false);
+  const [draftSketchFile, setDraftSketchFile] = useState<File | null>(null);
+  const [draftSketchPreviewUrl, setDraftSketchPreviewUrl] = useState("");
   const sketchFileInputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState({
     scientificName: "",
@@ -454,7 +448,7 @@ export default function SpeciesPage() {
 
   useEffect(() => {
     try {
-      const stored = sessionStorage.getItem("biowatch_admin_auth");
+      const stored = localStorage.getItem("biowatch_admin_auth") || sessionStorage.getItem("biowatch_admin_auth");
       if (!stored) {
         setIsAdmin(false);
         return;
@@ -604,6 +598,11 @@ export default function SpeciesPage() {
 
   const handleStartEditing = () => {
     if (!plant) return;
+    if (draftSketchPreviewUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(draftSketchPreviewUrl);
+    }
+    setDraftSketchFile(null);
+    setDraftSketchPreviewUrl("");
     const savedTaxonomy = readStoredSpeciesTaxonomy(plant.id, plant.scientificName);
     setDraft({
       scientificName: plant.scientificName,
@@ -633,6 +632,11 @@ export default function SpeciesPage() {
 
   const handleCancelEditing = () => {
     setIsEditing(false);
+    if (draftSketchPreviewUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(draftSketchPreviewUrl);
+    }
+    setDraftSketchFile(null);
+    setDraftSketchPreviewUrl("");
     if (!plant) return;
     const savedTaxonomy = readStoredSpeciesTaxonomy(plant.id, plant.scientificName);
     setDraft({
@@ -663,17 +667,13 @@ export default function SpeciesPage() {
   const handleSketchUpload = async (file: File) => {
     setIsUploadingSketch(true);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/v1/plants/upload-sketch", { method: "POST", body: fd });
-      const json = await res.json();
-      if (res.ok && json.success) {
-        setDraft((prev) => ({ ...prev, imagePath: json.data.path }));
-      } else {
-        toast.error(getErrorMessage(json.error, language === "id" ? "Upload gagal" : "Upload failed"));
+      if (draftSketchPreviewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(draftSketchPreviewUrl);
       }
-    } catch {
-      toast.error(language === "id" ? "Upload gagal" : "Upload failed");
+      const previewUrl = URL.createObjectURL(file);
+      setDraftSketchFile(file);
+      setDraftSketchPreviewUrl(previewUrl);
+      setDraft((prev) => ({ ...prev, imagePath: previewUrl }));
     } finally {
       setIsUploadingSketch(false);
     }
@@ -749,6 +749,7 @@ export default function SpeciesPage() {
       Object.entries(payload).forEach(([key, val]) => {
         if (val !== undefined && val !== null) fd.append(key, String(val));
       });
+      if (draftSketchFile) fd.append("imageFile", draftSketchFile);
       const response = await fetch(`/api/v1/plants/${plant.id}`, {
         method: "PATCH",
         body: fd,
@@ -774,6 +775,11 @@ export default function SpeciesPage() {
       }
 
       setSourceText(updatedPlant.source || draft.source.trim());
+      if (draftSketchPreviewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(draftSketchPreviewUrl);
+      }
+      setDraftSketchFile(null);
+      setDraftSketchPreviewUrl("");
       setIsEditing(false);
       toast.success(language === "id" ? "Detail spesies berhasil diperbarui" : "Species details updated successfully");
     } catch (err) {
@@ -943,9 +949,11 @@ export default function SpeciesPage() {
             </div>
             <div className="p-4">
               <div className="rounded-lg border bg-background px-3 py-3">
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                  {imageSourceText.trim() || copy.imageSourceEmpty}
-                </p>
+                <ExternalSourceText
+                  value={imageSourceText}
+                  fallback={copy.imageSourceEmpty}
+                  className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground"
+                />
               </div>
             </div>
           </div>
@@ -976,9 +984,11 @@ export default function SpeciesPage() {
             </div>
             <div className="p-4">
               <div className="rounded-lg border bg-background px-3 py-3">
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                  {sourceText.trim() || copy.sourceEmpty}
-                </p>
+                <ExternalSourceText
+                  value={sourceText}
+                  fallback={copy.sourceEmpty}
+                  className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground"
+                />
               </div>
             </div>
           </div>
@@ -1023,27 +1033,6 @@ export default function SpeciesPage() {
                   id="edit-common-name"
                   value={draft.commonName}
                   onChange={(event) => setDraft((current) => ({ ...current, commonName: event.target.value }))}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="edit-family">{copy.family}</Label>
-                <Input
-                  id="edit-family"
-                  value={draft.family}
-                  onChange={(event) => setDraft((current) => ({ ...current, family: event.target.value }))}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-genus">{copy.genus}</Label>
-                <Input
-                  id="edit-genus"
-                  value={draft.genus}
-                  onChange={(event) => setDraft((current) => ({ ...current, genus: event.target.value }))}
-                  required
                 />
               </div>
             </div>
@@ -1113,7 +1102,7 @@ export default function SpeciesPage() {
                     onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                   />
                   <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-black/40 px-3 py-2">
-                    <span className="text-xs text-white truncate">{draft.imagePath.split("/").pop()}</span>
+                    <span className="text-xs text-white truncate">{draftSketchFile?.name || draft.imagePath.split("/").pop()}</span>
                     <div className="flex gap-2 shrink-0">
                       <button
                         type="button"
@@ -1125,7 +1114,14 @@ export default function SpeciesPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setDraft((prev) => ({ ...prev, imagePath: "" }))}
+                        onClick={() => {
+                          if (draftSketchPreviewUrl.startsWith("blob:")) {
+                            URL.revokeObjectURL(draftSketchPreviewUrl);
+                          }
+                          setDraftSketchFile(null);
+                          setDraftSketchPreviewUrl("");
+                          setDraft((prev) => ({ ...prev, imagePath: "" }));
+                        }}
                         className="rounded-md bg-destructive/80 hover:bg-destructive px-2.5 py-1 text-xs text-white font-medium transition-colors"
                       >
                         {copy.herbariumSketchRemove}
@@ -1211,6 +1207,7 @@ export default function SpeciesPage() {
                     value={draft.family}
                     onChange={(e) => setDraft((prev) => ({ ...prev, family: e.target.value }))}
                     placeholder="e.g., Asteraceae"
+                    required
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -1220,6 +1217,7 @@ export default function SpeciesPage() {
                     value={draft.genus}
                     onChange={(e) => setDraft((prev) => ({ ...prev, genus: e.target.value }))}
                     placeholder="e.g., Ageratum"
+                    required
                   />
                 </div>
                 <div className="space-y-1.5">

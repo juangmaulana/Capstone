@@ -20,12 +20,12 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
   }
   const filter = parseWithZod(AuditFilterSchema, searchParams)
   const { data, total, limit, page } = await getAuditLogs(filter);
-    
+
   const { prev, next } = getLinks(total, limit, page, req.url);
 
-  return NextResponse.json({ 
-    success: true, 
-    data, 
+  return NextResponse.json({
+    success: true,
+    data,
     meta: {
       total,
       limit,

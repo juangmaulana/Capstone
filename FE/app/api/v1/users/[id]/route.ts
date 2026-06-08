@@ -11,7 +11,7 @@ import { changePassword } from '@/server/services/auth';
 import { cookies } from 'next/headers';
 
 export const GET = withErrorHandling(async (
-  req: NextRequest, 
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }>},
 ) => {
   const authUser = await getAuthUser();
@@ -28,15 +28,15 @@ export const PATCH = withErrorHandling(async (
   { params }: { params: Promise<{ id: string }>},
 ) => {
   const authUser = await getAuthUser();
-  if (!authUser) 
+  if (!authUser)
     throw forbidden('Unauthenticated');
-  
+
   const { id } = parseWithZod(IdSchema, await params)
   const input = parseWithZod(updateUserSchema, await req.json())
 
-  if (!authorize(authUser, ['admin']) && authUser.userId !== id) 
+  if (!authorize(authUser, ['admin']) && authUser.userId !== id)
     throw forbidden('Can only update your own, unless admin');
-  if (!authorize(authUser, ['admin']) && input.roleId) 
+  if (!authorize(authUser, ['admin']) && input.roleId)
     throw forbidden('Only admin can update roles');
 
   const data = await user.commands.update(id, input)
@@ -61,13 +61,13 @@ export const PATCH = withErrorHandling(async (
 })
 
 export const DELETE = withErrorHandling(async (
-  req: NextRequest, 
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }>},
 ) => {
   const authUser = await getAuthUser();
   if (!authUser)
     throw forbidden('Unauthenticated');
-  if (!authorize(authUser, ['admin'])) 
+  if (!authorize(authUser, ['admin']))
     throw forbidden('User deletion can only be done by admin');
 
   const { id } = parseWithZod(IdSchema, await params)

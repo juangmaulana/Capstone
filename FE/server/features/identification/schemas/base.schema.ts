@@ -20,6 +20,9 @@ export const IsSuccessSchema = BooleanFromStringSchema.openapi({
 export const IdentifiedAtSchema = z.iso.datetime().openapi({
   example: '2024-01-15T10:30:00Z',
 })
+export const IdentificationNotesSchema = z.string().nullable().openapi({
+  example: 'Validated after field review by ranger.',
+})
 
 export const IdentificationBaseSchema = z.object({
   imageId: ImageIdSchema,
@@ -27,5 +30,6 @@ export const IdentificationBaseSchema = z.object({
   confidence: CondifenceSchema,
   aiResponse: AiResponseSchema,
   isSuccess: IsSuccessSchema,
+  notes: IdentificationNotesSchema,
   identifiedAt: IdentifiedAtSchema,
 })

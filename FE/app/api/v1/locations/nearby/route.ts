@@ -17,8 +17,8 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
     radius: request.radius,
   });
 
-  return NextResponse.json({ 
-    success: true, 
-    data, 
+  return NextResponse.json({
+    success: true,
+    data,
   })
 })

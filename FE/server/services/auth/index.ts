@@ -5,11 +5,11 @@ const AUTH_API_URL = process.env.AUTH_API_URL
 export const authenticate = async (accessToken: string) => {
   const response = await fetch(`${AUTH_API_URL}/api/auth/authenticate`, {
     method: 'GET',
-    headers: { 
+    headers: {
       'Authorization': `Bearer ${accessToken}`
     }
   });
-  
+
   const json = await response.json();
   if (!json.success) {
     return null;
@@ -50,10 +50,10 @@ export const login = async (email: string, password: string) => {
   if (!json.success) {
     if (json.error.statusCode == 400) {
       throw new ApiError('BAD_REQUEST', json.error.message);
-    } 
+    }
     if (json.error.statusCode == 429) {
       throw new ApiError('TOO_MANY_REQUEST', json.error.message);
-    } 
+    }
     throw new Error(`[Auth Service] ${json.error.message}`);
   }
 
@@ -72,7 +72,7 @@ export const logout = async (refreshToken: string) => {
   if (!json.success) {
     if (json.error.statusCode == 401) {
       throw new ApiError('UNAUTHORIZED', json.error.message);
-    } 
+    }
     throw new Error(`[Auth Service] ${json.error.message}`);
   }
 
@@ -91,7 +91,7 @@ export const refresh = async (refreshToken: string) => {
   if (!json.success) {
     if (json.error.statusCode == 401) {
       throw new ApiError('UNAUTHORIZED', json.error.message);
-    } 
+    }
     throw new Error(`[Auth Service] ${json.error.message}`);
   }
 
@@ -101,16 +101,16 @@ export const refresh = async (refreshToken: string) => {
 export const getProfile = async (accessToken: string) => {
   const response = await fetch(`${AUTH_API_URL}/api/auth/profile`, {
     method: 'GET',
-    headers: { 
+    headers: {
       'Authorization': `Bearer ${accessToken}`
     }
   });
-  
+
   const json = await response.json();
   if (!json.success) {
     if (json.error.statusCode == 401) {
       throw new ApiError('UNAUTHORIZED', json.error.message);
-    } 
+    }
     throw new Error(`[Auth Service] ${json.error.message}`);
   }
 
@@ -174,9 +174,9 @@ export const resetPassword = async (resetToken: string, newPassword: string) => 
 export const changePassword = async (accessToken: string, userId: number, newPassword: string) => {
   const response = await fetch(`${AUTH_API_URL}/api/auth/change-password/${userId}`, {
     method: 'POST',
-    headers: { 
+    headers: {
       'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json' 
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({ newPassword })
   })
@@ -191,6 +191,6 @@ export const changePassword = async (accessToken: string, userId: number, newPas
     }
     throw new Error(`[Auth Service] ${json.error.code} | ${json.error.message}`)
   }
-  
+
   return json.data
 }

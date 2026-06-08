@@ -3,7 +3,7 @@
 import { Users, UserPlus, ShieldCheck, Activity, ScrollText, Plus, Pencil, Trash2, Search, CheckCircle2, AlertCircle, AlertTriangle, Info, Filter, LogOut, User, Eye, X, Image as ImageIcon, Lock, Copy, KeyRound } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminDataAnnotationPanel } from "@/components/AdminDataAnnotationPanel";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -30,15 +30,23 @@ interface ApiUser {
   id: number;
   name: string;
   email: string;
-  roleId: number;
+  country?: string | null;
+  roleId?: number;
   role_id?: number;
-  role?: string;
+  role?: string | ApiUserRole;
   roleName?: string;
   role_name?: string;
   status?: string;
   updatedAt?: string;
   updated_at?: string;
   lastLoginAt?: string;
+}
+
+interface ApiUserRole {
+  id?: number | string;
+  name?: string;
+  roleName?: string;
+  role_name?: string;
 }
 
 interface ApiRole {
@@ -146,15 +154,6 @@ interface DisplaySpecies {
   imageSource: string;
   lastUpdated: string;
 }
-
-const getErrorMessage = (error: unknown, fallback: string) => {
-  if (typeof error === "string" && error.trim()) return error;
-  if (typeof error === "object" && error !== null) {
-    const message = (error as { message?: unknown }).message;
-    if (typeof message === "string" && message.trim()) return message;
-  }
-  return fallback;
-};
 
 const createSpeciesSlug = (scientificName: string) =>
   createScientificNameSlug(scientificName).replace(/--+/g, "-");
@@ -297,6 +296,8 @@ interface LogEntry {
   timestamp: string;
   level: LogLevel;
   source: string;
+  action?: string;
+  entityId?: string;
   message: string;
   user?: string;
 }
@@ -328,6 +329,8 @@ const mapAuditLog = (log: ApiAuditLog): LogEntry => ({
   timestamp: formatAuditTimestamp(log.createdAt || log.created_at),
   level: getLogLevelFromAction(log.action),
   source: log.entityType || log.entity_type || "-",
+  action: log.action,
+  entityId: log.entityId || log.entity_id,
   message: log.message || log.action || "-",
   user: log.actorId || log.actor_id || undefined,
 });
@@ -677,7 +680,48 @@ const ADMIN_COPY = {
   },
 } as const;
 
+const getRoleObject = (role: ApiUser["role"]) =>
+  role && typeof role === "object" ? role : null;
+
+const getRoleObjectName = (role: ApiUser["role"]) => {
+  const roleObject = getRoleObject(role);
+  return roleObject?.name || roleObject?.roleName || roleObject?.role_name;
+};
+
+const getApiUserRoleId = (user: ApiUser) => {
+  const roleObjectId = getRoleObject(user.role)?.id;
+  const roleId = user.roleId ?? user.role_id ?? roleObjectId ?? 0;
+  return Number(roleId) || 0;
+};
+
+const getApiUserRoleName = (user: ApiUser, fallbackRoleName = "User") => {
+  if (user.roleName) return user.roleName;
+  if (user.role_name) return user.role_name;
+  if (typeof user.role === "string") return user.role;
+  return getRoleObjectName(user.role) || fallbackRoleName;
+};
+
 const isSuperAdminRole = (role: string) => role.trim().toLowerCase() === "super admin";
+
+const ADMIN_USER_ROLE_OPTIONS = ["Admin", "Ranger", "Researcher"];
+
+const normalizeAdminUserRole = (role: string) => {
+  const normalized = role.trim().toLowerCase();
+  if (normalized === "researcher") return "Researcher";
+  if (normalized === "admin") return "Admin";
+  if (normalized === "ranger") return "Ranger";
+  return role;
+};
+
+const getAdminUserRoleLookupNames = (role: string) => {
+  const normalized = normalizeAdminUserRole(role);
+  return [normalized];
+};
+
+const findAdminUserRole = (roles: ApiRole[], role: string) => {
+  const lookupNames = getAdminUserRoleLookupNames(role).map((name) => name.toLowerCase());
+  return roles.find((item) => lookupNames.includes(item.name.toLowerCase()));
+};
 
 const formatUserLastLogin = (lastLoginAt: string | undefined, role: string, language: keyof typeof ADMIN_COPY) => {
   if (isSuperAdminRole(role)) return "";
@@ -692,11 +736,10 @@ const formatUserLastLogin = (lastLoginAt: string | undefined, role: string, lang
 
 export default function AdminPage() {
   const pathname = usePathname();
-  const router = useRouter();
   const activeTab = getAdminTabFromPath(pathname);
   const [speciesSearch, setSpeciesSearch] = useState("");
-  const [logFilter, setLogFilter] = useState<LogLevel | "all">("all");
-  const { user, logout, updatePassword } = useAuth();
+  const [logFilter, setLogFilter] = useState<string>("all");
+  const { user, logout, updateUser } = useAuth();
   const { language } = useLanguage();
   const copy = ADMIN_COPY[language];
   const [confirmAction, setConfirmAction] = useState<AdminConfirmAction | null>(null);
@@ -733,13 +776,13 @@ export default function AdminPage() {
       const roleMap: Record<number, string> = {};
       rolesData.forEach(r => { roleMap[r.id] = r.name; });
       const mapApiUserToDisplayUser = (u: ApiUser): DisplayUser => {
-        const roleId = u.roleId || u.role_id || 0;
-        const roleName = u.roleName || u.role_name || u.role || roleMap[roleId] || "User";
+        const roleId = getApiUserRoleId(u);
+        const roleName = getApiUserRoleName(u, roleMap[roleId] || "User");
         return {
           id: u.id,
           name: u.name,
           email: u.email,
-          role: roleName === "Field Officer" ? "Ranger" : roleName,
+          role: normalizeAdminUserRole(roleName),
           roleId,
           status: u.status || "Active",
           lastLogin: formatUserLastLogin(u.lastLoginAt, roleName, language),
@@ -834,9 +877,7 @@ export default function AdminPage() {
     if (!addUserForm.name.trim()) { setAddUserError(copy.addUser.nameRequired); return; }
 
     const tempPassword = generateTempPassword();
-    // Handle "Ranger" mapping to "Field Officer" if database hasn't been updated
-    const searchRoleName = addUserForm.role === "Ranger" ? "Field Officer" : addUserForm.role;
-    const selectedRole = roles.find(r => r.name === addUserForm.role) || roles.find(r => r.name === searchRoleName);
+    const selectedRole = findAdminUserRole(roles, addUserForm.role);
     if (!selectedRole) { setAddUserError(copy.addUser.roleMissing); return; }
 
     try {
@@ -902,14 +943,14 @@ export default function AdminPage() {
   };
 
   const mapApiUserToDisplayUser = useCallback((u: ApiUser, rolesData = roles): DisplayUser => {
-    const roleId = u.roleId || u.role_id || 0;
-    const roleName = u.roleName || u.role_name || u.role || rolesData.find((role) => role.id === roleId)?.name || "User";
+    const roleId = getApiUserRoleId(u);
+    const roleName = getApiUserRoleName(u, rolesData.find((role) => role.id === roleId)?.name || "User");
 
     return {
       id: u.id,
       name: u.name,
       email: u.email,
-      role: roleName === "Field Officer" ? "Ranger" : roleName,
+      role: normalizeAdminUserRole(roleName),
       roleId,
       status: u.status || "Active",
       lastLogin: formatUserLastLogin(u.lastLoginAt, roleName, language),
@@ -936,8 +977,7 @@ export default function AdminPage() {
 
   const submitRoleChange = async () => {
     if (!editRoleUser) return;
-    const searchRoleName = editRoleValue === "Ranger" ? "Field Officer" : editRoleValue;
-    const selectedRole = roles.find(r => r.name === editRoleValue) || roles.find(r => r.name === searchRoleName);
+    const selectedRole = findAdminUserRole(roles, editRoleValue);
     if (!selectedRole) return;
     try {
       await fetch(`/api/v1/users/${editRoleUser.id}`, {
@@ -985,19 +1025,22 @@ export default function AdminPage() {
 
   const openProfile = async () => {
     let profileUser = user;
+    let country = "";
 
     if (user?.id) {
       try {
         const res = await fetch(`/api/v1/users/${user.id}`);
         const json = await res.json();
         if (res.ok && json.success && json.data) {
-          const detail = mapApiUserToDisplayUser(json.data);
+          const apiUser: ApiUser = json.data;
+          const detail = mapApiUserToDisplayUser(apiUser);
           profileUser = {
             id: detail.id,
             name: detail.name,
             email: detail.email,
             role: detail.role,
           };
+          country = apiUser.country || "";
         }
       } catch (error) {
         console.error("Failed to fetch profile user detail:", error);
@@ -1009,7 +1052,7 @@ export default function AdminPage() {
       firstName: nameParts[0] || "",
       lastName: nameParts.slice(1).join(" ") || "",
       email: profileUser?.email || "",
-      country: "Indonesia",
+      country,
     });
     setPasswordForm({ newPassword: "", repeatNewPassword: "", currentPassword: "" });
     setPasswordErrors({ repeatNewPassword: "", currentPassword: "" });
@@ -1017,10 +1060,31 @@ export default function AdminPage() {
     setShowProfile(true);
   };
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
+    if (!user?.id) return;
+    const name = `${profileForm.firstName.trim()} ${profileForm.lastName.trim()}`.trim();
+    try {
+      const res = await fetch(`/api/v1/users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          email: profileForm.email.trim(),
+          country: profileForm.country.trim(),
+        }),
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        console.error("Failed to save profile:", json);
+        return;
+      }
+      updateUser({ name, email: profileForm.email.trim(), country: profileForm.country.trim() });
+    } catch (error) {
+      console.error("Failed to save profile:", error);
+      return;
+    }
     setProfileEditing(false);
     setShowProfile(false);
-    router.push("/admin/users");
   };
 
   const handleChangePassword = async () => {
@@ -1029,7 +1093,6 @@ export default function AdminPage() {
 
     if (!passwordForm.newPassword.trim()) {
       errors.repeatNewPassword = "";
-      // No error for new password field itself, but we need it filled
     }
     if (!passwordForm.repeatNewPassword.trim()) {
       errors.repeatNewPassword = copy.profileModal.repeatRequired;
@@ -1046,24 +1109,28 @@ export default function AdminPage() {
     setPasswordErrors(errors);
     if (hasError) return;
 
-    // Actually update the password via API (or local fallback)
-    const success = await updatePassword(
-      user?.email || "",
-      passwordForm.currentPassword,
-      passwordForm.newPassword
-    );
-
-    if (!success) {
+    try {
+      const res = await fetch(`/api/v1/users/${user?.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: passwordForm.newPassword }),
+      });
+      if (!res.ok) {
+        setPasswordErrors({ repeatNewPassword: "", currentPassword: copy.profileModal.currentWrong });
+        return;
+      }
+    } catch (error) {
+      console.error("Failed to change password:", error);
       setPasswordErrors({ repeatNewPassword: "", currentPassword: copy.profileModal.currentWrong });
       return;
     }
 
-    // Success — reset form, close modal, go to User Management
+    // Server deletes session cookies on password change — clear local state and redirect to login
     setPasswordForm({ newPassword: "", repeatNewPassword: "", currentPassword: "" });
     setPasswordErrors({ repeatNewPassword: "", currentPassword: "" });
     setShowProfile(false);
     setProfileEditing(false);
-    router.push("/admin/users");
+    await logout();
   };
 
   // Species management state
@@ -1094,29 +1161,32 @@ export default function AdminPage() {
   });
   const [deleteSpeciesConfirm, setDeleteSpeciesConfirm] = useState<DisplaySpecies | null>(null);
   const [isUploadingSketch, setIsUploadingSketch] = useState(false);
+  const [speciesSketchFile, setSpeciesSketchFile] = useState<File | null>(null);
+  const [speciesSketchPreviewUrl, setSpeciesSketchPreviewUrl] = useState("");
   const sketchFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSketchUpload = async (file: File) => {
     if (!file) return;
     setIsUploadingSketch(true);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/v1/plants/upload-sketch", { method: "POST", body: fd });
-      const json = await res.json();
-      if (res.ok && json.success) {
-        setSpeciesForm((prev) => ({ ...prev, imagePath: json.data.path }));
-      } else {
-        alert(getErrorMessage(json.error, "Upload failed"));
+      if (speciesSketchPreviewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(speciesSketchPreviewUrl);
       }
-    } catch {
-      alert("Upload failed");
+      const previewUrl = URL.createObjectURL(file);
+      setSpeciesSketchFile(file);
+      setSpeciesSketchPreviewUrl(previewUrl);
+      setSpeciesForm((prev) => ({ ...prev, imagePath: previewUrl }));
     } finally {
       setIsUploadingSketch(false);
     }
   };
 
   const handleOpenAddSpecies = () => {
+    if (speciesSketchPreviewUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(speciesSketchPreviewUrl);
+    }
+    setSpeciesSketchFile(null);
+    setSpeciesSketchPreviewUrl("");
     setSpeciesForm({
       id: 0,
       scientificName: "",
@@ -1145,6 +1215,11 @@ export default function AdminPage() {
   };
 
   const handleEditSpecies = (s: DisplaySpecies) => {
+    if (speciesSketchPreviewUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(speciesSketchPreviewUrl);
+    }
+    setSpeciesSketchFile(null);
+    setSpeciesSketchPreviewUrl("");
     const localTaxonomy = readStoredSpeciesTaxonomy(s.id, s.scientificName);
     setSpeciesForm({
       id: s.id,
@@ -1206,6 +1281,10 @@ export default function AdminPage() {
 
   const handleSaveSpecies = async () => {
     if (!speciesForm.scientificName.trim() || !speciesForm.family.trim()) return;
+    if (speciesForm.id === 0 && !speciesSketchFile) {
+      alert("Herbarium sketch is required.");
+      return;
+    }
     const botanicalDescription = (
       language === "id"
         ? speciesForm.botanicalDescriptionId
@@ -1225,9 +1304,10 @@ export default function AdminPage() {
     const imageSourceText = speciesForm.imageSource?.trim() || "";
 
     try {
-      const buildPlantFormData = (fields: Record<string, string>) => {
+      const buildPlantFormData = (fields: Record<string, string>, imageFile?: File | null) => {
         const fd = new FormData();
         Object.entries(fields).forEach(([key, val]) => fd.append(key, val));
+        if (imageFile) fd.append("imageFile", imageFile);
         return fd;
       };
 
@@ -1243,7 +1323,6 @@ export default function AdminPage() {
             botanicalDescription,
             ecologicalInformation,
             environmentalImpact,
-            imagePath: speciesForm.imagePath.trim(),
             kingdom: speciesForm.kingdom.trim(),
             phylum: speciesForm.phylum.trim(),
             class: speciesForm.taxClass.trim(),
@@ -1251,7 +1330,8 @@ export default function AdminPage() {
             species: speciesForm.taxSpecies.trim(),
             sourceReference: sourceText,
             imageReference: imageSourceText,
-          }),
+            isDetectable: "true",
+          }, speciesSketchFile),
         });
       } else {
         res = await fetch(`/api/v1/plants/${speciesForm.id}`, {
@@ -1264,7 +1344,6 @@ export default function AdminPage() {
             botanicalDescription,
             ecologicalInformation,
             environmentalImpact,
-            imagePath: speciesForm.imagePath.trim(),
             kingdom: speciesForm.kingdom.trim(),
             phylum: speciesForm.phylum.trim(),
             class: speciesForm.taxClass.trim(),
@@ -1272,7 +1351,8 @@ export default function AdminPage() {
             species: speciesForm.taxSpecies.trim(),
             sourceReference: sourceText,
             imageReference: imageSourceText,
-          }),
+            isDetectable: "true",
+          }, speciesSketchFile),
         });
       }
 
@@ -1290,13 +1370,18 @@ export default function AdminPage() {
           taxSpecies: speciesForm.taxSpecies.trim(),
         });
         await fetchSpecies();
+        if (speciesSketchPreviewUrl.startsWith("blob:")) {
+          URL.revokeObjectURL(speciesSketchPreviewUrl);
+        }
+        setSpeciesSketchFile(null);
+        setSpeciesSketchPreviewUrl("");
         setShowAddSpecies(false);
       } else {
         console.error("Failed to save species:", result);
         alert(`${copy.common.saveSpeciesFailed}: ${result?.error?.message || copy.common.unknownError}`);
       }
-    } catch (e) { 
-      console.error("Failed to save species:", e); 
+    } catch (e) {
+      console.error("Failed to save species:", e);
       alert(copy.common.contactServerError);
     }
   };
@@ -1350,7 +1435,6 @@ export default function AdminPage() {
   }, [fetchAuditLogs]);
 
   const addLog = (level: LogLevel, source: string, message: string, userStr?: string) => {
-    const actorId = user?.id ? String(user.id) : userStr || user?.email || user?.name || "Admin";
     const optimisticLog: LogEntry = {
       id: crypto.randomUUID(),
       timestamp: new Date().toISOString().replace("T", " ").substring(0, 19),
@@ -1364,25 +1448,13 @@ export default function AdminPage() {
       optimisticLog,
       ...prev
     ]);
-
-    fetch("/api/v1/audit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        actorId,
-        entityId: String(optimisticLog.id),
-        entityType: source,
-        action: level.toUpperCase(),
-        message,
-      }),
-    })
-      .then((res) => res.ok ? fetchAuditLogs() : undefined)
-      .catch((error) => console.error("Failed to write audit log:", error));
   };
+
+  const uniqueLogSources = Array.from(new Set(systemLogs.map((log) => log.source).filter((s) => s && s !== "-")));
 
   const filteredLogs = logFilter === "all"
     ? systemLogs
-    : systemLogs.filter((log) => log.level === logFilter);
+    : systemLogs.filter((log) => log.source === logFilter);
 
   const getConfirmContent = () => {
     switch (confirmAction) {
@@ -1652,18 +1724,21 @@ export default function AdminPage() {
                 <ScrollText className="h-5 w-5 text-muted-foreground" />
                 <h2 className="text-lg font-semibold">{copy.logs.title}</h2>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Filter className="h-4 w-4 text-muted-foreground" />
-                {(["all", "info", "warning", "error", "success"] as const).map((level) => (
+                <button
+                  onClick={() => setLogFilter("all")}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${logFilter === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+                >
+                  {copy.logs.filters.all}
+                </button>
+                {uniqueLogSources.map((src) => (
                   <button
-                    key={level}
-                    onClick={() => setLogFilter(level)}
-                    className={`rounded-full px-3 py-1 text-xs font-medium capitalize transition-colors ${logFilter === level
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80"
-                      }`}
+                    key={src}
+                    onClick={() => setLogFilter(src)}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${logFilter === src ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
                   >
-                    {copy.logs.filters[level]}
+                    {copy.logs.sources[src as keyof typeof copy.logs.sources] || src}
                   </button>
                 ))}
               </div>
@@ -1671,12 +1746,12 @@ export default function AdminPage() {
             <div className="divide-y">
               {isLoadingLogs && (
                 <div className="px-6 py-8 text-center text-sm text-muted-foreground">
-                  Loading audit logs...
+                  {language === "id" ? "Memuat log audit..." : "Loading audit logs..."}
                 </div>
               )}
               {!isLoadingLogs && filteredLogs.length === 0 && (
                 <div className="px-6 py-8 text-center text-sm text-muted-foreground">
-                  No audit logs found.
+                  {language === "id" ? "Tidak ada log ditemukan." : "No audit logs found."}
                 </div>
               )}
               {!isLoadingLogs && filteredLogs.map((log) => {
@@ -1689,9 +1764,23 @@ export default function AdminPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${style.bg} ${style.text}`}>{copy.logs.levels[log.level]}</span>
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{copy.logs.sources[log.source as keyof typeof copy.logs.sources] || log.source}</span>
-                        {log.user && <span className="text-xs text-muted-foreground">{copy.logs.by} {log.user}</span>}
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${style.bg} ${style.text}`}>
+                          {copy.logs.levels[log.level]}
+                        </span>
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          {copy.logs.sources[log.source as keyof typeof copy.logs.sources] || log.source}
+                          {log.entityId ? ` #${log.entityId}` : ""}
+                        </span>
+                        {log.action && (
+                          <span className="rounded-full border px-2 py-0.5 text-[10px] font-mono font-medium text-foreground/70">
+                            {log.action}
+                          </span>
+                        )}
+                        {log.user && (
+                          <span className="text-xs text-muted-foreground">
+                            {copy.logs.by} {log.user}
+                          </span>
+                        )}
                       </div>
                       <p className="mt-1 text-sm">{log.message}</p>
                     </div>
@@ -1706,8 +1795,8 @@ export default function AdminPage() {
 
       {/* ─── DATA ANNOTATION TAB ─── */}
       {activeTab === "annotation" && (
-        <AdminDataAnnotationPanel 
-          adminName={user?.name || "Admin"} 
+        <AdminDataAnnotationPanel
+          adminName={user?.name || "Admin"}
           onLog={(level, source, message) => addLog(level, source, message)}
         />
       )}
@@ -1885,10 +1974,7 @@ export default function AdminPage() {
             <div className="space-y-2">
               <label className="block text-sm font-medium">{copy.roleModal.role}</label>
               <div className="flex flex-wrap gap-2">
-                {roles
-                  .filter((r) => ["researcher", "ranger", "field officer"].includes(r.name.toLowerCase()))
-                  .map((r) => r.name.toLowerCase() === "field officer" ? "Ranger" : r.name)
-                  .map((role) => (
+                {ADMIN_USER_ROLE_OPTIONS.map((role) => (
                     <button
                       key={role}
                       onClick={() => setEditRoleValue(role)}
@@ -1900,7 +1986,7 @@ export default function AdminPage() {
                     >
                       {role}
                     </button>
-                  ))}
+                ))}
               </div>
             </div>
             <div className="flex justify-end gap-3 pt-2">
@@ -2076,10 +2162,7 @@ export default function AdminPage() {
                   <div className="space-y-2">
                     <label className="block text-sm font-medium">{copy.addUser.role}</label>
                     <div className="flex flex-wrap gap-2">
-                      {roles
-                        .filter((r) => ["researcher", "ranger", "field officer"].includes(r.name.toLowerCase()))
-                        .map((r) => r.name.toLowerCase() === "field officer" ? "Ranger" : r.name)
-                        .map((role) => (
+                      {ADMIN_USER_ROLE_OPTIONS.map((role) => (
                           <button
                             key={role}
                             onClick={() => setAddUserForm(f => ({ ...f, role }))}
@@ -2091,7 +2174,7 @@ export default function AdminPage() {
                           >
                             {role}
                           </button>
-                        ))}
+                      ))}
                     </div>
                   </div>
 
@@ -2193,28 +2276,6 @@ export default function AdminPage() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="family">{copy.species.family}</Label>
-                <Input
-                  id="family"
-                  value={speciesForm.family}
-                  onChange={(e) => setSpeciesForm({ ...speciesForm, family: e.target.value })}
-                  placeholder={copy.species.familyPlaceholder}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="genus">{copy.species.genus}</Label>
-                <Input
-                  id="genus"
-                  value={speciesForm.genus}
-                  onChange={(e) => setSpeciesForm({ ...speciesForm, genus: e.target.value })}
-                  placeholder={copy.species.genusPlaceholder}
-                  required
-                />
-              </div>
-            </div>
             <div className="space-y-2">
               <Label htmlFor="botanicalDescription" className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 {copy.species.botanicalDescription}
@@ -2280,7 +2341,7 @@ export default function AdminPage() {
                     onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                   />
                   <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-black/40 px-3 py-2">
-                    <span className="text-xs text-white truncate">{speciesForm.imagePath.split("/").pop()}</span>
+                    <span className="text-xs text-white truncate">{speciesSketchFile?.name || speciesForm.imagePath.split("/").pop()}</span>
                     <div className="flex gap-2 shrink-0">
                       <button
                         type="button"
@@ -2292,7 +2353,14 @@ export default function AdminPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setSpeciesForm((prev) => ({ ...prev, imagePath: "" }))}
+                        onClick={() => {
+                          if (speciesSketchPreviewUrl.startsWith("blob:")) {
+                            URL.revokeObjectURL(speciesSketchPreviewUrl);
+                          }
+                          setSpeciesSketchFile(null);
+                          setSpeciesSketchPreviewUrl("");
+                          setSpeciesForm((prev) => ({ ...prev, imagePath: "" }));
+                        }}
                         className="rounded-md bg-destructive/80 hover:bg-destructive px-2.5 py-1 text-xs text-white font-medium transition-colors"
                       >
                         Remove
@@ -2378,6 +2446,7 @@ export default function AdminPage() {
                     value={speciesForm.family}
                     onChange={(e) => setSpeciesForm({ ...speciesForm, family: e.target.value })}
                     placeholder={copy.species.familyPlaceholder}
+                    required
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -2387,6 +2456,7 @@ export default function AdminPage() {
                     value={speciesForm.genus}
                     onChange={(e) => setSpeciesForm({ ...speciesForm, genus: e.target.value })}
                     placeholder={copy.species.genusPlaceholder}
+                    required
                   />
                 </div>
                 <div className="space-y-1.5">

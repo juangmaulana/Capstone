@@ -1,3 +1,4 @@
+import { updateIdentificationValidation } from './commands/update-validation'
 import { getIdentificationById } from './queries/get-by-id'
 import { listIdentifications } from './queries/list'
 import { identificationStatistics } from './queries/statistics'
@@ -13,6 +14,9 @@ export const createIdentificationModule = (deps: {
       all: listIdentifications({ identificationRepo }),
       byId: getIdentificationById({ identificationRepo }),
       statistics: identificationStatistics({ identificationRepo }),
+    },
+    commands: {
+      updateValidation: updateIdentificationValidation({ identificationRepo }),
     },
   }
 }

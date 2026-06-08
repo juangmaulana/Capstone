@@ -10,7 +10,7 @@ import { deleteImage, uploadImage } from '@/server/services/upload';
 import { NextRequest, NextResponse } from 'next/server';
 
 export const GET = withErrorHandling(async (
-  req: NextRequest, 
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) => {
   const { id } = parseWithZod(IdSchema, await params)
@@ -47,7 +47,7 @@ export const PATCH = withErrorHandling(async (
 
   const { imagePath } = await plant.query.byId(id);
   await deleteImage(imagePath);
-  
+
   const uploadResult = await uploadImage(formInput.imageFile as File);
   const input = parseWithZod(UpdatePlantSchema, {
     ...formInput,
@@ -66,7 +66,7 @@ export const PATCH = withErrorHandling(async (
 })
 
 export const DELETE = withErrorHandling(async (
-  req: NextRequest, 
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) => {
   const authUser = await getAuthUser();

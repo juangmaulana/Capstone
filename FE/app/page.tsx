@@ -17,7 +17,7 @@ interface PlantSearchRecord {
 const COPY = {
   en: {
     eyebrow: "Bio-Inspector | Invasive Alien Species Monitoring",
-    headline: <>Free and open access to<br />biodiversity data in Baluran</>,
+    headline: <>Free and open access to<br />biodiversity data</>,
     searchPlaceholder: "Search species...",
     cameraTitle: "Search by image (like Google Lens)",
     loadingSpecies: "Loading species data...",

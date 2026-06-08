@@ -6,7 +6,7 @@ export const identificationStatistics = (deps: {
   identificationRepo: IdentificationRepo,
 }) => async (filter: IdentificationStatisticsFilterRequest) => {
   const year = filter.year ?? new Date().getFullYear()
-  
+
   try {
     return await deps.identificationRepo.statistics({
       ...filter,

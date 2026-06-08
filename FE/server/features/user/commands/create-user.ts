@@ -6,9 +6,9 @@ import { mapDbError } from '@/lib/db/mappers'
 import { CreateUserRequest } from '../schemas/create-user.schema'
 import { register } from '@/server/services/auth'
 
-export const createUser = (deps: { 
+export const createUser = (deps: {
   userRepo: UserRepo,
-  roleRepo: RoleRepo, 
+  roleRepo: RoleRepo,
 }) => {
   const { userRepo, roleRepo } = deps
 
@@ -25,9 +25,9 @@ export const createUser = (deps: {
 
     try {
       return await register(
-        input.roleId, 
-        input.name, 
-        input.email, 
+        input.roleId,
+        input.name,
+        input.email,
         input.password
       );
     } catch (err) {
