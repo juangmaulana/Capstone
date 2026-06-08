@@ -26,7 +26,7 @@ export const PATCH = withErrorHandling(async (
   const authUser = await getAuthUser();
   if (!authUser)
     throw forbidden('Unauthenticated');
-  if (!authorize(authUser, ['admin']))
+  if (!authorize(authUser, ['Super Admin', 'Admin']))
     throw forbidden('Only admins allowed for updating plants')
 
   const { id } = parseWithZod(IdSchema, await params)
@@ -72,7 +72,7 @@ export const DELETE = withErrorHandling(async (
   const authUser = await getAuthUser();
     if (!authUser)
       throw forbidden('Unauthenticated');
-    if (!authorize(authUser, ['admin']))
+    if (!authorize(authUser, ['Super Admin', 'Admin']))
       throw forbidden('Plant deletion only allowed for admins')
 
   const { id } = parseWithZod(IdSchema, await params)
