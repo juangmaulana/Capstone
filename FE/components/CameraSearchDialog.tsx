@@ -109,7 +109,7 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
   const router = useRouter();
   const { language } = useLanguage();
   const copy = CAMERA_COPY[language];
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -180,7 +180,7 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
     setIsAnalyzing(true);
     setDetectionResults(null);
     setError(null);
-    
+
     try {
       const formData = new FormData();
       formData.append("image", file);
@@ -191,6 +191,10 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
       });
 
       const json = await response.json();
+
+      if (!response.ok || json.error) {
+        throw new Error(json.error?.message || copy.analysisFailed);
+      }
 
       if (json.success && json.data?.plants?.length > 0) {
         setDetectionResults(json.data.plants);
@@ -211,10 +215,10 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    
+
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    
+
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
@@ -223,7 +227,7 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
     }
-    
+
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     // Convert canvas to data URL and File
@@ -465,7 +469,7 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
                   alt={copy.capturedAlt}
                   className="h-full w-full object-contain"
                 />
-                
+
                 {isAnalyzing && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
                     <ScanSearch className="h-8 w-8 animate-pulse text-primary mb-2" />
@@ -528,8 +532,8 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
 
               <div className="flex w-full flex-col gap-2">
                 <div className="flex w-full gap-2">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full"
                     onClick={resetDialog}
                     disabled={isAnalyzing}

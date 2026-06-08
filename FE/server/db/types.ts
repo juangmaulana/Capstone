@@ -8,6 +8,7 @@ export interface UserTable {
   name: string
   email: string
   password_hash: string
+  country: string | null
   last_login_at: Date | null
   readonly created_at: Generated<Date>
   readonly updated_at: Generated<Date>
@@ -49,39 +50,31 @@ export type PlantInsert = Insertable<PlantTable>
 export type PlantUpdate = Updateable<PlantTable>
 
 export interface IdentificationTable {
-  readonly id: Generated<number>
+  readonly id: number
   plant_id: number
   image_id: number
   confidence: number
   ai_response: string
   is_success: boolean
-  ranger_id: number | null
-  uploaded_by: number | null
-  readonly identified_at: Generated<Date>
+  validation_status: 'pending' | 'validated' | 'rejected'
+  validated_by: number | null
+  validated_at: Date | null
+  notes: string | null
+  ranger_id: number
+  uploaded_by: number
+  readonly identified_at: Date
 }
 
 export interface ImageTable {
-  readonly id: Generated<number>
+  readonly id: number
   file_name: string
   file_path: string
   file_size: number
   latitude: number
   longitude: number
   elevation: number
-  readonly uploaded_at: Generated<Date>
+  readonly uploaded_at: Date
 }
-
-export interface AuditLogTable {
-  id: string
-  actor_id: string
-  entity_id: string
-  entity_type: string
-  action: string
-  message: string
-  readonly created_at: Generated<Date>
-}
-export type AuditLogSelect = Selectable<AuditLogTable>
-export type AuditLogInsert = Insertable<AuditLogTable>
 
 export interface Database {
   users: UserTable
@@ -89,7 +82,6 @@ export interface Database {
   plants: PlantTable
   identifications: IdentificationTable
   images: ImageTable
-  audit_logs: AuditLogTable
 }
 
 export interface UserWithRole {
@@ -99,6 +91,7 @@ export interface UserWithRole {
   name: string;
   email: string;
   password_hash: string;
+  country: string | null;
   last_login_at: Date | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
@@ -110,6 +103,9 @@ export interface EnrichedIdentification {
   confidence: number
   ai_response: string
   is_success: boolean
+  validation_status: 'pending' | 'validated' | 'rejected'
+  validated_at: Date | null
+  notes: string | null
 
   image_id: number | null
   image_name: string | null
@@ -122,13 +118,16 @@ export interface EnrichedIdentification {
 
   plant_id: number | null
   plant_name: string | null
-  scientific_name: string | null
 
   ranger_id: number | null
   ranger_name: string | null
 
   uploader_id: number | null
   uploader_name: string | null
+
+  validator_id: number | null
+  validator_name: string | null
+  validator_email: string | null
 
   readonly identified_at: Generated<Date>
 }

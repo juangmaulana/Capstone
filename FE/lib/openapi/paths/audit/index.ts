@@ -1,2 +1,1 @@
 import './get'
-import './post'

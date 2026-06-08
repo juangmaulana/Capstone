@@ -23,18 +23,18 @@ const LOGIN_COPY = {
     forgotSendError: "An error occurred while sending the email.",
     forgotNetworkError: "Connection error. Please try again.",
     checkEmail: "Check Your Email",
-    resetSent: (email: string) => <>A password reset link has been sent to <strong>{email}</strong>. Please check your inbox or spam folder.</>,
+    resetSent: (email: string) => <>A password reset OTP has been sent to <strong>{email}</strong>. Please check your inbox or spam folder.</>,
     backLogin: "Back to Login",
     forgotTitle: "Forgot Password",
-    forgotDesc: "Enter your email address and we will send a link to reset your password.",
-    codeLabel: "Reset Code",
-    codePlaceholder: "Enter reset code",
-    codeDesc: "Enter the reset code from your email to continue.",
+    forgotDesc: "Enter your email address and we will send an OTP code to confirm your password reset.",
+    codeLabel: "OTP Code",
+    codePlaceholder: "Enter 6-digit OTP",
+    codeDesc: "Enter the OTP code from your email before creating a new password.",
     verifying: "Verifying...",
-    verifyCode: "Verify Code",
-    verifyFailed: "The reset code could not be verified.",
+    verifyCode: "Verify OTP",
+    verifyFailed: "The OTP code could not be verified.",
     sending: "Sending...",
-    sendReset: "Send Reset Link",
+    sendReset: "Send OTP Code",
   },
   id: {
     subtitle: "Masuk untuk mengakses panel administrasi",
@@ -52,18 +52,18 @@ const LOGIN_COPY = {
     forgotSendError: "Terjadi kesalahan saat mengirim email.",
     forgotNetworkError: "Terjadi kesalahan koneksi. Silakan coba lagi.",
     checkEmail: "Cek Email Anda",
-    resetSent: (email: string) => <>Link reset password telah dikirim ke <strong>{email}</strong>. Silakan cek inbox atau folder spam Anda.</>,
+    resetSent: (email: string) => <>Kode OTP reset password telah dikirim ke <strong>{email}</strong>. Silakan cek inbox atau folder spam Anda.</>,
     backLogin: "Kembali ke Login",
     forgotTitle: "Lupa Password",
-    forgotDesc: "Masukkan alamat email Anda dan kami akan mengirimkan link untuk mereset password.",
-    codeLabel: "Kode Reset",
-    codePlaceholder: "Masukkan kode reset",
-    codeDesc: "Masukkan kode reset dari email untuk melanjutkan.",
+    forgotDesc: "Masukkan alamat email Anda dan kami akan mengirimkan kode OTP untuk konfirmasi reset password.",
+    codeLabel: "Kode OTP",
+    codePlaceholder: "Masukkan 6 digit OTP",
+    codeDesc: "Masukkan kode OTP dari email sebelum membuat password baru.",
     verifying: "Memverifikasi...",
-    verifyCode: "Verifikasi Kode",
-    verifyFailed: "Kode reset tidak dapat diverifikasi.",
+    verifyCode: "Verifikasi OTP",
+    verifyFailed: "Kode OTP tidak dapat diverifikasi.",
     sending: "Mengirim...",
-    sendReset: "Kirim Link Reset",
+    sendReset: "Kirim Kode OTP",
   },
 } as const;
 
@@ -119,7 +119,7 @@ export function AdminLoginPage() {
     if (!success) {
       const newAttempts = failedAttempts + 1;
       setFailedAttempts(newAttempts);
-      
+
       if (newAttempts >= 5) {
         const lockoutEnd = Date.now() + 60000;
         setLockoutUntil(lockoutEnd);
@@ -128,7 +128,7 @@ export function AdminLoginPage() {
       } else {
         setError(copy.invalid(5 - newAttempts));
       }
-      
+
       setShake(true);
       setTimeout(() => setShake(false), 600);
     } else {
@@ -147,7 +147,7 @@ export function AdminLoginPage() {
       const res = await fetch("/api/v1/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: forgotEmail }),
+        body: JSON.stringify({ email: forgotEmail.trim() }),
       });
 
       const data = await res.json();
@@ -173,7 +173,7 @@ export function AdminLoginPage() {
       const res = await fetch("/api/v1/auth/verify-reset-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: forgotEmail, code: forgotCode }),
+        body: JSON.stringify({ email: forgotEmail.trim(), code: forgotCode.trim() }),
       });
       const data = await res.json();
 
@@ -185,7 +185,7 @@ export function AdminLoginPage() {
       const resetToken = data.data?.resetToken || data.data?.reset_token || data.data?.token;
       const query = resetToken
         ? `token=${encodeURIComponent(resetToken)}`
-        : `email=${encodeURIComponent(forgotEmail)}&code=${encodeURIComponent(forgotCode)}`;
+        : `email=${encodeURIComponent(forgotEmail.trim())}&code=${encodeURIComponent(forgotCode.trim())}`;
       setShowForgot(false);
       router.push(`/admin/reset-password?${query}`);
     } catch {
@@ -818,8 +818,10 @@ export function AdminLoginPage() {
                         id="forgot-code"
                         type="text"
                         value={forgotCode}
-                        onChange={(e) => setForgotCode(e.target.value)}
+                        onChange={(e) => setForgotCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                         placeholder={copy.codePlaceholder}
+                        inputMode="numeric"
+                        maxLength={6}
                         required
                         className="admin-login-input"
                         disabled={codeSubmitting}

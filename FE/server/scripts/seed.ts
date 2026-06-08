@@ -1,14 +1,22 @@
 import { Kysely, PostgresDialect, sql } from 'kysely'
-import { Database, PlantInsert } from '../db/types'
 import { Pool } from 'pg'
 import bcrypt from 'bcryptjs'
 import 'dotenv/config'
 import { getScientificNameWithAuthor } from '../../lib/plant/scientific-name-author'
+import { Database, PlantInsert } from '../db/types'
 
-const CANONICAL_ADMIN_EMAIL = process.env.FALLBACK_ADMIN_EMAIL ?? 'admin@bio-inspector.id'
-const CANONICAL_ADMIN_PASSWORD = process.env.FALLBACK_ADMIN_PASSWORD ?? 'admin123'
-const CANONICAL_ADMIN_NAME = process.env.FALLBACK_ADMIN_NAME ?? 'Admin'
-const LEGACY_ADMIN_EMAIL = 'admin@biowatch.id'
+const requiredEnv = (key: string) => {
+  const value = process.env[key]?.trim()
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${key}`)
+  }
+  return value
+}
+
+const CANONICAL_ADMIN_EMAIL = requiredEnv('FALLBACK_ADMIN_EMAIL')
+const CANONICAL_ADMIN_PASSWORD = requiredEnv('FALLBACK_ADMIN_PASSWORD')
+const CANONICAL_ADMIN_NAME = requiredEnv('FALLBACK_ADMIN_NAME')
+const LEGACY_ADMIN_EMAIL = process.env.LEGACY_ADMIN_EMAIL?.trim()
 
 async function columnExists(db: Kysely<Database>, tableName: string, columnName: string) {
   const result = await sql<{ column_name: string }>`
@@ -47,10 +55,7 @@ async function renameColumnIfNeeded(
   const hasNewColumn = await columnExists(db, tableName, newColumnName)
 
   if (hasOldColumn && !hasNewColumn) {
-    await db.schema
-      .alterTable(tableName)
-      .renameColumn(oldColumnName, newColumnName)
-      .execute()
+    await db.schema.alterTable(tableName).renameColumn(oldColumnName, newColumnName).execute()
     console.log(`Renamed ${tableName}.${oldColumnName} to ${newColumnName}`)
   }
 }
@@ -59,15 +64,13 @@ async function ensureColumn(
   db: Kysely<Database>,
   tableName: string,
   columnName: string,
-  columnType: 'boolean' | 'double precision' | 'text' | 'varchar(255)'
+  columnType: 'boolean' | 'text' | 'varchar(255)'
 ) {
   if (await columnExists(db, tableName, columnName)) return
 
   const builder = db.schema.alterTable(tableName)
   if (columnType === 'boolean') {
     await builder.addColumn(columnName, 'boolean', (col) => col.notNull().defaultTo(true)).execute()
-  } else if (columnType === 'double precision') {
-    await builder.addColumn(columnName, 'double precision', (col) => col.notNull().defaultTo(0)).execute()
   } else {
     await builder.addColumn(columnName, columnType, (col) => col.notNull().defaultTo('')).execute()
   }
@@ -91,7 +94,6 @@ async function alignSchema(db: Kysely<Database>) {
   await ensureColumn(db, 'plants', 'source_reference', 'text')
   await ensureColumn(db, 'plants', 'image_reference', 'text')
   await ensureColumn(db, 'plants', 'is_detectable', 'boolean')
-  await ensureColumn(db, 'images', 'elevation', 'double precision')
 }
 
 const sourceText = {
@@ -223,88 +225,6 @@ const seedPlants: PlantInsert[] = [
   },
 ]
 
-const seedObservations = [
-  {
-    commonName: 'Babul',
-    fileName: 'obs-vachellia-bekol-20251215.gif',
-    filePath: '/sketsa-herbarium-acacia-nilotica.gif',
-    fileSize: 190669,
-    latitude: -7.838,
-    longitude: 114.375,
-    elevation: 78,
-    confidence: 0.96,
-    identifiedAt: new Date('2025-12-15T09:32:00'),
-  },
-  {
-    commonName: 'Tembelekan',
-    fileName: 'obs-lantana-bama-20251120.jpg',
-    filePath: '/sketsa-herbarium-lantana-camara.jpg',
-    fileSize: 422707,
-    latitude: -7.842,
-    longitude: 114.391,
-    elevation: 14,
-    confidence: 0.88,
-    identifiedAt: new Date('2025-11-20T08:14:00'),
-  },
-  {
-    commonName: 'Kangkung Pagar',
-    fileName: 'obs-merremia-baluran-20260105.jpg',
-    filePath: '/sketsa-herbarium-merremia-hederacea.jpg',
-    fileSize: 407962,
-    latitude: -7.815,
-    longitude: 114.368,
-    elevation: 247,
-    confidence: 0.78,
-    identifiedAt: new Date('2026-01-05T10:47:00'),
-  },
-  {
-    commonName: 'Telang',
-    fileName: 'obs-clitoria-forest-20260210.jpg',
-    filePath: '/sketsa-herbarium-clitoria-ternatea.jpg',
-    fileSize: 536678,
-    latitude: -7.855,
-    longitude: 114.410,
-    elevation: 22,
-    confidence: 0.95,
-    identifiedAt: new Date('2026-02-10T06:28:00'),
-  },
-  {
-    commonName: 'Bandotan',
-    fileName: 'obs-ageratum-sumber-batang-20260128.jpg',
-    filePath: '/sketsa-herbarium-Ageratum-conyzoides.webp',
-    fileSize: 639898,
-    latitude: -7.820,
-    longitude: 114.385,
-    elevation: 61,
-    confidence: 0.75,
-    identifiedAt: new Date('2026-01-28T14:05:00'),
-  },
-]
-
-const seedAuditLogs = [
-  {
-    actor_id: 'system',
-    entity_id: 'seed-plants',
-    entity_type: 'Plant',
-    action: 'SUCCESS',
-    message: 'Seeded invasive alien species reference data',
-  },
-  {
-    actor_id: 'system',
-    entity_id: 'seed-identifications',
-    entity_type: 'Identification',
-    action: 'SUCCESS',
-    message: 'Seeded sample identification observations',
-  },
-  {
-    actor_id: 'system',
-    entity_id: 'seed-images',
-    entity_type: 'Image',
-    action: 'INFO',
-    message: 'Seeded sample geotagged observation images',
-  },
-]
-
 async function seed() {
   const db = new Kysely<Database>({
     dialect: new PostgresDialect({
@@ -337,18 +257,14 @@ async function seed() {
     .executeTakeFirst()
 
   if (adminRole) {
-    const [canonicalAdmin, legacyAdmin] = await Promise.all([
-      db
-        .selectFrom('users')
-        .select(['id'])
-        .where('email', '=', CANONICAL_ADMIN_EMAIL)
-        .executeTakeFirst(),
-      db
-        .selectFrom('users')
-        .select(['id'])
-        .where('email', '=', LEGACY_ADMIN_EMAIL)
-        .executeTakeFirst(),
-    ])
+    const canonicalAdmin = await db
+      .selectFrom('users')
+      .select(['id'])
+      .where('email', '=', CANONICAL_ADMIN_EMAIL)
+      .executeTakeFirst()
+    const legacyAdmin = LEGACY_ADMIN_EMAIL
+      ? await db.selectFrom('users').select(['id']).where('email', '=', LEGACY_ADMIN_EMAIL).executeTakeFirst()
+      : null
     const passwordHash = await bcrypt.hash(CANONICAL_ADMIN_PASSWORD, 10)
 
     if (canonicalAdmin) {
@@ -363,10 +279,7 @@ async function seed() {
         .execute()
 
       if (legacyAdmin && legacyAdmin.id !== canonicalAdmin.id) {
-        await db
-          .deleteFrom('users')
-          .where('id', '=', legacyAdmin.id)
-          .execute()
+        await db.deleteFrom('users').where('id', '=', legacyAdmin.id).execute()
         console.log(`Legacy admin removed (email: ${LEGACY_ADMIN_EMAIL})`)
       }
       console.log(`Admin user already exists (email: ${CANONICAL_ADMIN_EMAIL})`)
@@ -389,7 +302,7 @@ async function seed() {
         email: CANONICAL_ADMIN_EMAIL,
         password_hash: passwordHash,
       }).execute()
-      console.log(`Admin user seeded (email: ${CANONICAL_ADMIN_EMAIL}, password: ${CANONICAL_ADMIN_PASSWORD})`)
+      console.log(`Admin user seeded (email: ${CANONICAL_ADMIN_EMAIL})`)
     }
   }
 
@@ -401,11 +314,7 @@ async function seed() {
       .executeTakeFirst()
 
     if (existingPlant) {
-      await db
-        .updateTable('plants')
-        .set(seedPlant)
-        .where('id', '=', existingPlant.id)
-        .execute()
+      await db.updateTable('plants').set(seedPlant).where('id', '=', existingPlant.id).execute()
     } else {
       await db.insertInto('plants').values(seedPlant).execute()
     }
@@ -413,98 +322,7 @@ async function seed() {
 
   console.log('Plants seeded or updated (5 invasive alien species)')
 
-  for (const seedObservation of seedObservations) {
-    const plant = await db
-      .selectFrom('plants')
-      .select(['id', 'scientific_name'])
-      .where('common_name', '=', seedObservation.commonName)
-      .executeTakeFirst()
-
-    if (!plant) continue
-
-    const imageData = {
-      file_name: seedObservation.fileName,
-      file_path: seedObservation.filePath,
-      file_size: seedObservation.fileSize,
-      latitude: seedObservation.latitude,
-      longitude: seedObservation.longitude,
-      elevation: seedObservation.elevation,
-    }
-
-    const existingImage = await db
-      .selectFrom('images')
-      .select(['id'])
-      .where('file_name', '=', seedObservation.fileName)
-      .executeTakeFirst()
-
-    const imageId = existingImage
-      ? existingImage.id
-      : (await db.insertInto('images').values(imageData).returning('id').executeTakeFirstOrThrow()).id
-
-    if (existingImage) {
-      await db
-        .updateTable('images')
-        .set(imageData)
-        .where('id', '=', existingImage.id)
-        .execute()
-    }
-
-    const identificationData = {
-      plant_id: plant.id,
-      image_id: imageId,
-      confidence: seedObservation.confidence,
-      ai_response: `Seeded identification for ${plant.scientific_name}`,
-      is_success: true,
-      identified_at: seedObservation.identifiedAt,
-    }
-
-    const existingIdentification = await db
-      .selectFrom('identifications')
-      .select(['id'])
-      .where('image_id', '=', imageId)
-      .executeTakeFirst()
-
-    if (existingIdentification) {
-      await db
-        .updateTable('identifications')
-        .set(identificationData)
-        .where('id', '=', existingIdentification.id)
-        .execute()
-    } else {
-      await db.insertInto('identifications').values(identificationData).execute()
-    }
-  }
-
-  console.log('Images and identifications seeded or updated')
-
-  for (const seedAuditLog of seedAuditLogs) {
-    const existingAuditLog = await db
-      .selectFrom('audit_logs')
-      .select(['id'])
-      .where('actor_id', '=', seedAuditLog.actor_id)
-      .where('entity_id', '=', seedAuditLog.entity_id)
-      .where('action', '=', seedAuditLog.action)
-      .executeTakeFirst()
-
-    if (existingAuditLog) {
-      await db
-        .updateTable('audit_logs')
-        .set(seedAuditLog)
-        .where('id', '=', existingAuditLog.id)
-        .execute()
-    } else {
-      await db
-        .insertInto('audit_logs')
-        .values({
-          id: crypto.randomUUID(),
-          ...seedAuditLog,
-        })
-        .execute()
-    }
-  }
-
-  console.log('Audit logs seeded or updated')
-  console.log('Seeding complete!')
+  console.log('Seeding complete. Map Explorer and Analytics sample data were skipped.')
   await db.destroy()
 }
 

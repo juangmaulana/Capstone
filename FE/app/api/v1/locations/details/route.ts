@@ -10,10 +10,13 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
     longitude: req.nextUrl.searchParams.get("longitude") ?? undefined,
   }
   const request = parseWithZod(LocationDetailSchema, searchParams);
-  const data = await getLocationDetails(request);
+  const data = await getLocationDetails({
+    latitude: request.latitude,
+    longitude: request.longitude
+  });
 
-  return NextResponse.json({ 
-    success: true, 
-    data, 
+  return NextResponse.json({
+    success: true,
+    data,
   })
 })

@@ -6,6 +6,11 @@ registry.registerPath({
   path: 'api/v1/audit',
   tags: ['Audit'],
   summary: 'Fetch all audit logs',
+  security: [
+    {
+      bearerAuth: [],
+    }
+  ],
   request: {
     query: AuditFilterSchema
   },

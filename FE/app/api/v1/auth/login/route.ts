@@ -1,36 +1,19 @@
 import { withErrorHandling } from '@/lib/api/errors/error-handler';
+import { forbidden } from '@/lib/api/errors/http.error';
+import { getAuthUser } from '@/lib/auth';
+import { ACCESS_TOKEN_MAX_AGE, REFRESH_TOKEN_MAX_AGE } from '@/lib/auth-token-ttl';
 import { parseWithZod } from '@/lib/validation/parse-with-zod'
-import { login } from '@/server/auth';
-import { loginSchema } from '@/server/auth/schemas/login.schema'
+import { login } from '@/server/services/auth';
+import { loginSchema } from '@/server/services/auth/schemas/login.schema'
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from "next/server"
 
 export const POST = withErrorHandling(async (req: NextRequest) => {
+  const authUser = await getAuthUser();
+  if (authUser)
+    throw forbidden('User already authenticated')
+
   const input = parseWithZod(loginSchema, await req.json());
-
-  // Fallback admin credentials — read from server-side env vars only,
-  // never exposed to the client bundle.
-  const fbEmail = process.env.FALLBACK_ADMIN_EMAIL;
-  const fbPassword = process.env.FALLBACK_ADMIN_PASSWORD;
-
-  if (
-    fbEmail && fbPassword &&
-    input.email.toLowerCase() === fbEmail.toLowerCase() &&
-    input.password === fbPassword
-  ) {
-    return NextResponse.json({
-      success: true,
-      data: {
-        user: {
-          id: 0,
-          name: process.env.FALLBACK_ADMIN_NAME ?? "Admin",
-          email: fbEmail,
-          role: process.env.FALLBACK_ADMIN_ROLE ?? "Super Admin",
-        },
-      },
-    });
-  }
-
   const data = await login(input.email, input.password);
 
   const cookieStore = await cookies();
@@ -40,12 +23,14 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
+    maxAge: REFRESH_TOKEN_MAX_AGE,
   });
   cookieStore.set("access_token", data.accessToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
+    maxAge: ACCESS_TOKEN_MAX_AGE,
   });
 
   return NextResponse.json({

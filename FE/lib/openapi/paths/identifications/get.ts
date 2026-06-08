@@ -1,6 +1,7 @@
 import { IdentificationFilterSchema } from '@/server/features/identification/schemas/filter.schema';
 import { registry } from '../../registry';
 import { IdSchema } from '@/server/shared/schemas/id.schema';
+import { IdentificationStatisticsFilterSchema } from '@/server/features/identification/schemas/statistics.schema';
 
 registry.registerPath({
   method: 'get',
@@ -31,6 +32,21 @@ registry.registerPath({
     },
     404: {
       description: 'Identification not found',
+    }
+  }
+})
+
+registry.registerPath({
+  method: 'get',
+  path: 'api/v1/identifications/analytics',
+  tags: ['Identifications'],
+  summary: 'Fetch analytics',
+  request: {
+    query: IdentificationStatisticsFilterSchema,
+  },
+  responses: {
+    200: {
+      description: 'Analytics fetched',
     }
   }
 })

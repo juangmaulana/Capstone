@@ -3,15 +3,14 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, ExternalLink, Image as ImageIcon, MapPin, Sprout } from "lucide-react";
+import { ExternalSourceText } from "@/components/ExternalSourceText";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useEffect, useState } from "react";
 import {
-  fetchNearbyLocations,
   fetchPlantById,
   getMapObservationByIdFromApi,
   getMapObservationSpeciesHref,
   MAP_SPECIES_COLOR,
-  type MapLocation,
   type MapObservation,
   type PlantDetail,
 } from "@/lib/map-observations";
@@ -31,7 +30,6 @@ const OBSERVATION_COPY = {
     source: "Source",
     family: "Family",
     imageSource: "Image Source",
-    nearbyImages: "Nearby Images",
     imageInfo: "Image Info",
     file: "File",
     size: "Size",
@@ -52,7 +50,6 @@ const OBSERVATION_COPY = {
     source: "Sumber",
     family: "Famili",
     imageSource: "Sumber Gambar",
-    nearbyImages: "Gambar Sekitar",
     imageInfo: "Info Gambar",
     file: "File",
     size: "Ukuran",
@@ -76,7 +73,6 @@ export default function MapObservationDetailPage() {
   const id = typeof params?.id === "string" ? params.id : "";
   const [observation, setObservation] = useState<MapObservation | null>(null);
   const [plantDetail, setPlantDetail] = useState<PlantDetail | null>(null);
-  const [nearbyLocations, setNearbyLocations] = useState<MapLocation[]>([]);
   const [isLoading, setIsLoading] = useState(id.length > 0);
 
   useEffect(() => {
@@ -102,14 +98,10 @@ export default function MapObservationDetailPage() {
 
     async function fetchContext() {
       if (!observation) return;
-      const [nextPlantDetail, nextNearbyLocations] = await Promise.all([
-        observation.plantId ? fetchPlantById(observation.plantId) : Promise.resolve(null),
-        fetchNearbyLocations(observation.lat, observation.lng, 5),
-      ]);
+      const nextPlantDetail = observation.plantId ? await fetchPlantById(observation.plantId) : null;
 
       if (!isMounted) return;
       setPlantDetail(nextPlantDetail);
-      setNearbyLocations(nextNearbyLocations);
     }
 
     fetchContext();
@@ -218,7 +210,6 @@ export default function MapObservationDetailPage() {
             <div className="hidden lg:block">
               <DetailRow label={copy.elevation}>{observation.elevation} m dpl</DetailRow>
               <DetailRow label={copy.capturedLocation}>{observation.location}</DetailRow>
-              <DetailRow label={copy.nearbyImages}>{nearbyLocations.length}</DetailRow>
             </div>
           </section>
 
@@ -231,9 +222,19 @@ export default function MapObservationDetailPage() {
             </div>
             <DetailRow label={copy.file}>{observation.imageFile}</DetailRow>
             <DetailRow label={copy.size}>{observation.imageSize}</DetailRow>
-            <DetailRow label={copy.source}>{observation.source}</DetailRow>
-            {plantDetail?.source && <DetailRow label={copy.source}>{plantDetail.source}</DetailRow>}
-            {plantDetail?.imageSource && <DetailRow label={copy.imageSource}>{plantDetail.imageSource}</DetailRow>}
+            <DetailRow label={copy.source}>
+              <ExternalSourceText value={observation.source} />
+            </DetailRow>
+            {plantDetail?.source && (
+              <DetailRow label={copy.source}>
+                <ExternalSourceText value={plantDetail.source} />
+              </DetailRow>
+            )}
+            {plantDetail?.imageSource && (
+              <DetailRow label={copy.imageSource}>
+                <ExternalSourceText value={plantDetail.imageSource} />
+              </DetailRow>
+            )}
           </section>
         </main>
       </div>

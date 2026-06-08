@@ -7,6 +7,7 @@ interface AuthUser {
   name: string;
   email: string;
   role: string;
+  country?: string;
 }
 
 interface AuthContextType {
@@ -16,6 +17,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   registerUser: (email: string, password: string, name: string, role: string) => void;
   updatePassword: (email: string, currentPassword: string, newPassword: string) => Promise<boolean>;
+  updateUser: (updates: Partial<AuthUser>) => void;
   isLoading: boolean;
 }
 
@@ -26,11 +28,26 @@ const REGISTERED_USERS_KEY = "biowatch_registered_users";
 const ADMIN_LOGIN_ALIAS = "admin";
 const ADMIN_EMAIL = "admin@bio-inspector.id";
 
-const getAuthStorage = () => sessionStorage;
+const getAuthStorage = () => localStorage;
+const getLegacyAuthStorage = () => sessionStorage;
 
 const normalizeLoginEmail = (email: string) => {
   const value = email.trim().toLowerCase();
   return value === ADMIN_LOGIN_ALIAS ? ADMIN_EMAIL : value;
+};
+
+const getRoleName = (role: unknown) => {
+  if (typeof role === "string") return role;
+  if (role && typeof role === "object") {
+    const roleRecord = role as Record<string, unknown>;
+    return String(roleRecord.name || roleRecord.roleName || roleRecord.role_name || "");
+  }
+  return "";
+};
+
+const canAccessAdminSystem = (role?: string) => {
+  const normalized = role?.trim().toLowerCase();
+  return normalized === "super admin" || normalized === "admin" || normalized === "researcher";
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -38,43 +55,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const normalizeAuthUser = useCallback((authUser: Record<string, unknown>): AuthUser => ({
-    id: typeof authUser.id === "number" ? authUser.id : Number(authUser.id) || undefined,
-    name: String(authUser.name || "Admin"),
-    email: String(authUser.email || ""),
-    role: String(authUser.role || authUser.roleName || authUser.role_name || "Admin"),
-  }), []);
+  const normalizeAuthUser = useCallback((authUser: Record<string, unknown>): AuthUser => {
+    const roleName = getRoleName(authUser.role) || getRoleName(authUser.roleName) || getRoleName(authUser.role_name) || "Admin";
+
+    return {
+      id: typeof authUser.id === "number" ? authUser.id : Number(authUser.id || authUser.userId) || undefined,
+      name: String(authUser.name || authUser.email || "Admin"),
+      email: String(authUser.email || ""),
+      role: roleName,
+    };
+  }, []);
+
+  const clearAuthSession = useCallback(() => {
+    setUser(null);
+    setIsAuthenticated(false);
+    getAuthStorage().removeItem(AUTH_STORAGE_KEY);
+    getLegacyAuthStorage().removeItem(AUTH_STORAGE_KEY);
+  }, []);
 
   const applyAuthUser = useCallback((authUser: AuthUser) => {
+    if (!canAccessAdminSystem(authUser.role)) {
+      clearAuthSession();
+      return;
+    }
+
     setUser(authUser);
     setIsAuthenticated(true);
     getAuthStorage().setItem(AUTH_STORAGE_KEY, JSON.stringify(authUser));
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-  }, []);
+    getLegacyAuthStorage().removeItem(AUTH_STORAGE_KEY);
+  }, [clearAuthSession]);
 
-  const fetchServerProfile = useCallback(async (): Promise<AuthUser | null> => {
-    const profileRes = await fetch("/api/v1/auth/profile");
-    if (!profileRes.ok) return null;
+  const fetchServerAuth = useCallback(async (): Promise<AuthUser | null> => {
+    const authRes = await fetch("/api/v1/auth");
+    if (!authRes.ok) return null;
 
-    const profileJson = await profileRes.json();
-    const authUser = profileJson.data?.user || profileJson.user || profileJson.data;
-    return profileJson.success && authUser ? normalizeAuthUser(authUser) : null;
+    const authJson = await authRes.json();
+    const authUser = authJson.data?.user || authJson.user || authJson.data;
+    return authJson.success && authUser ? normalizeAuthUser(authUser) : null;
   }, [normalizeAuthUser]);
 
   const hydrateServerSession = useCallback(async (): Promise<AuthUser | null> => {
     try {
-      const profile = await fetchServerProfile();
-      if (profile) return profile;
+      const authUser = await fetchServerAuth();
+      if (authUser) return authUser;
 
       const refreshRes = await fetch("/api/v1/auth/refresh", { method: "POST" });
       if (!refreshRes.ok) return null;
 
-      return await fetchServerProfile();
+      return await fetchServerAuth();
     } catch (error) {
-      console.warn("Server session profile unavailable:", error);
+      console.warn("Server session auth unavailable:", error);
       return null;
     }
-  }, [fetchServerProfile]);
+  }, [fetchServerAuth]);
 
   interface LocalCredential {
     email: string;
@@ -98,25 +131,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let localSession: AuthUser | null = null;
 
     try {
-      const stored = getAuthStorage().getItem(AUTH_STORAGE_KEY);
+      const stored = getAuthStorage().getItem(AUTH_STORAGE_KEY) || getLegacyAuthStorage().getItem(AUTH_STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored);
+        const parsed = normalizeAuthUser(JSON.parse(stored));
         localSession = parsed;
-        setUser(parsed);
-        setIsAuthenticated(true);
+        if (canAccessAdminSystem(parsed.role)) {
+          setUser(parsed);
+          setIsAuthenticated(true);
+          getAuthStorage().setItem(AUTH_STORAGE_KEY, JSON.stringify(parsed));
+          getLegacyAuthStorage().removeItem(AUTH_STORAGE_KEY);
+        } else {
+          clearAuthSession();
+          localSession = null;
+        }
       }
     } catch {
-      getAuthStorage().removeItem(AUTH_STORAGE_KEY);
-      localStorage.removeItem(AUTH_STORAGE_KEY);
+      clearAuthSession();
     }
 
     hydrateServerSession().then((serverUser) => {
       if (!isMounted) return;
-      if (serverUser) {
+      if (serverUser && canAccessAdminSystem(serverUser.role)) {
         applyAuthUser(serverUser);
       } else if (!localSession) {
-        setUser(null);
-        setIsAuthenticated(false);
+        clearAuthSession();
       }
       setIsLoading(false);
     });
@@ -124,7 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       isMounted = false;
     };
-  }, [applyAuthUser, hydrateServerSession]);
+  }, [applyAuthUser, clearAuthSession, hydrateServerSession, normalizeAuthUser]);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     const loginEmail = normalizeLoginEmail(email);
@@ -142,6 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const authUser = json.data?.user || json.user || json.data;
         if (json.success && authUser) {
           const userData = normalizeAuthUser(authUser);
+          if (!canAccessAdminSystem(userData.role)) return false;
           applyAuthUser(userData);
           return true;
         }
@@ -160,6 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (found) {
       const userData = { name: found.name, email: found.email, role: found.role };
+      if (!canAccessAdminSystem(userData.role)) return false;
       applyAuthUser(userData);
       return true;
     }
@@ -178,31 +218,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updatePassword = async (email: string, currentPassword: string, newPassword: string): Promise<boolean> => {
-    // Try backend API first (for users authenticated via DB)
-    try {
-      const res = await fetch("/api/v1/auth/change-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, currentPassword, newPassword }),
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success) return true;
-        // API responded but rejected (e.g., wrong password)
-        return false;
-      }
-      // API route exists but returned error (not 404/network)
-      if (res.status !== 404 && res.status !== 405) {
-        return false;
-      }
-    } catch {
-      // Network error or API unavailable — fall through to local check
-    }
+  const updateUser = useCallback((updates: Partial<AuthUser>) => {
+    setUser(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev, ...updates };
+      getAuthStorage().setItem(AUTH_STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
 
-    // Fallback: local credential check (for fallback/offline logins)
+  const updatePassword = async (email: string, currentPassword: string, newPassword: string): Promise<boolean> => {
+    // The latest auth API exposes forgot-password/verify-reset-code/reset-password
+    // instead of an in-session change-password route. Keep this helper scoped to
+    // local fallback users so it no longer calls a removed endpoint.
     try {
-      // Check registered users in localStorage
       const stored = localStorage.getItem(REGISTERED_USERS_KEY);
       const registered: Array<{ email: string; password: string; name: string; role: string }> = stored ? JSON.parse(stored) : [];
       const userIdx = registered.findIndex(
@@ -228,15 +257,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.warn("Server logout unavailable, clearing local session:", error);
     } finally {
-      setUser(null);
-      setIsAuthenticated(false);
-      getAuthStorage().removeItem(AUTH_STORAGE_KEY);
-      localStorage.removeItem(AUTH_STORAGE_KEY);
+      clearAuthSession();
     }
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, registerUser, updatePassword, isLoading }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, registerUser, updatePassword, updateUser, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
