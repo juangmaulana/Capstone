@@ -40,7 +40,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   const authUser = await getAuthUser();
   if (!authUser)
     throw forbidden('Unauthenticated');
-  if (!authorize(authUser, ['admin']))
+  if (!authorize(authUser, ['Super Admin', 'Admin']))
     throw forbidden('Plant creation only allowed for admins')
 
   const formData = await req.formData()
