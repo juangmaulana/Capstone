@@ -11,6 +11,11 @@ services:
       - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U juangmaulana -d capstone2"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: always
 
   web-app:
@@ -18,11 +23,13 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
       # - "3000:3000"
-    env_file:                 
-      - ./FE/.env            
+    env_file:
+      - ./FE/.env
     depends_on:
-      - postgres-db
-      - ai-service           
+      postgres-db:
+        condition: service_healthy
+      ai-service:
+        condition: service_started
     restart: always
 
   ai-service:
@@ -38,7 +45,8 @@ services:
     env_file:
       - ./audit-service/.env
     depends_on:
-      - postgres-db
+      postgres-db:
+        condition: service_healthy
     restart: always
 
   redis:
@@ -54,8 +62,10 @@ services:
     env_file:
       - ./auth-service/.env
     depends_on:
-      - postgres-db
-      - redis
+      postgres-db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     restart: always
 
   upload-endpoint:

@@ -455,7 +455,8 @@ export default function SpeciesPage() {
       }
 
       const parsed = JSON.parse(stored) as { role?: string };
-      setIsAdmin(Boolean(parsed.role && parsed.role.toLowerCase().includes("admin")));
+      const role = parsed.role?.toLowerCase() ?? "";
+      setIsAdmin(role.includes("admin") || role === "researcher");
     } catch {
       setIsAdmin(false);
     }

@@ -701,7 +701,7 @@ const getApiUserRoleName = (user: ApiUser, fallbackRoleName = "User") => {
   return getRoleObjectName(user.role) || fallbackRoleName;
 };
 
-const isSuperAdminRole = (role: string) => role.trim().toLowerCase() === "super admin";
+const isSuperAdminRole = (role: string) => role.trim().toLowerCase() === "admin";
 
 const ADMIN_USER_ROLE_OPTIONS = ["Admin", "Ranger", "Researcher"];
 
@@ -744,8 +744,8 @@ export default function AdminPage() {
   const copy = ADMIN_COPY[language];
   const [confirmAction, setConfirmAction] = useState<AdminConfirmAction | null>(null);
 
-  // Check if current user is Super Admin
-  const isSuperAdmin = user?.role === "Super Admin";
+  // Check if current user has admin-level access
+  const isSuperAdmin = user?.role === "Admin";
 
   // User management state (must be declared before fetch functions)
   const [users, setUsers] = useState<DisplayUser[]>([]);

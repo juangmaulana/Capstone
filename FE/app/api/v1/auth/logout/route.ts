@@ -7,13 +7,12 @@ export const POST = withErrorHandling(async () => {
   const cookieStore = await cookies();
   const refreshToken = cookieStore.get("refresh_token")?.value;
 
- const data =  await logout(refreshToken!);
+  try {
+    if (refreshToken) await logout(refreshToken);
+  } finally {
+    cookieStore.delete("access_token");
+    cookieStore.delete("refresh_token");
+  }
 
-  cookieStore.delete("access_token");
-  cookieStore.delete("refresh_token");
-
-  return NextResponse.json({
-    success: true,
-    data
-  });
+  return NextResponse.json({ success: true, data: null });
 })

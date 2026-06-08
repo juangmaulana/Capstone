@@ -34,9 +34,9 @@ export const PATCH = withErrorHandling(async (
   const { id } = parseWithZod(IdSchema, await params)
   const input = parseWithZod(updateUserSchema, await req.json())
 
-  if (!authorize(authUser, ['Super Admin', 'Admin']) && authUser.userId !== id)
+  if (!authorize(authUser, ['Admin', 'admin']) && authUser.userId !== id)
     throw forbidden('Can only update your own, unless admin');
-  if (!authorize(authUser, ['Super Admin', 'Admin']) && input.roleId)
+  if (!authorize(authUser, ['Admin', 'admin']) && input.roleId)
     throw forbidden('Only admin can update roles');
 
   const data = await user.commands.update(id, input)
@@ -67,7 +67,7 @@ export const DELETE = withErrorHandling(async (
   const authUser = await getAuthUser();
   if (!authUser)
     throw forbidden('Unauthenticated');
-  if (!authorize(authUser, ['Super Admin', 'Admin']))
+  if (!authorize(authUser, ['Admin', 'admin']))
     throw forbidden('User deletion can only be done by admin');
 
   const { id } = parseWithZod(IdSchema, await params)

@@ -42,7 +42,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   const authUser = await getAuthUser();
   if (!authUser)
     throw forbidden('Unauthenticated');
-  if (!authorize(authUser, ['Super Admin', 'Admin']))
+  if (!authorize(authUser, ['Admin', 'admin']))
     throw forbidden('User creation only allowed for admins');
 
   const input = parseWithZod(createUserSchema, await req.json())

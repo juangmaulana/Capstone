@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const canValidateIdentification = (role: string) => {
   const normalized = role.trim().toLowerCase();
-  return normalized === 'admin' || normalized === 'super admin' || normalized === 'ranger';
+  return normalized === 'admin' || normalized === 'researcher' || normalized === 'ranger';
 };
 
 export const GET = withErrorHandling(async (
