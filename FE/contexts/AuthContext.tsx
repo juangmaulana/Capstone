@@ -47,7 +47,7 @@ const getRoleName = (role: unknown) => {
 
 const canAccessAdminSystem = (role?: string) => {
   const normalized = role?.trim().toLowerCase();
-  return normalized?.includes("admin") || normalized === "researcher";
+  return normalized === "admin" || normalized === "researcher";
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {

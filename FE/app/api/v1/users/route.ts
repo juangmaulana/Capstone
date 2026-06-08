@@ -7,6 +7,7 @@ import { user } from '@/server/features/user';
 import { createUserSchema } from '@/server/features/user/schemas/create-user.schema';
 import { UserFilterSchema } from '@/server/features/user/schemas/filter.schema';
 import { logEvent } from '@/server/services/audit';
+import { sendUserCredentialsEmail } from '@/server/services/email';
 import { NextRequest, NextResponse } from 'next/server';
 
 export const GET = withErrorHandling(async (req: NextRequest) => {
@@ -55,5 +56,18 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     action: 'CREATE',
   })
 
-  return NextResponse.json({ success: true, data }, { status: 201 })
+  const emailDelivery = await sendUserCredentialsEmail({
+    to: input.email,
+    name: input.name,
+    email: input.email,
+    password: input.password,
+  });
+
+  return NextResponse.json({
+    success: true,
+    data: {
+      ...data,
+      emailDelivery,
+    },
+  }, { status: 201 })
 })

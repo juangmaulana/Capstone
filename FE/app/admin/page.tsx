@@ -483,6 +483,8 @@ const ADMIN_COPY = {
       loginCredentials: "Login Credentials",
       temporaryPassword: "Temporary Password",
       copied: "Copied!",
+      emailSent: "Credentials email has been sent to the user.",
+      emailNotSent: "Credentials email could not be sent automatically. Copy and send these credentials manually.",
       copyCredentials: "Copy Credentials",
       important: "Important!",
       warning: "Send these credentials to the user through a secure channel. The user should change the password after the first login.",
@@ -648,6 +650,8 @@ const ADMIN_COPY = {
       loginCredentials: "Kredensial Login",
       temporaryPassword: "Password Sementara",
       copied: "Tersalin!",
+      emailSent: "Email kredensial telah dikirim ke user.",
+      emailNotSent: "Email kredensial tidak dapat dikirim otomatis. Salin dan kirim kredensial ini secara manual.",
       copyCredentials: "Salin Kredensial",
       important: "Penting!",
       warning: "Kirimkan kredensial ini ke user melalui kanal yang aman. User disarankan segera mengganti password setelah login pertama.",
@@ -843,7 +847,13 @@ export default function AdminPage() {
   const [showAddUser, setShowAddUser] = useState(false);
   const [addUserForm, setAddUserForm] = useState({ email: "", name: "", role: "Researcher" });
   const [addUserError, setAddUserError] = useState("");
-  const [addUserCreatedCreds, setAddUserCreatedCreds] = useState<{ email: string; password: string; name: string; role: string } | null>(null);
+  const [addUserCreatedCreds, setAddUserCreatedCreds] = useState<{
+    email: string;
+    password: string;
+    name: string;
+    role: string;
+    emailDelivery?: { sent: boolean; reason?: string };
+  } | null>(null);
   const [copiedCreds, setCopiedCreds] = useState(false);
 
   // Auto-generate a secure temporary password
@@ -895,7 +905,13 @@ export default function AdminPage() {
       const json = await res.json();
       if (!res.ok) { setAddUserError(json.error?.message || copy.addUser.createFailed); return; }
 
-      setAddUserCreatedCreds({ email: addUserForm.email.trim(), password: tempPassword, name: addUserForm.name.trim(), role: addUserForm.role });
+      setAddUserCreatedCreds({
+        email: addUserForm.email.trim(),
+        password: tempPassword,
+        name: addUserForm.name.trim(),
+        role: addUserForm.role,
+        emailDelivery: json.data?.emailDelivery,
+      });
       fetchUsers();
     } catch { setAddUserError(copy.addUser.serverFailed); }
   };
@@ -2074,6 +2090,27 @@ export default function AdminPage() {
                     <CheckCircle2 className="h-4 w-4 shrink-0" />
                     <span><strong>{addUserCreatedCreds.name}</strong> {copy.addUser.addedAs} <strong>{addUserCreatedCreds.role}</strong></span>
                   </div>
+
+                  {addUserCreatedCreds.emailDelivery && (
+                    <div
+                      className={`flex items-start gap-2 rounded-lg border px-4 py-3 text-sm ${
+                        addUserCreatedCreds.emailDelivery.sent
+                          ? "bg-green-50 border-green-200 text-green-700"
+                          : "bg-amber-50 border-amber-200 text-amber-800"
+                      }`}
+                    >
+                      {addUserCreatedCreds.emailDelivery.sent ? (
+                        <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+                      ) : (
+                        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                      )}
+                      <span>
+                        {addUserCreatedCreds.emailDelivery.sent
+                          ? copy.addUser.emailSent
+                          : copy.addUser.emailNotSent}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Credential card */}
                   <div className="rounded-xl border-2 border-dashed border-amber-300 bg-amber-50/50 p-5 space-y-4">

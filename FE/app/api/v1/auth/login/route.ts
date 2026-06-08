@@ -1,4 +1,6 @@
 import { withErrorHandling } from '@/lib/api/errors/error-handler';
+import { forbidden } from '@/lib/api/errors/http.error';
+import { getAuthUser } from '@/lib/auth';
 import { ACCESS_TOKEN_MAX_AGE, REFRESH_TOKEN_MAX_AGE } from '@/lib/auth-token-ttl';
 import { parseWithZod } from '@/lib/validation/parse-with-zod'
 import { login } from '@/server/services/auth';
@@ -7,6 +9,10 @@ import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from "next/server"
 
 export const POST = withErrorHandling(async (req: NextRequest) => {
+  const authUser = await getAuthUser();
+  if (authUser)
+    throw forbidden('User already authenticated')
+
   const input = parseWithZod(loginSchema, await req.json());
   const data = await login(input.email, input.password);
 
