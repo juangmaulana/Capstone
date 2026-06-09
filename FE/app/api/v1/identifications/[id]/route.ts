@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const canValidateIdentification = (role: string) => {
   const normalized = role.trim().toLowerCase();
-  return normalized === 'admin' || normalized === 'researcher' || normalized === 'ranger';
+  return normalized === 'admin' || normalized === 'researcher';
 };
 
 export const GET = withErrorHandling(async (
@@ -29,7 +29,7 @@ export const PATCH = withErrorHandling(async (
   const authUser = await getAuthUser();
   if (!authUser) throw forbidden('Unauthenticated');
   if (!canValidateIdentification(authUser.role)) {
-    throw forbidden('Only admin or ranger can update identification');
+    throw forbidden('Only admin or researcher can update identification');
   }
 
   const { id } = parseWithZod(IdSchema, await params)

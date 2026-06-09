@@ -14,6 +14,8 @@ export type EmailDeliveryResult = {
 };
 
 const APP_NAME = process.env.APP_NAME || "Bio-Inspector";
+const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://bio-inspector.site").replace(/\/+$/, "");
+const LOGIN_URL = `${APP_URL}/admin`;
 
 const escapeHtml = (value: string) =>
   value
@@ -80,6 +82,8 @@ export const sendUserCredentialsEmail = async (
         `Password sementara: ${input.password}`,
         "",
         "Demi keamanan, segera ganti password sementara ini setelah login pertama.",
+        "",
+        `Login ke sistem admin: ${LOGIN_URL}`,
       ].filter(Boolean).join("\n"),
       html: `
         <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937;">
@@ -101,6 +105,10 @@ export const sendUserCredentialsEmail = async (
             </tr>
           </table>
           <p>Demi keamanan, segera ganti password sementara ini setelah login pertama.</p>
+          <p style="margin: 24px 0;">
+            <a href="${LOGIN_URL}" style="display:inline-block;background:#1a5632;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:700;">Login ke Sistem Admin</a>
+          </p>
+          <p style="font-size:12px;color:#6b7280;">Jika tombol tidak berfungsi, salin tautan ini ke browser: <a href="${LOGIN_URL}" style="color:#1a5632;">${LOGIN_URL}</a></p>
         </div>
       `,
     });

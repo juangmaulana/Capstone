@@ -5,11 +5,7 @@ import { AdminLoginPage } from "@/components/AdminLoginPage";
 import { usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-
-const canAccessAdminSystem = (role?: string) => {
-  const normalized = role?.trim().toLowerCase();
-  return normalized === "super admin" || normalized === "admin" || normalized === "researcher";
-};
+import { canAccessAdminSystem } from "@/lib/admin-roles";
 
 function AdminGate({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, user } = useAuth();

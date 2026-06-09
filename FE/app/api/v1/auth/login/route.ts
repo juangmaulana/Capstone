@@ -1,5 +1,6 @@
 import { withErrorHandling } from '@/lib/api/errors/error-handler';
 import { forbidden } from '@/lib/api/errors/http.error';
+import { canAccessAdminSystem } from '@/lib/admin-roles';
 import { getAuthUser } from '@/lib/auth';
 import { ACCESS_TOKEN_MAX_AGE, REFRESH_TOKEN_MAX_AGE } from '@/lib/auth-token-ttl';
 import { parseWithZod } from '@/lib/validation/parse-with-zod'
@@ -15,6 +16,16 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
 
   const input = parseWithZod(loginSchema, await req.json());
   const data = await login(input.email, input.password);
+
+  // Role gate BEFORE establishing a session. Credentials may be valid, but only
+  // admin-system roles get a cookie here — otherwise a ranger/visitor login would
+  // leave a "ghost" session that blocks every subsequent login with
+  // "User already authenticated".
+  const roleName =
+    typeof data.user?.role === 'string' ? data.user.role : data.user?.role?.name;
+  if (!canAccessAdminSystem(roleName)) {
+    throw forbidden('This account does not have access to the admin system');
+  }
 
   const cookieStore = await cookies();
 
