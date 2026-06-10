@@ -76,12 +76,30 @@ export interface ImageTable {
   readonly uploaded_at: Date
 }
 
+export interface NotificationTable {
+  readonly id: number
+  user_id: number
+  recipient_role: string
+  actor_id: number
+  actor_username: string
+  actor_role: string
+  action: string
+  entity_type: string
+  entity_id: number
+  message: string
+  metadata: string
+  is_read: boolean
+  readonly created_at: Date
+}
+export type NotificationSelect = Selectable<NotificationTable>
+
 export interface Database {
   users: UserTable
   roles: RoleTable
   plants: PlantTable
   identifications: IdentificationTable
   images: ImageTable
+  notifications: NotificationTable
 }
 
 export interface UserWithRole {
