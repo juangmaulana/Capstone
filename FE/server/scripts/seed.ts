@@ -16,6 +16,7 @@ const requiredEnv = (key: string) => {
 const CANONICAL_ADMIN_EMAIL = requiredEnv('FALLBACK_ADMIN_EMAIL')
 const CANONICAL_ADMIN_PASSWORD = requiredEnv('FALLBACK_ADMIN_PASSWORD')
 const CANONICAL_ADMIN_NAME = requiredEnv('FALLBACK_ADMIN_NAME')
+const CANONICAL_ADMIN_ROLE = 'Admin'
 const LEGACY_ADMIN_EMAIL = process.env.LEGACY_ADMIN_EMAIL?.trim()
 
 async function columnExists(db: Kysely<Database>, tableName: string, columnName: string) {
@@ -230,14 +231,14 @@ async function migrateAdminRole(db: Kysely<Database>) {
   const adminRole = await db.selectFrom('roles').selectAll().where('name', '=', 'Admin').executeTakeFirst()
 
   if (superAdminRole && adminRole) {
-    // Reassign all users from old "Admin" role to "Super Admin" role (which will become "Admin")
+    // Collapse the legacy elevated role into the single Admin role used today.
     await db.updateTable('users').set({ role_id: superAdminRole.id }).where('role_id', '=', adminRole.id).execute()
     await db.deleteFrom('roles').where('id', '=', adminRole.id).execute()
-    await db.updateTable('roles').set({ name: 'Admin', description: 'Full system access' }).where('id', '=', superAdminRole.id).execute()
-    console.log('Migrated: Super Admin → Admin, old Admin role removed')
+    await db.updateTable('roles').set({ name: CANONICAL_ADMIN_ROLE, description: 'Full system access' }).where('id', '=', superAdminRole.id).execute()
+    console.log('Migrated legacy elevated admin role to Admin')
   } else if (superAdminRole && !adminRole) {
-    await db.updateTable('roles').set({ name: 'Admin', description: 'Full system access' }).where('id', '=', superAdminRole.id).execute()
-    console.log('Renamed: Super Admin → Admin')
+    await db.updateTable('roles').set({ name: CANONICAL_ADMIN_ROLE, description: 'Full system access' }).where('id', '=', superAdminRole.id).execute()
+    console.log('Renamed legacy elevated admin role to Admin')
   }
 }
 
@@ -269,7 +270,7 @@ async function seed() {
   const adminRole = await db
     .selectFrom('roles')
     .selectAll()
-    .where('name', '=', 'Admin')
+    .where('name', '=', CANONICAL_ADMIN_ROLE)
     .executeTakeFirst()
 
   if (adminRole) {

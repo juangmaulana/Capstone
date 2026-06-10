@@ -365,7 +365,7 @@ const ADMIN_COPY = {
       roles: "Roles",
       title: "Users",
       add: "Add User",
-      superAdminOnlyTitle: "Only Super Admin can add users",
+      adminOnlyTitle: "Only Admin can add users",
       columns: ["Name", "Email", "Role", "Status", "Last Login", "Actions"],
       editRole: "Edit Role",
       deleteUser: "Delete User",
@@ -495,7 +495,7 @@ const ADMIN_COPY = {
       namePlaceholder: "Enter full name",
       role: "Role",
       passwordInfo: <>A temporary password will be <strong>generated automatically</strong> by the system and shown after the user is added.</>,
-      superAdminOnly: "Only Super Admin can add users",
+      adminOnly: "Only Admin can add users",
       done: "Done",
       add: "Add User",
       emailRequired: "Email is required",
@@ -532,7 +532,7 @@ const ADMIN_COPY = {
       roles: "Role",
       title: "User",
       add: "Tambah User",
-      superAdminOnlyTitle: "Hanya Super Admin yang dapat menambahkan user",
+      adminOnlyTitle: "Hanya Admin yang dapat menambahkan user",
       columns: ["Nama", "Email", "Role", "Status", "Login Terakhir", "Aksi"],
       editRole: "Edit Role",
       deleteUser: "Hapus User",
@@ -662,7 +662,7 @@ const ADMIN_COPY = {
       namePlaceholder: "Masukkan nama lengkap",
       role: "Role",
       passwordInfo: <>Password sementara akan di-<strong>generate otomatis</strong> oleh sistem dan ditampilkan setelah user berhasil ditambahkan.</>,
-      superAdminOnly: "Hanya Super Admin yang dapat menambahkan user",
+      adminOnly: "Hanya Admin yang dapat menambahkan user",
       done: "Selesai",
       add: "Tambah User",
       emailRequired: "Email wajib diisi",
@@ -705,12 +705,16 @@ const getApiUserRoleName = (user: ApiUser, fallbackRoleName = "User") => {
   return getRoleObjectName(user.role) || fallbackRoleName;
 };
 
-const isSuperAdminRole = (role: string) => role.trim().toLowerCase() === "admin";
+const isAdminRole = (role: string) => {
+  const normalized = role.trim().toLowerCase();
+  return normalized === "admin" || normalized === "super admin";
+};
 
 const ADMIN_USER_ROLE_OPTIONS = ["Admin", "Ranger", "Researcher"];
 
 const normalizeAdminUserRole = (role: string) => {
   const normalized = role.trim().toLowerCase();
+  if (normalized === "super admin") return "Admin";
   if (normalized === "researcher") return "Researcher";
   if (normalized === "admin") return "Admin";
   if (normalized === "ranger") return "Ranger";
@@ -724,12 +728,10 @@ const getAdminUserRoleLookupNames = (role: string) => {
 
 const findAdminUserRole = (roles: ApiRole[], role: string) => {
   const lookupNames = getAdminUserRoleLookupNames(role).map((name) => name.toLowerCase());
-  return roles.find((item) => lookupNames.includes(item.name.toLowerCase()));
+  return roles.find((item) => lookupNames.includes(normalizeAdminUserRole(item.name).toLowerCase()));
 };
 
-const formatUserLastLogin = (lastLoginAt: string | undefined, role: string, language: keyof typeof ADMIN_COPY) => {
-  if (isSuperAdminRole(role)) return "";
-
+const formatUserLastLogin = (lastLoginAt: string | undefined, language: keyof typeof ADMIN_COPY) => {
   return lastLoginAt ? new Date(lastLoginAt).toLocaleString(language === "id" ? "id-ID" : "en-US", {
     dateStyle: 'medium',
     timeStyle: 'short'
@@ -748,8 +750,12 @@ export default function AdminPage() {
   const copy = ADMIN_COPY[language];
   const [confirmAction, setConfirmAction] = useState<AdminConfirmAction | null>(null);
 
-  // Check if current user has admin-level access
-  const isSuperAdmin = user?.role === "Admin";
+  const canManageUsers = isAdminRole(user?.role || "");
+  // Mirrors the DELETE /identifications API guard: admin or researcher only.
+  const canDeleteIdentifications = ((role: string) => {
+    const normalized = role.trim().toLowerCase();
+    return normalized === "admin" || normalized === "super admin" || normalized === "researcher";
+  })(user?.role || "");
 
   // User management state (must be declared before fetch functions)
   const [users, setUsers] = useState<DisplayUser[]>([]);
@@ -789,7 +795,7 @@ export default function AdminPage() {
           role: normalizeAdminUserRole(roleName),
           roleId,
           status: u.status || "Active",
-          lastLogin: formatUserLastLogin(u.lastLoginAt, roleName, language),
+          lastLogin: formatUserLastLogin(u.lastLoginAt, language),
         };
       };
 
@@ -843,7 +849,7 @@ export default function AdminPage() {
   const [editRoleValue, setEditRoleValue] = useState("");
   const [deleteConfirmUser, setDeleteConfirmUser] = useState<DisplayUser | null>(null);
 
-  // Add User modal state (Super Admin only)
+  // Add User modal state
   const [showAddUser, setShowAddUser] = useState(false);
   const [addUserForm, setAddUserForm] = useState({ email: "", name: "", role: "Researcher" });
   const [addUserError, setAddUserError] = useState("");
@@ -870,7 +876,7 @@ export default function AdminPage() {
   };
 
   const handleOpenAddUser = () => {
-    if (!isSuperAdmin) return;
+    if (!canManageUsers) return;
     setAddUserForm({ email: "", name: "", role: "Researcher" });
     setAddUserError("");
     setAddUserCreatedCreds(null);
@@ -969,12 +975,12 @@ export default function AdminPage() {
       role: normalizeAdminUserRole(roleName),
       roleId,
       status: u.status || "Active",
-      lastLogin: formatUserLastLogin(u.lastLoginAt, roleName, language),
+      lastLogin: formatUserLastLogin(u.lastLoginAt, language),
     };
   }, [language, roles]);
 
   const handleEditRole = async (u: DisplayUser) => {
-    if (!isSuperAdmin) return;
+    if (!canManageUsers) return;
     let userDetail = u;
 
     try {
@@ -1007,7 +1013,7 @@ export default function AdminPage() {
   };
 
   const handleDeleteUser = (u: DisplayUser) => {
-    if (!isSuperAdmin) return;
+    if (!canManageUsers) return;
     setDeleteConfirmUser(u);
   };
 
@@ -1566,7 +1572,7 @@ export default function AdminPage() {
               { label: copy.users.total, value: String(users.length), icon: Users, color: "text-blue-600 bg-blue-50" },
               { label: copy.users.active, value: String(users.filter(u => u.status === "Active").length), icon: Activity, color: "text-green-600 bg-green-50" },
               { label: copy.users.admins, value: String(users.filter(u => u.role.includes("Admin")).length), icon: ShieldCheck, color: "text-purple-600 bg-purple-50" },
-              { label: copy.users.roles, value: String(roles.filter(r => r.name !== 'Super Admin').length), icon: UserPlus, color: "text-amber-600 bg-amber-50" },
+              { label: copy.users.roles, value: String(new Set(roles.map((r) => normalizeAdminUserRole(r.name))).size), icon: UserPlus, color: "text-amber-600 bg-amber-50" },
             ].map((stat) => (
               <div key={stat.label} className="stat-card flex items-center gap-4">
                 <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${stat.color}`}>
@@ -1584,7 +1590,7 @@ export default function AdminPage() {
           <div className="rounded-lg border bg-card shadow-sm">
             <div className="flex items-center justify-between border-b px-6 py-4">
               <h2 className="text-lg font-semibold">{copy.users.title}</h2>
-              {isSuperAdmin ? (
+              {canManageUsers ? (
                 <button
                   onClick={handleOpenAddUser}
                   className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
@@ -1593,7 +1599,7 @@ export default function AdminPage() {
                   {copy.users.add}
                 </button>
               ) : (
-                <div className="inline-flex items-center gap-2 rounded-lg bg-muted px-4 py-2 text-sm font-medium text-muted-foreground cursor-not-allowed" title={copy.users.superAdminOnlyTitle}>
+                <div className="inline-flex items-center gap-2 rounded-lg bg-muted px-4 py-2 text-sm font-medium text-muted-foreground cursor-not-allowed" title={copy.users.adminOnlyTitle}>
                   <Lock className="h-4 w-4" />
                   {copy.users.add}
                 </div>
@@ -1603,7 +1609,7 @@ export default function AdminPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    {copy.users.columns.slice(0, isSuperAdmin ? 6 : 5).map((column) => (
+                    {copy.users.columns.slice(0, canManageUsers ? 6 : 5).map((column) => (
                       <th key={column} className="px-6 py-3 text-left font-medium text-muted-foreground">{column}</th>
                     ))}
                   </tr>
@@ -1627,7 +1633,7 @@ export default function AdminPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-muted-foreground">{u.lastLogin}</td>
-                      {isSuperAdmin && (
+                      {canManageUsers && (
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <button
@@ -1813,6 +1819,7 @@ export default function AdminPage() {
       {activeTab === "annotation" && (
         <AdminDataAnnotationPanel
           adminName={user?.name || "Admin"}
+          canDelete={canDeleteIdentifications}
           onLog={(level, source, message) => addLog(level, source, message)}
         />
       )}
@@ -2057,8 +2064,8 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* ─── ADD USER MODAL (Super Admin Only) ─── */}
-      {showAddUser && isSuperAdmin && (
+      {/* ─── ADD USER MODAL ─── */}
+      {showAddUser && canManageUsers && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-lg rounded-2xl bg-card shadow-2xl border animate-in zoom-in-95 duration-200">
             {/* Header */}
@@ -2236,7 +2243,7 @@ export default function AdminPage() {
             <div className="flex items-center justify-between border-t px-6 py-4">
               <p className="text-xs text-muted-foreground">
                 <ShieldCheck className="inline h-3.5 w-3.5 mr-1" />
-                {copy.addUser.superAdminOnly}
+                {copy.addUser.adminOnly}
               </p>
               <div className="flex items-center gap-3">
                 {addUserCreatedCreds ? (

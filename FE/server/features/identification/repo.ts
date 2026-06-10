@@ -30,6 +30,7 @@ export type IdentificationRepo = {
     validatedBy: number
     notes?: string | null
   }): Promise<Identification | null>
+  delete(id: number): Promise<Identification | null>
   statistics(filter: StatisticFilter): Promise<{
     total: number,
     monthly: {
@@ -226,6 +227,20 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
       .where('identifications.id', '=', id)
       .executeTakeFirst()
       .then(toIdentificationOrNull)
+  },
+
+  delete: async (id) => {
+    const existing = await createIdentificationRepo(db).findById(id)
+    if (!existing) return null
+
+    await db.transaction().execute(async (trx) => {
+      await trx.deleteFrom('identifications').where('id', '=', id).execute()
+      if (existing.image?.id) {
+        await trx.deleteFrom('images').where('id', '=', existing.image.id).execute()
+      }
+    })
+
+    return existing
   },
 
   statistics: async (filter) => {
