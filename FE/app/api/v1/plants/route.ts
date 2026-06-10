@@ -1,6 +1,7 @@
 import { withErrorHandling } from '@/lib/api/errors/error-handler';
 import { forbidden } from '@/lib/api/errors/http.error';
-import { authorize, getAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
+import { canCreatePlants } from '@/lib/admin-roles';
 import { getLinks } from '@/lib/next-pagination';
 import { parseWithZod } from '@/lib/validation/parse-with-zod';
 import { plant } from '@/server/features/plant';
@@ -40,8 +41,8 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   const authUser = await getAuthUser();
   if (!authUser)
     throw forbidden('Unauthenticated');
-  if (!authorize(authUser, ['Admin', 'admin', 'Researcher', 'researcher']))
-    throw forbidden('Plant creation only allowed for admins')
+  if (!canCreatePlants(authUser.role))
+    throw forbidden('Plant creation only allowed for admin or ranger')
 
   const formData = await req.formData()
   const bodyJson = Object.fromEntries(formData);

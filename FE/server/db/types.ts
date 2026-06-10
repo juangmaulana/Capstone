@@ -56,11 +56,9 @@ export interface IdentificationTable {
   confidence: number
   ai_response: string
   is_success: boolean
-  validation_status: 'pending' | 'validated' | 'rejected'
-  validated_by: number | null
-  validated_at: Date | null
   notes: string | null
-  ranger_id: number
+  ranger_id: number | null
+  admin_id: number | null
   uploaded_by: number
   readonly identified_at: Date
 }
@@ -103,8 +101,6 @@ export interface EnrichedIdentification {
   confidence: number
   ai_response: string
   is_success: boolean
-  validation_status: 'pending' | 'validated' | 'rejected'
-  validated_at: Date | null
   notes: string | null
 
   image_id: number | null
@@ -125,9 +121,9 @@ export interface EnrichedIdentification {
   uploader_id: number | null
   uploader_name: string | null
 
-  validator_id: number | null
-  validator_name: string | null
-  validator_email: string | null
+  admin_id: number | null
+  admin_name: string | null
+  admin_email: string | null
 
   readonly identified_at: Generated<Date>
 }

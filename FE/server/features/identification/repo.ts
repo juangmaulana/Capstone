@@ -7,7 +7,7 @@ export type IdentificationFilter = {
   search?: string
   plantId?: number
   isSuccess?: boolean
-  validationStatus?: 'pending' | 'validated' | 'rejected'
+  validationStage?: 'none' | 'ranger' | 'admin'
   limit: number
   page: number
 }
@@ -26,9 +26,10 @@ export type IdentificationRepo = {
   }>
   findById(id: number): Promise<Identification | null>
   updateValidation(id: number, input: {
-    validationStatus?: 'pending' | 'validated' | 'rejected'
-    validatedBy: number
+    rangerValidated?: boolean
+    adminValidated?: boolean
     notes?: string | null
+    actingUserId: number
   }): Promise<Identification | null>
   delete(id: number): Promise<Identification | null>
   statistics(filter: StatisticFilter): Promise<{
@@ -67,8 +68,14 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
       query = query.where('is_success', '=', filter.isSuccess)
     }
 
-    if (filter.validationStatus !== undefined) {
-      query = query.where('validation_status', '=', filter.validationStatus)
+    if (filter.validationStage !== undefined) {
+      if (filter.validationStage === 'none') {
+        query = query.where('ranger_id', 'is', null).where('admin_id', 'is', null)
+      } else if (filter.validationStage === 'ranger') {
+        query = query.where('ranger_id', 'is not', null).where('admin_id', 'is', null)
+      } else {
+        query = query.where('admin_id', 'is not', null)
+      }
     }
 
     const totalResult = await query
@@ -83,7 +90,7 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
       .leftJoin('plants', 'plants.id', 'identifications.plant_id')
       .leftJoin('users as ranger', 'ranger.id', 'identifications.ranger_id')
       .leftJoin('users as uploader', 'uploader.id', 'identifications.uploaded_by')
-      .leftJoin('users as validator', 'validator.id', 'identifications.validated_by')
+      .leftJoin('users as admin', 'admin.id', 'identifications.admin_id')
       .selectAll('identifications')
       .select([
         // images
@@ -108,10 +115,10 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
         'uploader.id as uploader_id',
         'uploader.name as uploader_name',
 
-        // validator
-        'validator.id as validator_id',
-        'validator.name as validator_name',
-        'validator.email as validator_email',
+        // admin
+        'admin.id as admin_id',
+        'admin.name as admin_name',
+        'admin.email as admin_email',
       ])
       .orderBy('identified_at', 'desc')
       .execute()
@@ -124,9 +131,9 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
     db.selectFrom('identifications')
       .innerJoin('images', 'images.id', 'identifications.image_id')
       .innerJoin('plants', 'plants.id', 'identifications.plant_id')
-      .innerJoin('users as ranger', 'ranger.id', 'identifications.ranger_id')
+      .leftJoin('users as ranger', 'ranger.id', 'identifications.ranger_id')
       .innerJoin('users as uploader', 'uploader.id', 'identifications.uploaded_by')
-      .leftJoin('users as validator', 'validator.id', 'identifications.validated_by')
+      .leftJoin('users as admin', 'admin.id', 'identifications.admin_id')
       .selectAll('identifications')
       .select([
         // images
@@ -151,10 +158,10 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
         'uploader.id as uploader_id',
         'uploader.name as uploader_name',
 
-        // validator
-        'validator.id as validator_id',
-        'validator.name as validator_name',
-        'validator.email as validator_email',
+        // admin
+        'admin.id as admin_id',
+        'admin.name as admin_name',
+        'admin.email as admin_email',
       ])
       .where('identifications.id', '=', id)
       .executeTakeFirst()
@@ -162,17 +169,17 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
 
   updateValidation: async (id, input) => {
     const updateData: {
-      validation_status?: 'pending' | 'validated' | 'rejected'
-      validated_by?: number | null
-      validated_at?: Date | null
+      ranger_id?: number | null
+      admin_id?: number | null
       notes?: string | null
     } = {}
 
-    if (input.validationStatus !== undefined) {
-      const isValidated = input.validationStatus === 'validated'
-      updateData.validation_status = input.validationStatus
-      updateData.validated_by = isValidated ? input.validatedBy : null
-      updateData.validated_at = isValidated ? new Date() : null
+    if (input.rangerValidated !== undefined) {
+      updateData.ranger_id = input.rangerValidated ? input.actingUserId : null
+    }
+
+    if (input.adminValidated !== undefined) {
+      updateData.admin_id = input.adminValidated ? input.actingUserId : null
     }
 
     if (input.notes !== undefined) {
@@ -192,9 +199,9 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
     return db.selectFrom('identifications')
       .innerJoin('images', 'images.id', 'identifications.image_id')
       .innerJoin('plants', 'plants.id', 'identifications.plant_id')
-      .innerJoin('users as ranger', 'ranger.id', 'identifications.ranger_id')
+      .leftJoin('users as ranger', 'ranger.id', 'identifications.ranger_id')
       .innerJoin('users as uploader', 'uploader.id', 'identifications.uploaded_by')
-      .leftJoin('users as validator', 'validator.id', 'identifications.validated_by')
+      .leftJoin('users as admin', 'admin.id', 'identifications.admin_id')
       .selectAll('identifications')
       .select([
         // images
@@ -219,10 +226,10 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
         'uploader.id as uploader_id',
         'uploader.name as uploader_name',
 
-        // validator
-        'validator.id as validator_id',
-        'validator.name as validator_name',
-        'validator.email as validator_email',
+        // admin
+        'admin.id as admin_id',
+        'admin.name as admin_name',
+        'admin.email as admin_email',
       ])
       .where('identifications.id', '=', id)
       .executeTakeFirst()

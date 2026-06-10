@@ -9,6 +9,7 @@ import { forbidden } from '@/lib/api/errors/http.error';
 import { logEvent } from '@/server/services/audit';
 import { changePassword } from '@/server/services/auth';
 import { cookies } from 'next/headers';
+import { canManageUsers } from '@/lib/admin-roles';
 
 export const GET = withErrorHandling(async (
   req: NextRequest,
@@ -18,6 +19,9 @@ export const GET = withErrorHandling(async (
   if (!authUser) throw forbidden('Unauthenticated');
 
   const { id } = parseWithZod(IdSchema, await params)
+  if (!canManageUsers(authUser.role) && authUser.userId !== id)
+    throw forbidden('Can only view your own profile, unless admin');
+
   const data = await user.queries.byId(id)
 
   return NextResponse.json({ success: true, data })

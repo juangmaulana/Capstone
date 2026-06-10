@@ -3,11 +3,8 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useLanguage } from "@/contexts/LanguageContext";
 import {
-  fetchLocations,
   fetchMapObservations,
-  fetchNearbyLocations,
   MAP_SPECIES_COLOR,
-  type MapLocation,
   type MapObservation,
 } from "@/lib/map-observations";
 
@@ -18,44 +15,74 @@ const escapeHtml = (str: string): string =>
 
 const MAP_COPY = {
   en: {
-    legend: "Species Legend",
     filter: "Plant Filter",
     allPlants: "All plants",
     showing: "Showing",
     date: "Date",
     elevation: "Elevation",
     viewDetails: "View details",
-    locations: "Locations",
-    nearby: "Nearby images",
+    loading: "Loading plants...",
+    empty: "No plants found.",
   },
   id: {
-    legend: "Legenda Spesies",
     filter: "Filter Tanaman",
     allPlants: "Semua tanaman",
     showing: "Menampilkan",
     date: "Tanggal",
     elevation: "Elevasi",
     viewDetails: "Lihat detail",
-    locations: "Lokasi",
-    nearby: "Gambar sekitar",
+    loading: "Memuat tanaman...",
+    empty: "Tidak ada tanaman ditemukan.",
   },
 } as const;
+
+const FALLBACK_SPECIES_COLORS = [
+  "#2E7D32",
+  "#1565C0",
+  "#6A1B9A",
+  "#E65100",
+  "#00838F",
+  "#C62828",
+  "#AD1457",
+  "#5D4037",
+  "#283593",
+  "#558B2F",
+];
+
+const getUniqueSpeciesColor = (species: string, index: number, usedColors: Set<string>) => {
+  const candidates = [
+    MAP_SPECIES_COLOR[species],
+    FALLBACK_SPECIES_COLORS[index],
+    `hsl(${((index * 137.508) % 360).toFixed(3)} 72% 42%)`,
+  ].filter(Boolean) as string[];
+
+  let fallbackIndex = 0;
+  let color = candidates.shift() ?? "#2E7D32";
+  while (usedColors.has(color)) {
+    color = candidates.shift() ?? `hsl(${((index * 137.508 + fallbackIndex * 29.7) % 360).toFixed(3)} 72% ${38 + (fallbackIndex % 4) * 5}%)`;
+    fallbackIndex += 1;
+  }
+  usedColors.add(color);
+  return color;
+};
 
 export function GISMap() {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<L.Map | null>(null);
   const markerLayer = useRef<L.LayerGroup | null>(null);
   const [observations, setObservations] = useState<MapObservation[]>([]);
-  const [locations, setLocations] = useState<MapLocation[]>([]);
-  const [nearbyLocations, setNearbyLocations] = useState<MapLocation[]>([]);
   const [selectedSpecies, setSelectedSpecies] = useState<string[]>([]);
+  const [isLoadingPlants, setIsLoadingPlants] = useState(true);
   const { language } = useLanguage();
   const copy = MAP_COPY[language];
-  const speciesList = useMemo(() => Array.from(new Set(observations.map((observation) => observation.species))), [observations]);
+  const speciesList = useMemo(
+    () => Array.from(new Set(observations.map((observation) => observation.species))).sort((a, b) => a.localeCompare(b)),
+    [observations],
+  );
   const speciesColor = useMemo(() => {
-    const colors = ["#2E7D32", "#1565C0", "#6A1B9A", "#E65100", "#00838F", "#5D4037", "#AD1457"];
+    const usedColors = new Set<string>();
     return Object.fromEntries(
-      speciesList.map((species, index) => [species, MAP_SPECIES_COLOR[species] || colors[index % colors.length]])
+      speciesList.map((species, index) => [species, getUniqueSpeciesColor(species, index, usedColors)])
     );
   }, [speciesList]);
   const selectedSpeciesSet = useMemo(() => new Set(selectedSpecies), [selectedSpecies]);
@@ -80,17 +107,22 @@ export function GISMap() {
   useEffect(() => {
     let isMounted = true;
 
-    Promise.all([
-      fetchMapObservations(),
-      fetchLocations(),
-      fetchNearbyLocations(DEFAULT_CENTER[0], DEFAULT_CENTER[1], 10),
-    ]).then(([nextObservations, nextLocations, nextNearbyLocations]) => {
-      if (!isMounted) return;
-      setObservations(nextObservations);
-      setLocations(nextLocations);
-      setNearbyLocations(nextNearbyLocations);
-      setSelectedSpecies(Array.from(new Set(nextObservations.map((observation) => observation.species))));
-    });
+    fetchMapObservations()
+      .then((nextObservations) => {
+        if (!isMounted) return;
+        setObservations(nextObservations);
+        setSelectedSpecies(Array.from(new Set(nextObservations.map((observation) => observation.species))).sort((a, b) => a.localeCompare(b)));
+      })
+      .catch((error) => {
+        console.error("Failed to load map plants:", error);
+        if (isMounted) {
+          setObservations([]);
+          setSelectedSpecies([]);
+        }
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingPlants(false);
+      });
 
     return () => {
       isMounted = false;
@@ -138,10 +170,10 @@ export function GISMap() {
 
     layer.clearLayers();
 
-    filteredMarkers.forEach((m) => {
-      const color = speciesColor[m.species] || "#2E7D32";
-      const detailsHref = `/map/observations/${m.id}`;
-      const marker = L.circleMarker([m.lat, m.lng], {
+    filteredMarkers.forEach((observation) => {
+      const color = speciesColor[observation.species] || "#2E7D32";
+      const detailsHref = `/map/observations/${observation.id}`;
+      const marker = L.circleMarker([observation.lat, observation.lng], {
         radius: 8,
         fillColor: color,
         color: color,
@@ -152,14 +184,14 @@ export function GISMap() {
 
       marker.bindPopup(`
         <div style="font-family:Inter,sans-serif;min-width:180px">
-          <h3 style="margin:0 0 6px;font-size:14px;font-weight:600">${escapeHtml(m.species)}</h3>
-          <p style="margin:4px 0;font-size:12px;color:#888;font-weight:500">${escapeHtml(m.location)}</p>
-          <p style="margin:4px 0;font-size:12px;color:#888">${copy.elevation}: ${m.elevation} m dpl</p>
-          <p style="margin:4px 0;font-size:12px;color:#888">${copy.date}: ${escapeHtml(m.date)}</p>
-          <p style="margin:0;font-size:11px;color:#666">${m.lat.toFixed(2)}°, ${m.lng.toFixed(2)}°</p>
+          <h3 style="margin:0 0 6px;font-size:14px;font-weight:600">${escapeHtml(observation.species)}</h3>
+          <p style="margin:4px 0;font-size:12px;color:#888;font-weight:500">${escapeHtml(observation.location)}</p>
+          <p style="margin:4px 0;font-size:12px;color:#888">${copy.elevation}: ${observation.elevation} m dpl</p>
+          <p style="margin:4px 0;font-size:12px;color:#888">${copy.date}: ${escapeHtml(observation.date)}</p>
+          <p style="margin:0;font-size:11px;color:#666">${observation.lat.toFixed(5)}°, ${observation.lng.toFixed(5)}°</p>
           <a
             href="${escapeHtml(detailsHref)}"
-            style="display:inline-flex;align-items:center;justify-content:center;margin-top:10px;border-radius:6px;background:#2E7D32;color:white;padding:7px 10px;font-size:12px;font-weight:600;text-decoration:none"
+            style="display:inline-flex;align-items:center;justify-content:center;margin-top:10px;border-radius:6px;background:${color};color:white;padding:7px 10px;font-size:12px;font-weight:600;text-decoration:none"
           >
             ${copy.viewDetails}
           </a>
@@ -180,9 +212,6 @@ export function GISMap() {
             {copy.showing} {filteredMarkers.length}/{observations.length}
           </span>
         </div>
-        <p className="mb-2 text-[10px] font-medium text-muted-foreground">
-          {copy.locations}: {locations.length} · {copy.nearby}: {nearbyLocations.length}
-        </p>
         <label className="mb-2 flex cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-[11px] font-semibold text-foreground hover:bg-muted/60">
           <input
             type="checkbox"
@@ -193,6 +222,12 @@ export function GISMap() {
           {copy.allPlants}
         </label>
         <div className="flex max-h-52 flex-col gap-1.5 overflow-y-auto">
+          {isLoadingPlants && (
+            <p className="rounded-md bg-muted/60 px-2 py-2 text-[11px] text-muted-foreground">{copy.loading}</p>
+          )}
+          {!isLoadingPlants && speciesList.length === 0 && (
+            <p className="rounded-md bg-muted/60 px-2 py-2 text-[11px] text-muted-foreground">{copy.empty}</p>
+          )}
           {speciesList.map((species) => (
             <label key={species} className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1 hover:bg-muted/60">
               <input
@@ -207,22 +242,6 @@ export function GISMap() {
               />
               <span className="text-[10px] font-medium leading-tight text-foreground">{species}</span>
             </label>
-          ))}
-        </div>
-      </div>
-      
-      {/* Species Legend */}
-      <div className="absolute bottom-6 left-6 z-[1000] bg-background/90 backdrop-blur-md p-3 rounded-lg shadow-lg border border-border">
-        <p className="text-xs font-bold mb-2 text-foreground">{copy.legend}</p>
-        <div className="flex flex-col gap-1.5">
-          {Object.entries(speciesColor).map(([species, color]) => (
-            <div key={species} className="flex items-center gap-2">
-              <div 
-                className="h-3 w-3 rounded-full shrink-0" 
-                style={{ backgroundColor: color }} 
-              />
-              <span className="text-[10px] font-medium text-foreground">{species}</span>
-            </div>
           ))}
         </div>
       </div>

@@ -1,15 +1,37 @@
-/**
- * Single source of truth for which roles may use the admin system.
- *
- * `ranger` and `visitor` are intentionally excluded — they must never receive
- * an admin session. This is enforced server-side at login (so no session/cookie
- * is created for them) and again on the client gate.
- */
-export const canAccessAdminSystem = (role?: string): boolean => {
+export type SystemRole = "admin" | "ranger" | "visitor" | "unknown";
+
+export const normalizeSystemRole = (role?: string): SystemRole => {
   const normalized = role?.trim().toLowerCase();
-  return (
-    normalized === "super admin" ||
-    normalized === "admin" ||
-    normalized === "researcher"
-  );
+
+  if (normalized === "super admin" || normalized === "admin") return "admin";
+  if (normalized === "field officer" || normalized === "ranger") return "ranger";
+  if (normalized === "researcher" || normalized === "user" || normalized === "visitor") return "visitor";
+  return "unknown";
+};
+
+export const canAccessAdminSystem = (role?: string): boolean => {
+  const normalized = normalizeSystemRole(role);
+  return normalized === "admin" || normalized === "ranger";
+};
+
+export const canManageUsers = (role?: string): boolean =>
+  normalizeSystemRole(role) === "admin";
+
+export const canCreatePlants = (role?: string): boolean => {
+  const normalized = normalizeSystemRole(role);
+  return normalized === "admin" || normalized === "ranger";
+};
+
+export const canUpdatePlants = (role?: string): boolean =>
+  normalizeSystemRole(role) === "admin";
+
+export const canDeletePlants = (role?: string): boolean =>
+  normalizeSystemRole(role) === "admin";
+
+export const canValidateIdentification = (role?: string): boolean =>
+  normalizeSystemRole(role) === "admin";
+
+export const canSaveIdentificationNotes = (role?: string): boolean => {
+  const normalized = normalizeSystemRole(role);
+  return normalized === "admin" || normalized === "ranger";
 };

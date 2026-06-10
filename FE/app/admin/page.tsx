@@ -1,12 +1,20 @@
 "use client";
 
-import { Users, UserPlus, ShieldCheck, Activity, ScrollText, Plus, Pencil, Trash2, Search, CheckCircle2, AlertCircle, AlertTriangle, Info, Filter, LogOut, User, Eye, X, Image as ImageIcon, Lock, Copy, KeyRound } from "lucide-react";
+import { Users, UserPlus, ShieldCheck, Activity, ScrollText, Plus, Pencil, Trash2, Search, CheckCircle2, AlertCircle, AlertTriangle, Info, Filter, LogOut, User, Eye, X, Image as ImageIcon, Lock, Copy, KeyRound, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminDataAnnotationPanel } from "@/components/AdminDataAnnotationPanel";
 import { useLanguage } from "@/contexts/LanguageContext";
+import {
+  canCreatePlants,
+  canDeletePlants,
+  canManageUsers as canManageUsersForRole,
+  canUpdatePlants,
+  canValidateIdentification,
+  normalizeSystemRole,
+} from "@/lib/admin-roles";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -358,6 +366,12 @@ const ADMIN_COPY = {
       annotation: "Data Annotation",
       logs: "System Logs",
     },
+    pagination: {
+      previous: "Previous",
+      next: "Next",
+      page: "Page",
+      of: "of",
+    },
     users: {
       total: "Total Users",
       active: "Active Users",
@@ -366,7 +380,7 @@ const ADMIN_COPY = {
       title: "Users",
       add: "Add User",
       adminOnlyTitle: "Only Admin can add users",
-      columns: ["Name", "Email", "Role", "Status", "Last Login", "Actions"],
+      columns: ["ID", "Name", "Email", "Role", "Status", "Last Login", "Actions"],
       editRole: "Edit Role",
       deleteUser: "Delete User",
       activeStatus: "Active",
@@ -380,7 +394,7 @@ const ADMIN_COPY = {
       records: "Species Records",
       search: "Search species...",
       add: "Add Species",
-      columns: ["Scientific Name", "Common Name", "Family", "Genus", "Last Updated", "Actions"],
+      columns: ["ID", "Scientific Name", "Common Name", "Family", "Genus", "Last Updated", "Actions"],
       edit: "Edit",
       delete: "Delete",
       addTitle: "Add New Species",
@@ -434,10 +448,8 @@ const ADMIN_COPY = {
     profileModal: {
       start: "Start editing",
       stop: "Stop editing",
-      firstName: "First Name",
-      lastName: "Last Name",
+      name: "Name",
       email: "Email",
-      country: "Country",
       save: "Save",
       newPassword: "New Password",
       repeatPassword: "Repeat New Password",
@@ -525,6 +537,12 @@ const ADMIN_COPY = {
       annotation: "Anotasi Data",
       logs: "Log Sistem",
     },
+    pagination: {
+      previous: "Sebelumnya",
+      next: "Selanjutnya",
+      page: "Halaman",
+      of: "dari",
+    },
     users: {
       total: "Total User",
       active: "User Aktif",
@@ -533,7 +551,7 @@ const ADMIN_COPY = {
       title: "User",
       add: "Tambah User",
       adminOnlyTitle: "Hanya Admin yang dapat menambahkan user",
-      columns: ["Nama", "Email", "Role", "Status", "Login Terakhir", "Aksi"],
+      columns: ["ID", "Nama", "Email", "Role", "Status", "Login Terakhir", "Aksi"],
       editRole: "Edit Role",
       deleteUser: "Hapus User",
       activeStatus: "Aktif",
@@ -547,7 +565,7 @@ const ADMIN_COPY = {
       records: "Catatan Spesies",
       search: "Cari spesies...",
       add: "Tambah Spesies",
-      columns: ["Nama Ilmiah", "Nama Umum", "Famili", "Genus", "Terakhir Diperbarui", "Aksi"],
+      columns: ["ID", "Nama Ilmiah", "Nama Umum", "Famili", "Genus", "Terakhir Diperbarui", "Aksi"],
       edit: "Edit",
       delete: "Hapus",
       addTitle: "Tambah Spesies Baru",
@@ -601,10 +619,8 @@ const ADMIN_COPY = {
     profileModal: {
       start: "Mulai edit",
       stop: "Berhenti edit",
-      firstName: "Nama Depan",
-      lastName: "Nama Belakang",
+      name: "Nama",
       email: "Email",
-      country: "Negara",
       save: "Simpan",
       newPassword: "Password Baru",
       repeatPassword: "Ulangi Password Baru",
@@ -684,6 +700,46 @@ const ADMIN_COPY = {
   },
 } as const;
 
+const PaginationControls = ({
+  page,
+  totalPages,
+  onPageChange,
+  copy,
+}: {
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  copy: { previous: string; next: string; page: string; of: string };
+}) => {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="flex items-center justify-between gap-3 border-t px-6 py-3">
+      <button
+        type="button"
+        onClick={() => onPageChange(page - 1)}
+        disabled={page <= 1}
+        className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <ChevronLeft className="h-4 w-4" />
+        {copy.previous}
+      </button>
+      <span className="text-sm text-muted-foreground">
+        {copy.page} {page} {copy.of} {totalPages}
+      </span>
+      <button
+        type="button"
+        onClick={() => onPageChange(page + 1)}
+        disabled={page >= totalPages}
+        className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {copy.next}
+        <ChevronRight className="h-4 w-4" />
+      </button>
+    </div>
+  );
+};
+
 const getRoleObject = (role: ApiUser["role"]) =>
   role && typeof role === "object" ? role : null;
 
@@ -705,17 +761,13 @@ const getApiUserRoleName = (user: ApiUser, fallbackRoleName = "User") => {
   return getRoleObjectName(user.role) || fallbackRoleName;
 };
 
-const isAdminRole = (role: string) => {
-  const normalized = role.trim().toLowerCase();
-  return normalized === "admin" || normalized === "super admin";
-};
-
-const ADMIN_USER_ROLE_OPTIONS = ["Admin", "Ranger", "Researcher"];
+const ADMIN_USER_ROLE_OPTIONS = ["Admin", "Ranger", "Visitor"];
 
 const normalizeAdminUserRole = (role: string) => {
   const normalized = role.trim().toLowerCase();
   if (normalized === "super admin") return "Admin";
-  if (normalized === "researcher") return "Researcher";
+  if (normalized === "researcher" || normalized === "visitor" || normalized === "user") return "Visitor";
+  if (normalized === "field officer") return "Ranger";
   if (normalized === "admin") return "Admin";
   if (normalized === "ranger") return "Ranger";
   return role;
@@ -723,6 +775,9 @@ const normalizeAdminUserRole = (role: string) => {
 
 const getAdminUserRoleLookupNames = (role: string) => {
   const normalized = normalizeAdminUserRole(role);
+  if (normalized === "Admin") return ["Admin", "Super Admin"];
+  if (normalized === "Ranger") return ["Ranger", "Field Officer"];
+  if (normalized === "Visitor") return ["Visitor", "Researcher", "User"];
   return [normalized];
 };
 
@@ -742,6 +797,7 @@ const formatUserLastLogin = (lastLoginAt: string | undefined, language: keyof ty
 
 export default function AdminPage() {
   const pathname = usePathname();
+  const router = useRouter();
   const activeTab = getAdminTabFromPath(pathname);
   const [speciesSearch, setSpeciesSearch] = useState("");
   const [logFilter, setLogFilter] = useState<string>("all");
@@ -750,18 +806,25 @@ export default function AdminPage() {
   const copy = ADMIN_COPY[language];
   const [confirmAction, setConfirmAction] = useState<AdminConfirmAction | null>(null);
 
-  const canManageUsers = isAdminRole(user?.role || "");
-  // Mirrors the DELETE /identifications API guard: admin or researcher only.
-  const canDeleteIdentifications = ((role: string) => {
-    const normalized = role.trim().toLowerCase();
-    return normalized === "admin" || normalized === "super admin" || normalized === "researcher";
-  })(user?.role || "");
+  const currentRole = normalizeSystemRole(user?.role);
+  const canManageUsers = canManageUsersForRole(user?.role);
+  const canAddSpecies = canCreatePlants(user?.role);
+  const canEditSpecies = canUpdatePlants(user?.role);
+  const canRemoveSpecies = canDeletePlants(user?.role);
+  const canDeleteIdentifications = canValidateIdentification(user?.role);
+  const canAccessCurrentTab =
+    currentRole === "admin" ||
+    (currentRole === "ranger" && activeTab === "species");
 
   // User management state (must be declared before fetch functions)
   const [users, setUsers] = useState<DisplayUser[]>([]);
   const [roles, setRoles] = useState<ApiRole[]>([]);
   const [isLoadingSpecies, setIsLoadingSpecies] = useState(true);
   const [speciesData, setSpeciesData] = useState<DisplaySpecies[]>([]);
+
+  const ITEMS_PER_PAGE = 10;
+  const [usersPage, setUsersPage] = useState(1);
+  const [logsPage, setLogsPage] = useState(1);
 
   // Fetch functions
   const fetchRoles = useCallback(async () => {
@@ -842,16 +905,27 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
-    fetchUsers();
+    if (canManageUsers) {
+      fetchUsers();
+    } else {
+      setUsers([]);
+      setRoles([]);
+    }
     fetchSpecies();
-  }, [fetchUsers, fetchSpecies]);
+  }, [canManageUsers, fetchUsers, fetchSpecies]);
+
+  useEffect(() => {
+    if (currentRole === "ranger" && activeTab !== "species") {
+      router.replace("/admin/species");
+    }
+  }, [activeTab, currentRole, router]);
   const [editRoleUser, setEditRoleUser] = useState<DisplayUser | null>(null);
   const [editRoleValue, setEditRoleValue] = useState("");
   const [deleteConfirmUser, setDeleteConfirmUser] = useState<DisplayUser | null>(null);
 
   // Add User modal state
   const [showAddUser, setShowAddUser] = useState(false);
-  const [addUserForm, setAddUserForm] = useState({ email: "", name: "", role: "Researcher" });
+  const [addUserForm, setAddUserForm] = useState({ email: "", name: "", role: "Visitor" });
   const [addUserError, setAddUserError] = useState("");
   const [addUserCreatedCreds, setAddUserCreatedCreds] = useState<{
     email: string;
@@ -877,7 +951,7 @@ export default function AdminPage() {
 
   const handleOpenAddUser = () => {
     if (!canManageUsers) return;
-    setAddUserForm({ email: "", name: "", role: "Researcher" });
+    setAddUserForm({ email: "", name: "", role: "Visitor" });
     setAddUserError("");
     setAddUserCreatedCreds(null);
     setCopiedCreds(false);
@@ -1030,10 +1104,8 @@ export default function AdminPage() {
   const [showProfile, setShowProfile] = useState(false);
   const [profileEditing, setProfileEditing] = useState(false);
   const [profileForm, setProfileForm] = useState({
-    firstName: "",
-    lastName: "",
+    name: "",
     email: "",
-    country: "Indonesia",
   });
   const [passwordForm, setPasswordForm] = useState({
     newPassword: "",
@@ -1047,7 +1119,6 @@ export default function AdminPage() {
 
   const openProfile = async () => {
     let profileUser = user;
-    let country = "";
 
     if (user?.id) {
       try {
@@ -1062,19 +1133,15 @@ export default function AdminPage() {
             email: detail.email,
             role: detail.role,
           };
-          country = apiUser.country || "";
         }
       } catch (error) {
         console.error("Failed to fetch profile user detail:", error);
       }
     }
 
-    const nameParts = (profileUser?.name || "Admin").split(" ");
     setProfileForm({
-      firstName: nameParts[0] || "",
-      lastName: nameParts.slice(1).join(" ") || "",
+      name: profileUser?.name || "",
       email: profileUser?.email || "",
-      country,
     });
     setPasswordForm({ newPassword: "", repeatNewPassword: "", currentPassword: "" });
     setPasswordErrors({ repeatNewPassword: "", currentPassword: "" });
@@ -1084,7 +1151,7 @@ export default function AdminPage() {
 
   const handleSaveProfile = async () => {
     if (!user?.id) return;
-    const name = `${profileForm.firstName.trim()} ${profileForm.lastName.trim()}`.trim();
+    const name = profileForm.name.trim();
     try {
       const res = await fetch(`/api/v1/users/${user.id}`, {
         method: "PATCH",
@@ -1092,7 +1159,6 @@ export default function AdminPage() {
         body: JSON.stringify({
           name,
           email: profileForm.email.trim(),
-          country: profileForm.country.trim(),
         }),
       });
       if (!res.ok) {
@@ -1100,7 +1166,7 @@ export default function AdminPage() {
         console.error("Failed to save profile:", json);
         return;
       }
-      updateUser({ name, email: profileForm.email.trim(), country: profileForm.country.trim() });
+      updateUser({ name, email: profileForm.email.trim() });
     } catch (error) {
       console.error("Failed to save profile:", error);
       return;
@@ -1204,6 +1270,7 @@ export default function AdminPage() {
   };
 
   const handleOpenAddSpecies = () => {
+    if (!canAddSpecies) return;
     if (speciesSketchPreviewUrl.startsWith("blob:")) {
       URL.revokeObjectURL(speciesSketchPreviewUrl);
     }
@@ -1237,6 +1304,7 @@ export default function AdminPage() {
   };
 
   const handleEditSpecies = (s: DisplaySpecies) => {
+    if (!canEditSpecies) return;
     if (speciesSketchPreviewUrl.startsWith("blob:")) {
       URL.revokeObjectURL(speciesSketchPreviewUrl);
     }
@@ -1302,6 +1370,8 @@ export default function AdminPage() {
   };
 
   const handleSaveSpecies = async () => {
+    if (speciesForm.id === 0 && !canAddSpecies) return;
+    if (speciesForm.id !== 0 && !canEditSpecies) return;
     if (!speciesForm.scientificName.trim() || !speciesForm.family.trim()) return;
     if (speciesForm.id === 0 && !speciesSketchFile) {
       alert("Herbarium sketch is required.");
@@ -1409,10 +1479,12 @@ export default function AdminPage() {
   };
 
   const handleDeleteSpecies = (s: DisplaySpecies) => {
+    if (!canRemoveSpecies) return;
     setDeleteSpeciesConfirm(s);
   };
 
   const confirmDeleteSpecies = async () => {
+    if (!canRemoveSpecies) return;
     if (!deleteSpeciesConfirm) return;
     try {
       const res = await fetch(`/api/v1/plants/${deleteSpeciesConfirm.id}`, {
@@ -1478,6 +1550,24 @@ export default function AdminPage() {
     ? systemLogs
     : systemLogs.filter((log) => log.source === logFilter);
 
+  const usersTotalPages = Math.max(1, Math.ceil(users.length / ITEMS_PER_PAGE));
+  const paginatedUsers = users.slice((usersPage - 1) * ITEMS_PER_PAGE, usersPage * ITEMS_PER_PAGE);
+
+  const logsTotalPages = Math.max(1, Math.ceil(filteredLogs.length / ITEMS_PER_PAGE));
+  const paginatedLogs = filteredLogs.slice((logsPage - 1) * ITEMS_PER_PAGE, logsPage * ITEMS_PER_PAGE);
+
+  useEffect(() => {
+    setUsersPage((page) => Math.min(page, Math.max(1, Math.ceil(users.length / ITEMS_PER_PAGE))));
+  }, [users.length]);
+
+  useEffect(() => {
+    setLogsPage(1);
+  }, [logFilter]);
+
+  useEffect(() => {
+    setLogsPage((page) => Math.min(page, Math.max(1, Math.ceil(filteredLogs.length / ITEMS_PER_PAGE))));
+  }, [filteredLogs.length]);
+
   const getConfirmContent = () => {
     switch (confirmAction) {
       case "logout":
@@ -1531,6 +1621,18 @@ export default function AdminPage() {
   };
 
   const confirmContent = getConfirmContent();
+
+  if (!canAccessCurrentTab) {
+    return (
+      <div className="p-6">
+        <div className="rounded-lg border bg-card p-6 text-sm text-muted-foreground shadow-sm">
+          {language === "id"
+            ? "Role ini tidak memiliki akses ke halaman admin tersebut."
+            : "This role does not have access to that admin page."}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -1609,19 +1711,20 @@ export default function AdminPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    {copy.users.columns.slice(0, canManageUsers ? 6 : 5).map((column) => (
+                    {copy.users.columns.slice(0, canManageUsers ? 7 : 6).map((column) => (
                       <th key={column} className="px-6 py-3 text-left font-medium text-muted-foreground">{column}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((u) => (
+                  {paginatedUsers.map((u) => (
                     <tr key={u.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                      <td className="px-6 py-4 text-muted-foreground">{u.id}</td>
                       <td className="px-6 py-4 font-medium">{u.name}</td>
                       <td className="px-6 py-4 text-muted-foreground">{u.email}</td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${u.role === "Admin" ? "bg-purple-100 text-purple-700" :
-                          u.role === "Researcher" ? "bg-blue-100 text-blue-700" :
+                          u.role === "Visitor" ? "bg-blue-100 text-blue-700" :
                             "bg-green-100 text-green-700"
                           }`}>{u.role}</span>
                       </td>
@@ -1658,6 +1761,12 @@ export default function AdminPage() {
                 </tbody>
               </table>
             </div>
+            <PaginationControls
+              page={usersPage}
+              totalPages={usersTotalPages}
+              onPageChange={setUsersPage}
+              copy={copy.pagination}
+            />
           </div>
         </div>
       )}
@@ -1692,10 +1801,17 @@ export default function AdminPage() {
                     className="h-9 w-56 rounded-lg border bg-background pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition"
                   />
                 </div>
-                <button onClick={handleOpenAddSpecies} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
-                  <Plus className="h-4 w-4" />
-                  {copy.species.add}
-                </button>
+                {canAddSpecies ? (
+                  <button onClick={handleOpenAddSpecies} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+                    <Plus className="h-4 w-4" />
+                    {copy.species.add}
+                  </button>
+                ) : (
+                  <div className="inline-flex items-center gap-2 rounded-lg bg-muted px-4 py-2 text-sm font-medium text-muted-foreground">
+                    <Lock className="h-4 w-4" />
+                    {copy.species.add}
+                  </div>
+                )}
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -1710,6 +1826,7 @@ export default function AdminPage() {
                 <tbody>
                   {filteredSpecies.map((species) => (
                     <tr key={species.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                      <td className="px-6 py-4 text-muted-foreground">{species.id}</td>
                       <td className="px-6 py-4 font-medium italic">{species.scientificName}</td>
                       <td className="px-6 py-4 text-muted-foreground">{species.commonName}</td>
                       <td className="px-6 py-4 text-muted-foreground">{species.family}</td>
@@ -1724,8 +1841,12 @@ export default function AdminPage() {
                           >
                             <Eye className="h-4 w-4" />
                           </Link>
-                          <button onClick={() => handleEditSpecies(species)} className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground" title={copy.species.edit}><Pencil className="h-4 w-4" /></button>
-                          <button onClick={() => handleDeleteSpecies(species)} className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive" title={copy.species.delete}><Trash2 className="h-4 w-4" /></button>
+                          {canEditSpecies && (
+                            <button onClick={() => handleEditSpecies(species)} className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground" title={copy.species.edit}><Pencil className="h-4 w-4" /></button>
+                          )}
+                          {canRemoveSpecies && (
+                            <button onClick={() => handleDeleteSpecies(species)} className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive" title={copy.species.delete}><Trash2 className="h-4 w-4" /></button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1776,7 +1897,7 @@ export default function AdminPage() {
                   {language === "id" ? "Tidak ada log ditemukan." : "No audit logs found."}
                 </div>
               )}
-              {!isLoadingLogs && filteredLogs.map((log) => {
+              {!isLoadingLogs && paginatedLogs.map((log) => {
                 const style = LEVEL_STYLES[log.level];
                 const Icon = style.icon;
                 return (
@@ -1811,6 +1932,12 @@ export default function AdminPage() {
                 );
               })}
             </div>
+            <PaginationControls
+              page={logsPage}
+              totalPages={logsTotalPages}
+              onPageChange={setLogsPage}
+              copy={copy.pagination}
+            />
           </div>
         </div>
       )}
@@ -1858,21 +1985,11 @@ export default function AdminPage() {
             <div className="px-8 py-8 space-y-8">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-6">
                 <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">{copy.profileModal.firstName}</label>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">{copy.profileModal.name}</label>
                   <input
                     type="text"
-                    value={profileForm.firstName}
-                    onChange={(e) => setProfileForm(p => ({ ...p, firstName: e.target.value }))}
-                    disabled={!profileEditing}
-                    className="w-full border-0 border-b border-border bg-transparent pb-2 text-base font-medium text-foreground outline-none focus:border-primary transition-colors disabled:opacity-70 disabled:cursor-default"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">{copy.profileModal.lastName}</label>
-                  <input
-                    type="text"
-                    value={profileForm.lastName}
-                    onChange={(e) => setProfileForm(p => ({ ...p, lastName: e.target.value }))}
+                    value={profileForm.name}
+                    onChange={(e) => setProfileForm(p => ({ ...p, name: e.target.value }))}
                     disabled={!profileEditing}
                     className="w-full border-0 border-b border-border bg-transparent pb-2 text-base font-medium text-foreground outline-none focus:border-primary transition-colors disabled:opacity-70 disabled:cursor-default"
                   />
@@ -1883,16 +2000,6 @@ export default function AdminPage() {
                     type="email"
                     value={profileForm.email}
                     onChange={(e) => setProfileForm(p => ({ ...p, email: e.target.value }))}
-                    disabled={!profileEditing}
-                    className="w-full border-0 border-b border-border bg-transparent pb-2 text-base font-medium text-foreground outline-none focus:border-primary transition-colors disabled:opacity-70 disabled:cursor-default"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">{copy.profileModal.country}</label>
-                  <input
-                    type="text"
-                    value={profileForm.country}
-                    onChange={(e) => setProfileForm(p => ({ ...p, country: e.target.value }))}
                     disabled={!profileEditing}
                     className="w-full border-0 border-b border-border bg-transparent pb-2 text-base font-medium text-foreground outline-none focus:border-primary transition-colors disabled:opacity-70 disabled:cursor-default"
                   />

@@ -1,9 +1,11 @@
 "use client";
 
-import { ChangeEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Image as ImageIcon,
   ListFilter,
   Loader2,
@@ -13,34 +15,52 @@ import {
   SquareDashedMousePointer,
   Tag,
   Trash2,
-  Upload,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-const SPECIES_CLASSES = [
-  "Vachellia nilotica (L.) P.J.H.Hurter & Mabb.",
-  "Ageratum conyzoides L.",
-  "Clitoria ternatea L.",
-  "Lantana camara L.",
-  "Merremia hederacea (Burm.f.) Hallier f.",
-  "Unknown",
-];
+const UNKNOWN_SPECIES_CLASS = "Unknown";
+
+type PlantRecord = {
+  id: number;
+  scientificName?: string;
+  scientific_name?: string;
+};
+
+const getPlantLabel = (plant: PlantRecord) =>
+  plant.scientificName || plant.scientific_name || `Species #${plant.id}`;
+
+const fetchPlantRecords = async (): Promise<PlantRecord[]> => {
+  const response = await fetch("/api/v1/plants?limit=100");
+  if (!response.ok) return [];
+
+  const json = await response.json();
+  return Array.isArray(json.data) ? json.data : [];
+};
 
 const getBinomialName = (name: string) =>
   name.trim().toLowerCase().split(/\s+/).slice(0, 2).join(" ");
 
-const findSpeciesClass = (name: string) => {
+const findSpeciesClass = (speciesClasses: string[], name: string) => {
   const normalizedName = name.trim().toLowerCase();
   const binomialName = getBinomialName(name);
 
-  return SPECIES_CLASSES.find((cls) => {
+  return speciesClasses.find((cls) => {
     const normalizedClass = cls.toLowerCase();
     return normalizedClass === normalizedName || getBinomialName(cls) === binomialName;
   });
 };
 
-type ItemStatus = "pending" | "annotated" | "validated" | "rejected";
+type ItemStatus = "pending" | "annotated" | "validated";
 type EditorMode = "draw" | "select";
+type ValidationFilter = "none" | "ranger" | "admin";
+
+const VALIDATION_FILTERS: ValidationFilter[] = ["none", "ranger", "admin"];
+
+const VALIDATION_FILTER_STATUS: Record<ValidationFilter, ItemStatus> = {
+  none: "pending",
+  ranger: "annotated",
+  admin: "validated",
+};
 
 interface BoundingBox {
   id: number;
@@ -69,11 +89,13 @@ interface ApiIdentification {
   confidence?: number;
   aiResponse?: string;
   isSuccess?: boolean;
-  validationStatus?: ItemStatus | "rejected";
-  validatedAt?: string | null;
   notes?: string | null;
   identifiedAt?: string;
-  validatedBy?: {
+  ranger?: {
+    id?: number;
+    name?: string;
+  };
+  admin?: {
     id?: number;
     name?: string;
     email?: string;
@@ -140,15 +162,14 @@ const statusStyles: Record<ItemStatus, string> = {
   pending: "bg-gray-100 text-gray-700",
   annotated: "bg-blue-100 text-blue-700",
   validated: "bg-green-100 text-green-700",
-  rejected: "bg-red-100 text-red-700",
 };
 
 const ANNOTATION_COPY = {
   en: {
     stats: {
-      totalBatch: "Total Batch",
-      pending: "Pending Annotation",
-      validated: "Validated Ready",
+      totalBatch: "Total Observations",
+      pending: "Ranger Validation",
+      validated: "Admin Validation",
     },
     quickTitle: "Quick Guide",
     quickDesc: "Follow the sequence below so annotations stay easy to read and review.",
@@ -158,51 +179,41 @@ const ANNOTATION_COPY = {
       "3. Click Save Annotation to save changes.",
       "4. Click Validate when the data is correct.",
     ],
-    batchTitle: "Dataset Batch",
-    batchDesc: "Choose a batch, then continue annotation.",
-    imageCount: "image",
-    validatedCount: "validated",
-    uploadImages: "Upload Images to Batch",
-    images: "Images",
+    batchTitle: "Dataset",
+    images: "Observations",
+    pagination: { previous: "Previous", next: "Next", page: "Page", of: "of" },
     box: "box",
     emptyBatch: "There are no images in this batch yet.",
+    loadingBatch: "Loading observations from API...",
+    loadBatchFailed: "Failed to load observations from API.",
     editorTitle: "Interactive Bounding Box Editor",
     editorDesc: "1) Choose a mode. 2) Draw a box. 3) Save. 4) Validate.",
     draw: "Draw",
     selectEdit: "Select/Edit",
     saveAnnotation: "Save Annotation",
     validate: "Validate",
-    reject: "Reject",
+    deleteAnnotation: "Delete",
     emptyEditorTitle: "Choose an image on the left to start annotation.",
     emptyEditorDesc: "After selecting an image, draw a box around the object and press Save Annotation.",
     aiDetecting: "AI is detecting plants...",
     contactingAi: "Contacting AI detection service",
-    confidence: "confidence",
-    deleteAiPrediction: "Delete AI prediction",
     boxProperties: "Box Properties",
     boxHelp: "Select a bounding box to edit coordinates, class, or delete the box.",
     class: "Class",
-    notes: "Notes",
-    notesPlaceholder: "Add validation notes for this identification.",
-    saveNotes: "Save Notes",
-    notesSaved: "Notes saved.",
-    notesSaveFailed: "Failed to save notes.",
     validateFailed: "Failed to validate annotation. Please try again.",
-    rejectFailed: "Failed to reject annotation. Please try again.",
-    notesUnavailable: "Notes can be saved for API identifications only.",
+    deleteItemFailed: "Failed to delete observation. Please try again.",
     itemStatus: "Item status",
     validatedBy: "validated by",
     deleteBox: "Delete Box",
-    status: { pending: "pending", annotated: "annotated", validated: "validated", rejected: "rejected" },
-    filterAll: "All",
-    filterPending: "Pending",
-    filterAnnotated: "Annotated",
-    filterValidated: "Validated",
-    filterRejected: "Rejected",
+    status: { pending: "pending", annotated: "annotated", validated: "validated" },
+    filterNone: "None",
+    filterRanger: "Ranger",
+    filterAdmin: "Admin",
     selectAll: "Select All",
     deselectAll: "Deselect All",
     deleteSelected: "Delete",
     deleteSelectedConfirm: (count: number) => `Delete ${count} selected image${count === 1 ? "" : "s"}? This cannot be undone.`,
+    deleteItemConfirm: (filename: string) => `Delete ${filename}? This cannot be undone.`,
     deleteFailed: "Failed to delete selected image.",
     validateSelected: (count: number) => `Validate ${count} Selected`,
     selectedCount: (count: number) => `${count} selected`,
@@ -212,8 +223,6 @@ const ANNOTATION_COPY = {
     savedButton: "Continue Annotation",
     validatedTitle: "Annotation Validated Successfully",
     validatedMessage: (filename: string) => `Data for ${filename} has been validated and is ready for review.`,
-    rejectedTitle: "Annotation Rejected",
-    rejectedMessage: (filename: string) => `${filename} has been rejected and marked for follow-up.`,
     done: "Done",
     logs: {
       aiSource: "AI Detection",
@@ -225,15 +234,14 @@ const ANNOTATION_COPY = {
       cleared: "Cleared AI prediction for item",
       saved: (filename: string) => `Saved annotation for image ${filename}`,
       validated: (filename: string) => `Validated annotation for image ${filename}`,
-      rejected: (filename: string) => `Rejected annotation for image ${filename}`,
       deleted: (count: number) => `Deleted ${count} image${count === 1 ? "" : "s"}`,
     },
   },
   id: {
     stats: {
-      totalBatch: "Total Batch",
-      pending: "Pending Anotasi",
-      validated: "Siap Divalidasi",
+      totalBatch: "Total Observasi",
+      pending: "Ranger Validation",
+      validated: "Admin Validation",
     },
     quickTitle: "Panduan Cepat",
     quickDesc: "Ikuti urutan di bawah agar anotasi lebih mudah dibaca dan tidak membingungkan.",
@@ -243,51 +251,41 @@ const ANNOTATION_COPY = {
       "3. Klik Save Annotation untuk menyimpan perubahan.",
       "4. Klik Validate jika data sudah benar.",
     ],
-    batchTitle: "Batch Dataset",
-    batchDesc: "Pilih batch lalu lanjutkan anotasi.",
-    imageCount: "image",
-    validatedCount: "validated",
-    uploadImages: "Unggah Image ke Batch",
-    images: "Images",
+    batchTitle: "Dataset",
+    images: "Observasi",
+    pagination: { previous: "Sebelumnya", next: "Selanjutnya", page: "Halaman", of: "dari" },
     box: "box",
     emptyBatch: "Belum ada image di batch ini.",
+    loadingBatch: "Memuat observasi dari API...",
+    loadBatchFailed: "Gagal memuat observasi dari API.",
     editorTitle: "Interactive Bounding Box Editor",
     editorDesc: "1) Pilih mode. 2) Gambar box. 3) Simpan. 4) Validasi.",
     draw: "Gambar",
     selectEdit: "Pilih/Edit",
     saveAnnotation: "Simpan Anotasi",
     validate: "Validasi",
-    reject: "Reject",
+    deleteAnnotation: "Hapus",
     emptyEditorTitle: "Pilih image di sisi kiri untuk mulai anotasi.",
     emptyEditorDesc: "Setelah image dipilih, gambar kotak pada objek lalu tekan Simpan Anotasi.",
     aiDetecting: "AI sedang mendeteksi tanaman...",
     contactingAi: "Menghubungi layanan deteksi AI",
-    confidence: "keyakinan",
-    deleteAiPrediction: "Hapus prediksi AI",
     boxProperties: "Properti Box",
     boxHelp: "Pilih bounding box untuk mengedit koordinat, class, atau hapus box.",
     class: "Class",
-    notes: "Catatan",
-    notesPlaceholder: "Tambahkan catatan validasi untuk identification ini.",
-    saveNotes: "Simpan Catatan",
-    notesSaved: "Catatan tersimpan.",
-    notesSaveFailed: "Gagal menyimpan catatan.",
     validateFailed: "Gagal memvalidasi anotasi. Silakan coba lagi.",
-    rejectFailed: "Gagal menolak anotasi. Silakan coba lagi.",
-    notesUnavailable: "Catatan hanya dapat disimpan untuk identification dari API.",
+    deleteItemFailed: "Gagal menghapus observasi. Silakan coba lagi.",
     itemStatus: "Status item",
     validatedBy: "divalidasi oleh",
     deleteBox: "Hapus Box",
-    status: { pending: "pending", annotated: "annotated", validated: "validated", rejected: "rejected" },
-    filterAll: "Semua",
-    filterPending: "Pending",
-    filterAnnotated: "Teranotasi",
-    filterValidated: "Tervalidasi",
-    filterRejected: "Ditolak",
+    status: { pending: "pending", annotated: "annotated", validated: "validated" },
+    filterNone: "None",
+    filterRanger: "Ranger",
+    filterAdmin: "Admin",
     selectAll: "Pilih Semua",
     deselectAll: "Batal Pilih",
     deleteSelected: "Hapus",
     deleteSelectedConfirm: (count: number) => `Hapus ${count} image yang dipilih? Tindakan ini tidak dapat dibatalkan.`,
+    deleteItemConfirm: (filename: string) => `Hapus ${filename}? Tindakan ini tidak dapat dibatalkan.`,
     deleteFailed: "Gagal menghapus image yang dipilih.",
     validateSelected: (count: number) => `Validasi ${count} Item`,
     selectedCount: (count: number) => `${count} dipilih`,
@@ -297,8 +295,6 @@ const ANNOTATION_COPY = {
     savedButton: "Lanjut Anotasi",
     validatedTitle: "Annotation Berhasil Divalidasi",
     validatedMessage: (filename: string) => `Data untuk ${filename} sudah divalidasi dan siap ditinjau.`,
-    rejectedTitle: "Annotation Ditolak",
-    rejectedMessage: (filename: string) => `${filename} ditolak dan ditandai untuk ditinjau ulang.`,
     done: "Selesai",
     logs: {
       aiSource: "AI Detection",
@@ -310,11 +306,52 @@ const ANNOTATION_COPY = {
       cleared: "Prediksi AI dihapus dari item",
       saved: (filename: string) => `Anotasi disimpan untuk image ${filename}`,
       validated: (filename: string) => `Anotasi divalidasi untuk image ${filename}`,
-      rejected: (filename: string) => `Anotasi ditolak untuk image ${filename}`,
       deleted: (count: number) => `${count} image dihapus`,
     },
   },
 } as const;
+
+const ITEMS_PER_PAGE = 10;
+
+const PaginationControls = ({
+  page,
+  totalPages,
+  onPageChange,
+  copy,
+}: {
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  copy: { previous: string; next: string; page: string; of: string };
+}) => {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="flex items-center justify-between gap-3 border-t px-4 py-3">
+      <button
+        type="button"
+        onClick={() => onPageChange(page - 1)}
+        disabled={page <= 1}
+        className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <ChevronLeft className="h-4 w-4" />
+        {copy.previous}
+      </button>
+      <span className="text-sm text-muted-foreground">
+        {copy.page} {page} {copy.of} {totalPages}
+      </span>
+      <button
+        type="button"
+        onClick={() => onPageChange(page + 1)}
+        disabled={page >= totalPages}
+        className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {copy.next}
+        <ChevronRight className="h-4 w-4" />
+      </button>
+    </div>
+  );
+};
 
 const toDateLabel = () => new Date().toISOString().split("T")[0];
 
@@ -372,21 +409,6 @@ const readImageSize = (url: string) =>
     img.src = url;
   });
 
-const getItemSourceKey = (item: Pick<AnnotationItem, "filename" | "src" | "sourceIdentificationId">) =>
-  item.sourceIdentificationId ? `identification:${item.sourceIdentificationId}` : `${item.filename}|${item.src}`;
-
-const isSeedHerbariumIdentification = (identification: ApiIdentification) => {
-  const imageName = identification.image?.name?.toLowerCase() ?? "";
-  const imagePath = identification.image?.path?.toLowerCase() ?? "";
-  const aiResponse = identification.aiResponse?.toLowerCase() ?? "";
-
-  return (
-    imageName.startsWith("obs-") ||
-    imagePath.includes("sketsa-herbarium") ||
-    aiResponse.startsWith("seeded identification")
-  );
-};
-
 export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }: Props) {
   const { language } = useLanguage();
   const copy = ANNOTATION_COPY[language];
@@ -404,19 +426,21 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
       items: [],
     },
   ]);
-  const [activeBatchId, setActiveBatchId] = useState<number>(1);
   const [activeItemId, setActiveItemId] = useState<number | null>(null);
-  const [selectedClass, setSelectedClass] = useState<string>(SPECIES_CLASSES[0]);
+  const [speciesClasses, setSpeciesClasses] = useState<string[]>([UNKNOWN_SPECIES_CLASS]);
+  const [selectedClass, setSelectedClass] = useState<string>(UNKNOWN_SPECIES_CLASS);
   const [mode, setMode] = useState<EditorMode>("draw");
   const [draftBox, setDraftBox] = useState<DraftBox | null>(null);
   const [selectedBoxId, setSelectedBoxId] = useState<number | null>(null);
   const [detectionError, setDetectionError] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<SuccessNotice | null>(null);
-  const [statusFilter, setStatusFilter] = useState<"all" | ItemStatus>("all");
+  const [statusFilter, setStatusFilter] = useState<ValidationFilter>("none");
   const [selectedItemIds, setSelectedItemIds] = useState<Set<number>>(new Set());
+  const [observationsPage, setObservationsPage] = useState(1);
+  const [isLoadingIdentifications, setIsLoadingIdentifications] = useState(true);
+  const [identificationLoadError, setIdentificationLoadError] = useState<string | null>(null);
 
   const stageRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const nextAnnotationIdRef = useRef(1);
   const detectingItemIdsRef = useRef<Set<number>>(new Set());
   const [stageSize, setStageSize] = useState({ width: 1, height: 1 });
@@ -427,23 +451,27 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
     return nextId;
   }, []);
 
-  const activeBatch = useMemo(
-    () => batches.find((batch) => batch.id === activeBatchId) ?? batches[0],
-    [batches, activeBatchId],
+  const allItems = useMemo(
+    () => batches.flatMap((batch) => batch.items),
+    [batches],
   );
 
   const activeItem = useMemo(() => {
-    if (!activeBatch || activeItemId === null) return null;
-    return activeBatch.items.find((item) => item.id === activeItemId) ?? null;
-  }, [activeBatch, activeItemId]);
+    if (activeItemId === null) return null;
+    return allItems.find((item) => item.id === activeItemId) ?? null;
+  }, [allItems, activeItemId]);
 
   const selectedBox = useMemo(() => {
     if (!activeItem || selectedBoxId === null) return null;
     return activeItem.boxes.find((box) => box.id === selectedBoxId) ?? null;
   }, [activeItem, selectedBoxId]);
 
-  const totalPending = useMemo(
-    () => batches.reduce((sum, batch) => sum + batch.items.filter((item) => item.status === "pending").length, 0),
+  const totalObservations = useMemo(
+    () => batches.reduce((sum, batch) => sum + batch.items.length, 0),
+    [batches],
+  );
+  const totalAnnotated = useMemo(
+    () => batches.reduce((sum, batch) => sum + batch.items.filter((item) => item.status === "annotated").length, 0),
     [batches],
   );
   const totalValidated = useMemo(
@@ -452,10 +480,22 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
   );
 
   const filteredItems = useMemo(() => {
-    if (!activeBatch) return [];
-    if (statusFilter === "all") return activeBatch.items;
-    return activeBatch.items.filter((item) => item.status === statusFilter);
-  }, [activeBatch, statusFilter]);
+    return allItems.filter((item) => item.status === VALIDATION_FILTER_STATUS[statusFilter]);
+  }, [allItems, statusFilter]);
+
+  const observationsTotalPages = Math.max(1, Math.ceil(filteredItems.length / ITEMS_PER_PAGE));
+  const paginatedItems = filteredItems.slice(
+    (observationsPage - 1) * ITEMS_PER_PAGE,
+    observationsPage * ITEMS_PER_PAGE,
+  );
+
+  useEffect(() => {
+    setObservationsPage(1);
+  }, [statusFilter]);
+
+  useEffect(() => {
+    setObservationsPage((page) => Math.min(page, Math.max(1, Math.ceil(filteredItems.length / ITEMS_PER_PAGE))));
+  }, [filteredItems.length]);
 
   const allFilteredSelected = filteredItems.length > 0 && filteredItems.every((item) => selectedItemIds.has(item.id));
   const selectedCount = filteredItems.filter((item) => selectedItemIds.has(item.id)).length;
@@ -530,7 +570,7 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
       setSelectedBoxId(null);
       setActiveItemId((current) => {
         if (current === null || !ids.has(current)) return current;
-        return activeBatch?.items.find((item) => !ids.has(item.id))?.id ?? null;
+        return allItems.find((item) => !ids.has(item.id))?.id ?? null;
       });
       onLog?.("success", copy.logs.annotationSource, copy.logs.deleted(deletedItems.length));
     }
@@ -548,23 +588,20 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
 
     const ids = new Set(toValidate.map((item) => item.id));
     setBatches((prev) =>
-      prev.map((batch) => {
-        if (batch.id !== activeBatchId) return batch;
-        return {
-          ...batch,
-          items: batch.items.map((item) =>
-            ids.has(item.id)
-              ? { ...item, status: "validated" as ItemStatus, validatedBy: adminName, validatedAt: toDateLabel() }
-              : item,
-          ),
-        };
-      }),
+      prev.map((batch) => ({
+        ...batch,
+        items: batch.items.map((item) =>
+          ids.has(item.id)
+            ? { ...item, status: "validated" as ItemStatus, validatedBy: adminName, validatedAt: toDateLabel() }
+            : item,
+        ),
+      })),
     );
     setSelectedItemIds(new Set());
     toValidate
       .filter((item) => item.sourceIdentificationId)
       .forEach((item) => {
-        void updateIdentification(item.sourceIdentificationId!, { validationStatus: "validated" });
+        void updateIdentification(item.sourceIdentificationId!, { adminValidated: true });
       });
     onLog?.("success", copy.logs.verificationSource, copy.logs.validated(`${toValidate.length} items`));
   };
@@ -660,20 +697,18 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
     updater: (item: AnnotationItem) => AnnotationItem,
   ) => {
     setBatches((prev) =>
-      prev.map((batch) => {
-        if (batch.id !== activeBatchId) return batch;
-        return {
-          ...batch,
-          items: batch.items.map((item) => (item.id === itemId ? updater(item) : item)),
-        };
-      }),
+      prev.map((batch) => ({
+        ...batch,
+        items: batch.items.map((item) => (item.id === itemId ? updater(item) : item)),
+      })),
     );
-  }, [activeBatchId]);
+  }, []);
 
   const updateIdentification = useCallback(async (
     identificationId: number,
     input: {
-      validationStatus?: "pending" | "validated" | "rejected";
+      rangerValidated?: boolean;
+      adminValidated?: boolean;
       notes?: string | null;
     },
   ) => {
@@ -736,16 +771,16 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
         const detections: DetectionResult[] = json.data.plants;
         const topDetection = detections[0];
 
-        const newBoxes: BoundingBox[] = detections
+        const newBoxes: BoundingBox[] = [topDetection]
           .map((det) => {
             const normalizedBox = normalizeDetectedBox(det.box, item.imageWidth, item.imageHeight);
             if (!normalizedBox) return null;
-            const matchedClass = findSpeciesClass(det.name) || det.name;
+            const matchedClass = findSpeciesClass(speciesClasses, det.name) || det.name;
             return { id: getNextAnnotationId(), className: matchedClass, ...normalizedBox };
           })
           .filter((box): box is BoundingBox => box !== null);
 
-        const matchedTopClass = findSpeciesClass(topDetection.name);
+        const matchedTopClass = findSpeciesClass(speciesClasses, topDetection.name);
 
         setItemValue(item.id, (prev) => ({
           ...prev,
@@ -776,29 +811,36 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
     } finally {
       detectingItemIdsRef.current.delete(item.id);
     }
-  }, [copy, getNextAnnotationId, onLog, setItemValue]);
+  }, [copy, getNextAnnotationId, onLog, setItemValue, speciesClasses]);
 
   useEffect(() => {
     let isCancelled = false;
 
-    const loadMobileApiImages = async () => {
+    const loadApiIdentifications = async () => {
+      setIsLoadingIdentifications(true);
+      setIdentificationLoadError(null);
+
       try {
         const res = await fetch("/api/v1/identifications?limit=100");
+        if (!res.ok) throw new Error(`Request failed with status ${res.status}`);
+
         const json = await res.json();
-        const identifications = json.success && Array.isArray(json.data)
-          ? json.data as ApiIdentification[]
-          : [];
+        if (!json.success || !Array.isArray(json.data)) {
+          throw new Error("Invalid identifications response");
+        }
+
+        const identifications = json.data as ApiIdentification[];
 
         const apiItems = await Promise.all(
           identifications
             .filter((identification) => identification.image?.path)
-            .filter((identification) => !isSeedHerbariumIdentification(identification))
             .map(async (identification) => {
               const src = identification.image!.path!;
               const size = await readImageSize(src);
               const plantName = identification.plant?.name;
-              const isValidated = identification.validationStatus === "validated";
-              const isRejected = identification.validationStatus === "rejected";
+              const detectedName = plantName || identification.aiResponse || undefined;
+              const isAdminValidated = identification.admin != null;
+              const isRangerValidated = identification.ranger != null;
               return {
                 id: getNextAnnotationId(),
                 filename: identification.image?.name || `identification-${identification.id}`,
@@ -806,104 +848,92 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
                 imageWidth: size.width,
                 imageHeight: size.height,
                 boxes: [],
-                status: isRejected ? "rejected" as ItemStatus : isValidated ? "validated" as ItemStatus : "pending" as ItemStatus,
-                aiDetected: false,
-                aiSpecies: plantName ? findSpeciesClass(plantName) || plantName : undefined,
+                status: isAdminValidated
+                  ? "validated" as ItemStatus
+                  : isRangerValidated
+                    ? "annotated" as ItemStatus
+                    : "pending" as ItemStatus,
+                aiDetected: true,
+                aiSpecies: detectedName ? findSpeciesClass(speciesClasses, detectedName) || detectedName : undefined,
                 aiConfidence: identification.confidence,
                 notes: identification.notes ?? "",
-                validatedBy: identification.validatedBy?.name,
-                validatedAt: identification.validatedAt ? identification.validatedAt.split("T")[0] : undefined,
+                validatedBy: identification.admin?.name || identification.ranger?.name,
+                validatedAt: undefined,
                 sourceIdentificationId: identification.id,
               };
             }),
         );
 
-        if (isCancelled || apiItems.length === 0) return;
+        if (isCancelled) return;
 
         setBatches((prev) =>
-          prev.map((batch) => {
-            if (batch.id !== 1) return batch;
-            const existingKeys = new Set(batch.items.map(getItemSourceKey));
-            const newItems = apiItems.filter((item) => !existingKeys.has(getItemSourceKey(item)));
-            return newItems.length > 0 ? { ...batch, items: [...batch.items, ...newItems] } : batch;
-          }),
+          prev.map((batch) =>
+            batch.id === 1
+              ? {
+                ...batch,
+                name: "API Identifications",
+                period: "api/v1/identifications",
+                items: apiItems,
+              }
+              : { ...batch, items: [] },
+          ),
         );
 
-        setActiveItemId((current) => current ?? apiItems[0]?.id ?? null);
+        setSelectedItemIds(new Set());
+        setSelectedBoxId(null);
+        setActiveItemId(apiItems[0]?.id ?? null);
       } catch (error) {
-        console.error("Failed to load mobile/API identifications:", error);
+        console.error("Failed to load API identifications:", error);
+        if (!isCancelled) {
+          setIdentificationLoadError(copy.loadBatchFailed);
+          setBatches((prev) => prev.map((batch) => ({ ...batch, items: [] })));
+          setActiveItemId(null);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingIdentifications(false);
+        }
       }
     };
 
-    loadMobileApiImages();
+    loadApiIdentifications();
 
     return () => {
       isCancelled = true;
     };
-  }, [getNextAnnotationId]);
+  }, [copy.loadBatchFailed, getNextAnnotationId, speciesClasses]);
 
   useEffect(() => {
-    activeBatch?.items.forEach((item) => {
+    let isCancelled = false;
+
+    fetchPlantRecords().then((plants) => {
+      if (isCancelled) return;
+      const names = plants
+        .map(getPlantLabel)
+        .filter((name) => !name.startsWith("Species #"))
+        .sort((a, b) => a.localeCompare(b));
+
+      if (names.length === 0) return;
+
+      const nextSpeciesClasses = [...names, UNKNOWN_SPECIES_CLASS];
+      setSpeciesClasses(nextSpeciesClasses);
+      setSelectedClass((current) => (current === UNKNOWN_SPECIES_CLASS ? nextSpeciesClasses[0] : current));
+    }).catch((error) => {
+      console.error("Failed to load species list:", error);
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    allItems.forEach((item) => {
       if (!item.aiDetected && !item.isDetecting) {
         void detectPlant(item);
       }
     });
-  }, [activeBatch?.items, detectPlant]);
-
-  // Clear AI prediction — removes all AI-generated boxes and resets detection state
-  const clearAiPrediction = (itemId: number) => {
-    setItemValue(itemId, (item) => ({
-      ...item,
-      boxes: [],
-      aiDetected: false,
-      aiSpecies: undefined,
-      aiConfidence: undefined,
-      status: "pending",
-    }));
-    setSelectedBoxId(null);
-    setDetectionError(null);
-    onLog?.("info", copy.logs.annotationSource, copy.logs.cleared);
-  };
-
-  const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files ?? []);
-    if (!files.length) return;
-
-    const newItems: AnnotationItem[] = await Promise.all(
-      files.map(async (file) => {
-        const src = URL.createObjectURL(file);
-        const size = await readImageSize(src);
-
-        return {
-          id: getNextAnnotationId(),
-          filename: file.name,
-          src,
-          file,
-          imageWidth: size.width,
-          imageHeight: size.height,
-          boxes: [],
-          status: "pending" as ItemStatus,
-          aiDetected: false,
-        };
-      }),
-    );
-
-    setBatches((prev) =>
-      prev.map((batch) => {
-        if (batch.id !== activeBatchId) return batch;
-        return { ...batch, items: [...batch.items, ...newItems] };
-      }),
-    );
-
-    if (newItems.length > 0) {
-      setActiveItemId(newItems[0].id);
-      setSelectedBoxId(null);
-      // Auto-detect ALL uploaded images concurrently
-      newItems.forEach((item) => detectPlant(item));
-    }
-
-    event.target.value = "";
-  };
+  }, [allItems, detectPlant]);
 
   const startDraw = (event: MouseEvent<HTMLDivElement>) => {
     if (!activeItem || mode !== "draw") return;
@@ -950,14 +980,11 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
       height: height / scaleY,
     };
 
-    setItemValue(activeItem.id, (item) => {
-      const nextBoxes = [...item.boxes, box];
-      return {
-        ...item,
-        boxes: nextBoxes,
-        status: nextBoxes.length > 0 ? "annotated" : "pending",
-      };
-    });
+    setItemValue(activeItem.id, (item) => ({
+      ...item,
+      boxes: [box],
+      status: "annotated",
+    }));
 
     setSelectedBoxId(box.id);
     setDraftBox(null);
@@ -1014,13 +1041,18 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
   const saveAnnotation = () => {
     if (!activeItem) return;
 
-    if (activeItem.sourceIdentificationId && activeItem.status === "validated") {
-      void updateIdentification(activeItem.sourceIdentificationId, { validationStatus: "pending" });
+    const nextStatus: ItemStatus = activeItem.boxes.length > 0 ? "annotated" : "pending";
+
+    if (activeItem.sourceIdentificationId) {
+      void updateIdentification(activeItem.sourceIdentificationId, {
+        rangerValidated: nextStatus === "annotated",
+        ...(activeItem.status === "validated" ? { adminValidated: false } : {}),
+      });
     }
 
     setItemValue(activeItem.id, (item) => ({
       ...item,
-      status: item.boxes.length > 0 ? "annotated" : "pending",
+      status: nextStatus,
       validatedBy: undefined,
       validatedAt: undefined,
     }));
@@ -1038,7 +1070,7 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
 
     try {
       if (activeItem.sourceIdentificationId) {
-        await updateIdentification(activeItem.sourceIdentificationId, { validationStatus: "validated" });
+        await updateIdentification(activeItem.sourceIdentificationId, { adminValidated: true });
       }
 
       setItemValue(activeItem.id, (item) => ({
@@ -1060,47 +1092,37 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
     }
   };
 
-  const rejectAnnotation = async () => {
+  const deleteActiveAnnotation = async () => {
     if (!activeItem) return;
+    if (!window.confirm(copy.deleteItemConfirm(activeItem.filename))) return;
 
     try {
       if (activeItem.sourceIdentificationId) {
-        await updateIdentification(activeItem.sourceIdentificationId, { validationStatus: "rejected" });
+        await deleteIdentification(activeItem.sourceIdentificationId);
       }
 
-      setItemValue(activeItem.id, (item) => ({
-        ...item,
-        status: "rejected",
-        validatedBy: undefined,
-        validatedAt: undefined,
-      }));
+      if (activeItem.src.startsWith("blob:")) {
+        URL.revokeObjectURL(activeItem.src);
+      }
 
-      onLog?.("warning", copy.logs.verificationSource, copy.logs.rejected(activeItem.filename));
-      setSuccessNotice({
-        title: copy.rejectedTitle,
-        message: copy.rejectedMessage(activeItem.filename),
-        buttonLabel: copy.done,
+      const deletedId = activeItem.id;
+      setBatches((prev) =>
+        prev.map((batch) => ({
+          ...batch,
+          items: batch.items.filter((item) => item.id !== deletedId),
+        })),
+      );
+      setSelectedItemIds((prev) => {
+        const next = new Set(prev);
+        next.delete(deletedId);
+        return next;
       });
+      setSelectedBoxId(null);
+      setActiveItemId(allItems.find((item) => item.id !== deletedId)?.id ?? null);
+      onLog?.("success", copy.logs.annotationSource, copy.logs.deleted(1));
     } catch (error) {
-      console.error("Failed to reject annotation:", error);
-      setDetectionError(copy.rejectFailed);
-    }
-  };
-
-  const saveIdentificationNotes = async () => {
-    if (!activeItem?.sourceIdentificationId) return;
-
-    try {
-      const notes = activeItem.notes?.trim() || null;
-      const identification = await updateIdentification(activeItem.sourceIdentificationId, { notes });
-      setItemValue(activeItem.id, (item) => ({
-        ...item,
-        notes: identification.notes ?? "",
-      }));
-      onLog?.("success", copy.logs.verificationSource, copy.notesSaved);
-    } catch (error) {
-      console.error("Failed to save identification notes:", error);
-      setDetectionError(copy.notesSaveFailed);
+      console.error("Failed to delete annotation:", error);
+      setDetectionError(copy.deleteItemFailed);
     }
   };
 
@@ -1139,11 +1161,11 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="stat-card">
           <p className="text-sm text-muted-foreground">{copy.stats.totalBatch}</p>
-          <p className="text-2xl font-bold mt-1">{batches.length}</p>
+          <p className="text-2xl font-bold mt-1">{totalObservations}</p>
         </div>
         <div className="stat-card">
           <p className="text-sm text-muted-foreground">{copy.stats.pending}</p>
-          <p className="text-2xl font-bold mt-1 text-amber-600">{totalPending}</p>
+          <p className="text-2xl font-bold mt-1 text-amber-600">{totalAnnotated}</p>
         </div>
         <div className="stat-card">
           <p className="text-sm text-muted-foreground">{copy.stats.validated}</p>
@@ -1176,55 +1198,11 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h3 className="text-base font-semibold">{copy.batchTitle}</h3>
-                <p className="text-xs text-muted-foreground">{copy.batchDesc}</p>
               </div>
             </div>
           </div>
 
-          <div className="border-b p-4 space-y-3">
-            {batches.map((batch) => {
-              const countValidated = batch.items.filter((item) => item.status === "validated").length;
-              const isActive = batch.id === activeBatchId;
-              return (
-                <button
-                  key={batch.id}
-                  onClick={() => {
-                    setActiveBatchId(batch.id);
-                    setActiveItemId(batch.items[0]?.id ?? null);
-                    setSelectedBoxId(null);
-                    setStatusFilter("all");
-                    setSelectedItemIds(new Set());
-                  }}
-                  className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${isActive ? "border-primary bg-primary/5" : "hover:bg-muted"
-                    }`}
-                >
-                  <p className="text-sm font-semibold">{batch.name}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{batch.period}</p>
-                  <p className="mt-2 text-xs text-muted-foreground">{batch.items.length} {copy.imageCount} • {countValidated} {copy.validatedCount}</p>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="p-4">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/jpg,image/webp"
-              multiple
-              className="hidden"
-              onChange={handleFileUpload}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-            >
-              <Upload className="h-4 w-4" />
-              {copy.uploadImages}
-            </button>
-          </div>
-
-          <div className="border-t px-4 pt-4 pb-2">
+          <div className="px-4 pt-4 pb-2">
             <div className="flex items-center justify-between gap-2 mb-3">
               <div className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
                 <ListFilter className="h-4 w-4" />
@@ -1251,8 +1229,8 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
             </div>
 
             <div className="flex gap-1 flex-wrap mb-3">
-              {(["all", "pending", "annotated", "validated", "rejected"] as const).map((f) => {
-                const filterLabel = f === "all" ? copy.filterAll : f === "pending" ? copy.filterPending : f === "annotated" ? copy.filterAnnotated : f === "validated" ? copy.filterValidated : copy.filterRejected;
+              {VALIDATION_FILTERS.map((f) => {
+                const filterLabel = f === "none" ? copy.filterNone : f === "ranger" ? copy.filterRanger : copy.filterAdmin;
                 return (
                   <button
                     key={f}
@@ -1283,7 +1261,18 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
 
           <div className="px-4 pb-4 max-h-72 overflow-y-auto">
             <div className="space-y-2">
-              {filteredItems.map((item) => {
+              {isLoadingIdentifications && (
+                <div className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-3 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>{copy.loadingBatch}</span>
+                </div>
+              )}
+              {!isLoadingIdentifications && identificationLoadError && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-3 text-sm text-destructive">
+                  {identificationLoadError}
+                </div>
+              )}
+              {paginatedItems.map((item) => {
                 const isSelected = selectedItemIds.has(item.id);
                 return (
                   <div
@@ -1333,11 +1322,17 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
                   </div>
                 );
               })}
-              {filteredItems.length === 0 && (
+              {!isLoadingIdentifications && !identificationLoadError && filteredItems.length === 0 && (
                 <p className="text-sm text-muted-foreground py-2">{copy.emptyBatch}</p>
               )}
             </div>
           </div>
+          <PaginationControls
+            page={observationsPage}
+            totalPages={observationsTotalPages}
+            onPageChange={setObservationsPage}
+            copy={copy.pagination}
+          />
         </div>
 
         <div className="min-w-0 space-y-4">
@@ -1373,7 +1368,7 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
                     onChange={(event) => setSelectedClass(event.target.value)}
                     className="h-9 rounded-lg border bg-background px-3 text-sm"
                   >
-                    {SPECIES_CLASSES.map((label) => (
+                    {speciesClasses.map((label) => (
                       <option key={label} value={label}>
                         {label}
                       </option>
@@ -1397,43 +1392,17 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
                   {copy.validate}
                 </button>
                 <button
-                  onClick={rejectAnnotation}
+                  onClick={deleteActiveAnnotation}
                   disabled={!activeItem}
                   className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
                 >
-                  <AlertCircle className="h-4 w-4" />
-                  {copy.reject}
+                  <Trash2 className="h-4 w-4" />
+                  {copy.deleteAnnotation}
                 </button>
               </div>
             </div>
 
             <div className="p-5">
-              {activeItem && activeItem.aiDetected && activeItem.aiSpecies && !activeItem.isDetecting && (
-                <div className="mb-4 flex flex-col gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex min-w-0 items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <ScanSearch className="h-5 w-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold uppercase text-muted-foreground">{copy.logs.aiSource}</p>
-                      <p className="break-words text-sm font-semibold text-foreground sm:text-base">{activeItem.aiSpecies}</p>
-                      <p className="mt-0.5 text-sm text-muted-foreground">
-                        {Math.round((activeItem.aiConfidence ?? 0) * 100)}% {copy.confidence}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => clearAiPrediction(activeItem.id)}
-                    className="inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive sm:self-center"
-                    title={copy.deleteAiPrediction}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    <span>{copy.deleteAiPrediction}</span>
-                  </button>
-                </div>
-              )}
-
               {activeItem && detectionError && !activeItem.isDetecting && (
                 <div className="mb-4 flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-destructive">
                   <AlertCircle className="h-4 w-4 shrink-0" />
@@ -1546,7 +1515,7 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
                     onChange={(event) => updateSelectedBoxValue("className", event.target.value)}
                     className="mt-1 h-11 w-full rounded-lg border bg-background px-3 text-base"
                   >
-                    {SPECIES_CLASSES.map((label) => (
+                    {speciesClasses.map((label) => (
                       <option key={label} value={label}>
                         {label}
                       </option>
@@ -1584,39 +1553,6 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
                   >
                     <Trash2 className="h-4 w-4" />
                     {copy.deleteBox}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {activeItem && (
-              <div className="mt-4 border-t pt-4">
-                <div className="flex flex-col gap-3 md:flex-row md:items-end">
-                  <div className="min-w-0 flex-1">
-                    <label className="text-sm font-medium text-muted-foreground">{copy.notes}</label>
-                    <textarea
-                      value={activeItem.notes ?? ""}
-                      onChange={(event) =>
-                        setItemValue(activeItem.id, (item) => ({
-                          ...item,
-                          notes: event.target.value,
-                        }))
-                      }
-                      placeholder={copy.notesPlaceholder}
-                      rows={3}
-                      className="mt-1 w-full resize-y rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/15"
-                    />
-                    {!activeItem.sourceIdentificationId && (
-                      <p className="mt-1 text-xs text-muted-foreground">{copy.notesUnavailable}</p>
-                    )}
-                  </div>
-                  <button
-                    onClick={saveIdentificationNotes}
-                    disabled={!activeItem.sourceIdentificationId}
-                    className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-green-700 px-4 text-sm font-medium text-white transition hover:bg-green-800 disabled:cursor-not-allowed disabled:bg-green-200"
-                  >
-                    <CheckCircle2 className="h-4 w-4" />
-                    {copy.saveNotes}
                   </button>
                 </div>
               </div>

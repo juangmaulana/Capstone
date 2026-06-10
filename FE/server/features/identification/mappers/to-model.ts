@@ -8,9 +8,7 @@ export const toIdentification = (row: EnrichedIdentificationSelect): Identificat
     row.confidence,
     row.ai_response,
     row.is_success,
-    row.validation_status ?? 'pending',
     row.identified_at,
-    row.validated_at,
     row.notes,
 
     // image
@@ -51,12 +49,12 @@ export const toIdentification = (row: EnrichedIdentificationSelect): Identificat
         }
       : undefined,
 
-    // validator
-    row.validator_id !== null
+    // admin
+    row.admin_id !== null
       ? {
-          id: row.validator_id,
-          name: row.validator_name!,
-          email: row.validator_email!,
+          id: row.admin_id,
+          name: row.admin_name!,
+          email: row.admin_email!,
         }
       : undefined,
   )

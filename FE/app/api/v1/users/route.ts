@@ -1,6 +1,7 @@
 import { withErrorHandling } from '@/lib/api/errors/error-handler';
 import { forbidden } from '@/lib/api/errors/http.error';
-import { authorize, getAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
+import { canManageUsers } from '@/lib/admin-roles';
 import { getLinks } from '@/lib/next-pagination';
 import { parseWithZod } from '@/lib/validation/parse-with-zod';
 import { user } from '@/server/features/user';
@@ -11,7 +12,11 @@ import { sendUserCredentialsEmail } from '@/server/services/email';
 import { NextRequest, NextResponse } from 'next/server';
 
 export const GET = withErrorHandling(async (req: NextRequest) => {
-  await getAuthUser();
+  const authUser = await getAuthUser();
+  if (!authUser)
+    throw forbidden('Unauthenticated');
+  if (!canManageUsers(authUser.role))
+    throw forbidden('User list only allowed for admins');
 
   const searchParams = {
     search: req.nextUrl.searchParams.get("search") ?? undefined,
@@ -43,7 +48,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   const authUser = await getAuthUser();
   if (!authUser)
     throw forbidden('Unauthenticated');
-  if (!authorize(authUser, ['Admin', 'admin']))
+  if (!canManageUsers(authUser.role))
     throw forbidden('User creation only allowed for admins');
 
   const input = parseWithZod(createUserSchema, await req.json())

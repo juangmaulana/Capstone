@@ -9,10 +9,12 @@ import {
   Tag,
   ScrollText,
 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { NavLink } from "@/components/NavLink";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { normalizeSystemRole } from "@/lib/admin-roles";
 import {
   Sidebar,
   SidebarContent,
@@ -86,6 +88,38 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { language } = useLanguage();
   const copy = NAV_COPY[language];
+  const [sessionRole, setSessionRole] = useState<ReturnType<typeof normalizeSystemRole>>("unknown");
+
+  useEffect(() => {
+    const readSessionRole = () => {
+      try {
+        const stored = localStorage.getItem("biowatch_admin_auth") || sessionStorage.getItem("biowatch_admin_auth");
+        if (!stored) {
+          setSessionRole("unknown");
+          return;
+        }
+
+        const parsed = JSON.parse(stored) as { role?: string };
+        setSessionRole(normalizeSystemRole(parsed.role));
+      } catch {
+        setSessionRole("unknown");
+      }
+    };
+
+    readSessionRole();
+    window.addEventListener("storage", readSessionRole);
+    window.addEventListener("biowatch-auth-changed", readSessionRole);
+    return () => {
+      window.removeEventListener("storage", readSessionRole);
+      window.removeEventListener("biowatch-auth-changed", readSessionRole);
+    };
+  }, []);
+
+  const visibleAdminItems = useMemo(() => {
+    if (sessionRole === "ranger") return adminItems.filter((item) => item.key === "species");
+    if (sessionRole === "visitor") return [];
+    return adminItems;
+  }, [sessionRole]);
 
   const isActive = (path: string) =>
     path === "/" ? pathname === "/" : pathname.startsWith(path);
@@ -161,7 +195,7 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {adminItems.map((item) => {
+              {visibleAdminItems.map((item) => {
                 const active = item.url === "/admin/users"
                   ? pathname === "/admin" || pathname === item.url
                   : pathname === item.url;
