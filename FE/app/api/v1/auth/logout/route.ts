@@ -6,8 +6,15 @@ import { NextResponse } from "next/server"
 export const POST = withErrorHandling(async () => {
   const cookieStore = await cookies();
   const refreshToken = cookieStore.get("refresh_token")?.value;
+  let data = null;
 
- const data =  await logout(refreshToken!);
+  if (refreshToken) {
+    try {
+      data = await logout(refreshToken);
+    } catch (error) {
+      console.warn("Server logout failed, clearing auth cookies locally:", error);
+    }
+  }
 
   cookieStore.delete("access_token");
   cookieStore.delete("refresh_token");

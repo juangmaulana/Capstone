@@ -225,6 +225,22 @@ const seedPlants: PlantInsert[] = [
   },
 ]
 
+async function migrateAdminRole(db: Kysely<Database>) {
+  const superAdminRole = await db.selectFrom('roles').selectAll().where('name', '=', 'Super Admin').executeTakeFirst()
+  const adminRole = await db.selectFrom('roles').selectAll().where('name', '=', 'Admin').executeTakeFirst()
+
+  if (superAdminRole && adminRole) {
+    // Reassign all users from old "Admin" role to "Super Admin" role (which will become "Admin")
+    await db.updateTable('users').set({ role_id: superAdminRole.id }).where('role_id', '=', adminRole.id).execute()
+    await db.deleteFrom('roles').where('id', '=', adminRole.id).execute()
+    await db.updateTable('roles').set({ name: 'Admin', description: 'Full system access' }).where('id', '=', superAdminRole.id).execute()
+    console.log('Migrated: Super Admin → Admin, old Admin role removed')
+  } else if (superAdminRole && !adminRole) {
+    await db.updateTable('roles').set({ name: 'Admin', description: 'Full system access' }).where('id', '=', superAdminRole.id).execute()
+    console.log('Renamed: Super Admin → Admin')
+  }
+}
+
 async function seed() {
   const db = new Kysely<Database>({
     dialect: new PostgresDialect({
@@ -236,12 +252,12 @@ async function seed() {
 
   console.log('Seeding database...')
   await alignSchema(db)
+  await migrateAdminRole(db)
 
   const existingRoles = await db.selectFrom('roles').selectAll().execute()
   if (existingRoles.length === 0) {
     await db.insertInto('roles').values([
-      { name: 'Super Admin', description: 'Full system access' },
-      { name: 'Admin', description: 'Administrative access' },
+      { name: 'Admin', description: 'Full system access' },
       { name: 'Researcher', description: 'Research and data access' },
       { name: 'Ranger', description: 'Field data collection and monitoring' },
     ]).execute()
@@ -253,7 +269,7 @@ async function seed() {
   const adminRole = await db
     .selectFrom('roles')
     .selectAll()
-    .where('name', '=', 'Super Admin')
+    .where('name', '=', 'Admin')
     .executeTakeFirst()
 
   if (adminRole) {

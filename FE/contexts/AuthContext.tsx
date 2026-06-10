@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { canAccessAdminSystem } from "@/lib/admin-roles";
 
 interface AuthUser {
   id?: number;
@@ -10,10 +11,12 @@ interface AuthUser {
   country?: string;
 }
 
+export type LoginResult = "success" | "invalid" | "rate_limited";
+
 interface AuthContextType {
   isAuthenticated: boolean;
   user: AuthUser | null;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<LoginResult>;
   logout: () => Promise<void>;
   registerUser: (email: string, password: string, name: string, role: string) => void;
   updatePassword: (email: string, currentPassword: string, newPassword: string) => Promise<boolean>;
@@ -43,11 +46,6 @@ const getRoleName = (role: unknown) => {
     return String(roleRecord.name || roleRecord.roleName || roleRecord.role_name || "");
   }
   return "";
-};
-
-const canAccessAdminSystem = (role?: string) => {
-  const normalized = role?.trim().toLowerCase();
-  return normalized === "super admin" || normalized === "admin" || normalized === "researcher";
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -164,7 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [applyAuthUser, clearAuthSession, hydrateServerSession, normalizeAuthUser]);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<LoginResult> => {
     const loginEmail = normalizeLoginEmail(email);
 
     // Try DB auth first via API
@@ -180,10 +178,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const authUser = json.data?.user || json.user || json.data;
         if (json.success && authUser) {
           const userData = normalizeAuthUser(authUser);
-          if (!canAccessAdminSystem(userData.role)) return false;
+          if (!canAccessAdminSystem(userData.role)) return "invalid";
           applyAuthUser(userData);
-          return true;
+          return "success";
         }
+      } else if (res.status === 429) {
+        // Backend throttled the login (5 req/min). Surface this distinctly so
+        // the UI doesn't mislead the user into thinking the password is wrong.
+        return "rate_limited";
       }
     } catch (err) {
       console.warn("DB auth unavailable, falling back to local auth:", err);
@@ -199,12 +201,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (found) {
       const userData = { name: found.name, email: found.email, role: found.role };
-      if (!canAccessAdminSystem(userData.role)) return false;
+      if (!canAccessAdminSystem(userData.role)) return "invalid";
       applyAuthUser(userData);
-      return true;
+      return "success";
     }
 
-    return false;
+    return "invalid";
   };
 
   const registerUser = (email: string, password: string, name: string, role: string) => {

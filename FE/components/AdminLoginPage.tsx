@@ -19,6 +19,7 @@ const LOGIN_COPY = {
     forgot: "Forgot password?",
     footer: "Protected area - authorized personnel only",
     lockout: "Account locked after 5 incorrect password attempts. Please wait 1 minute.",
+    rateLimited: "Too many login attempts. Please wait about 1 minute before trying again.",
     invalid: (left: number) => `Invalid email or password. Attempts left: ${left}`,
     forgotSendError: "An error occurred while sending the email.",
     forgotNetworkError: "Connection error. Please try again.",
@@ -48,6 +49,7 @@ const LOGIN_COPY = {
     forgot: "Lupa password?",
     footer: "Area terlindungi - hanya untuk personel berwenang",
     lockout: "Akun terkunci karena 5 kali salah password. Silakan tunggu 1 menit.",
+    rateLimited: "Terlalu banyak percobaan login. Silakan tunggu sekitar 1 menit sebelum mencoba lagi.",
     invalid: (left: number) => `Email atau password tidak valid. Kesempatan tersisa: ${left}`,
     forgotSendError: "Terjadi kesalahan saat mengirim email.",
     forgotNetworkError: "Terjadi kesalahan koneksi. Silakan coba lagi.",
@@ -114,9 +116,20 @@ export function AdminLoginPage() {
     setError("");
     setIsSubmitting(true);
 
-    const success = await login(email, password);
+    const result = await login(email, password);
 
-    if (!success) {
+    if (result === "success") {
+      setFailedAttempts(0);
+    } else if (result === "rate_limited") {
+      // Backend throttled the request — not a wrong password. Lock the form for
+      // the cooldown window and tell the user to wait instead of "invalid password".
+      const lockoutEnd = Date.now() + 60000;
+      setLockoutUntil(lockoutEnd);
+      setTimeLeft(60);
+      setError(copy.rateLimited);
+      setShake(true);
+      setTimeout(() => setShake(false), 600);
+    } else {
       const newAttempts = failedAttempts + 1;
       setFailedAttempts(newAttempts);
 
@@ -131,8 +144,6 @@ export function AdminLoginPage() {
 
       setShake(true);
       setTimeout(() => setShake(false), 600);
-    } else {
-      setFailedAttempts(0);
     }
 
     setIsSubmitting(false);
