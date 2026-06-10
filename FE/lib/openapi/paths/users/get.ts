@@ -76,3 +76,15 @@ registry.registerPath({
     },
   }
 })
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/users/{id}/notifications',
+  tags: ['Users'],
+  summary: 'Fetch all user\'s notifications',
+  responses: {
+    200: {
+      description: 'Notifications fetched'
+    }
+  }
+})
