@@ -12,7 +12,13 @@ export async function getAuthUser(): Promise<AuthUser | null> {
   return await authenticate(accessToken!)
 }
 
+const normalizeRoleForAuthorization = (role: string): string => {
+  const normalized = role.trim().toLowerCase();
+  return normalized === 'super admin' ? 'admin' : normalized;
+}
+
 export function authorize(authUser: AuthUser | null, allowedRoles: string[]): boolean {
   if (!authUser) return false
-  return allowedRoles.includes(authUser.role);
+  const userRole = normalizeRoleForAuthorization(authUser.role);
+  return allowedRoles.some((role) => normalizeRoleForAuthorization(role) === userRole);
 }

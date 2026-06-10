@@ -48,6 +48,14 @@ const getRoleName = (role: unknown) => {
   return "";
 };
 
+const normalizeRoleName = (role: string) => {
+  const normalized = role.trim().toLowerCase();
+  if (normalized === "super admin" || normalized === "admin") return "Admin";
+  if (normalized === "researcher") return "Researcher";
+  if (normalized === "ranger") return "Ranger";
+  return role.trim();
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -60,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       id: typeof authUser.id === "number" ? authUser.id : Number(authUser.id || authUser.userId) || undefined,
       name: String(authUser.name || authUser.email || "Admin"),
       email: String(authUser.email || ""),
-      role: roleName,
+      role: normalizeRoleName(roleName),
     };
   }, []);
 

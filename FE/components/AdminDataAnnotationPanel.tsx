@@ -39,7 +39,7 @@ const findSpeciesClass = (name: string) => {
   });
 };
 
-type ItemStatus = "pending" | "annotated" | "validated";
+type ItemStatus = "pending" | "annotated" | "validated" | "rejected";
 type EditorMode = "draw" | "select";
 
 interface BoundingBox {
@@ -139,6 +139,7 @@ const statusStyles: Record<ItemStatus, string> = {
   pending: "bg-gray-100 text-gray-700",
   annotated: "bg-blue-100 text-blue-700",
   validated: "bg-green-100 text-green-700",
+  rejected: "bg-red-100 text-red-700",
 };
 
 const ANNOTATION_COPY = {
@@ -170,6 +171,7 @@ const ANNOTATION_COPY = {
     selectEdit: "Select/Edit",
     saveAnnotation: "Save Annotation",
     validate: "Validate",
+    reject: "Reject",
     emptyEditorTitle: "Choose an image on the left to start annotation.",
     emptyEditorDesc: "After selecting an image, draw a box around the object and press Save Annotation.",
     aiDetecting: "AI is detecting plants...",
@@ -188,13 +190,17 @@ const ANNOTATION_COPY = {
     itemStatus: "Item status",
     validatedBy: "validated by",
     deleteBox: "Delete Box",
-    status: { pending: "pending", annotated: "annotated", validated: "validated" },
+    status: { pending: "pending", annotated: "annotated", validated: "validated", rejected: "rejected" },
     filterAll: "All",
     filterPending: "Pending",
     filterAnnotated: "Annotated",
     filterValidated: "Validated",
+    filterRejected: "Rejected",
     selectAll: "Select All",
     deselectAll: "Deselect All",
+    deleteSelected: "Delete",
+    deleteSelectedConfirm: (count: number) => `Delete ${count} selected image${count === 1 ? "" : "s"}? This cannot be undone.`,
+    deleteFailed: "Failed to delete selected image.",
     validateSelected: (count: number) => `Validate ${count} Selected`,
     selectedCount: (count: number) => `${count} selected`,
     detectionFailed: "AI detection failed. Please try again.",
@@ -203,6 +209,8 @@ const ANNOTATION_COPY = {
     savedButton: "Continue Annotation",
     validatedTitle: "Annotation Validated Successfully",
     validatedMessage: (filename: string) => `Data for ${filename} has been validated and is ready for review.`,
+    rejectedTitle: "Annotation Rejected",
+    rejectedMessage: (filename: string) => `${filename} has been rejected and marked for follow-up.`,
     done: "Done",
     logs: {
       aiSource: "AI Detection",
@@ -214,6 +222,8 @@ const ANNOTATION_COPY = {
       cleared: "Cleared AI prediction for item",
       saved: (filename: string) => `Saved annotation for image ${filename}`,
       validated: (filename: string) => `Validated annotation for image ${filename}`,
+      rejected: (filename: string) => `Rejected annotation for image ${filename}`,
+      deleted: (count: number) => `Deleted ${count} image${count === 1 ? "" : "s"}`,
     },
   },
   id: {
@@ -244,6 +254,7 @@ const ANNOTATION_COPY = {
     selectEdit: "Pilih/Edit",
     saveAnnotation: "Simpan Anotasi",
     validate: "Validasi",
+    reject: "Reject",
     emptyEditorTitle: "Pilih image di sisi kiri untuk mulai anotasi.",
     emptyEditorDesc: "Setelah image dipilih, gambar kotak pada objek lalu tekan Simpan Anotasi.",
     aiDetecting: "AI sedang mendeteksi tanaman...",
@@ -262,13 +273,17 @@ const ANNOTATION_COPY = {
     itemStatus: "Status item",
     validatedBy: "divalidasi oleh",
     deleteBox: "Hapus Box",
-    status: { pending: "pending", annotated: "annotated", validated: "validated" },
+    status: { pending: "pending", annotated: "annotated", validated: "validated", rejected: "rejected" },
     filterAll: "Semua",
     filterPending: "Pending",
     filterAnnotated: "Teranotasi",
     filterValidated: "Tervalidasi",
+    filterRejected: "Ditolak",
     selectAll: "Pilih Semua",
     deselectAll: "Batal Pilih",
+    deleteSelected: "Hapus",
+    deleteSelectedConfirm: (count: number) => `Hapus ${count} image yang dipilih? Tindakan ini tidak dapat dibatalkan.`,
+    deleteFailed: "Gagal menghapus image yang dipilih.",
     validateSelected: (count: number) => `Validasi ${count} Item`,
     selectedCount: (count: number) => `${count} dipilih`,
     detectionFailed: "AI detection gagal. Silakan coba lagi.",
@@ -277,6 +292,8 @@ const ANNOTATION_COPY = {
     savedButton: "Lanjut Anotasi",
     validatedTitle: "Annotation Berhasil Divalidasi",
     validatedMessage: (filename: string) => `Data untuk ${filename} sudah divalidasi dan siap ditinjau.`,
+    rejectedTitle: "Annotation Ditolak",
+    rejectedMessage: (filename: string) => `${filename} ditolak dan ditandai untuk ditinjau ulang.`,
     done: "Selesai",
     logs: {
       aiSource: "AI Detection",
@@ -288,6 +305,8 @@ const ANNOTATION_COPY = {
       cleared: "Prediksi AI dihapus dari item",
       saved: (filename: string) => `Anotasi disimpan untuk image ${filename}`,
       validated: (filename: string) => `Anotasi divalidasi untuk image ${filename}`,
+      rejected: (filename: string) => `Anotasi ditolak untuk image ${filename}`,
+      deleted: (count: number) => `${count} image dihapus`,
     },
   },
 } as const;
@@ -460,6 +479,44 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
     });
   };
 
+  const deleteSelectedImages = async () => {
+    const toDelete = filteredItems.filter((item) => selectedItemIds.has(item.id));
+    if (toDelete.length === 0) return;
+    if (!window.confirm(copy.deleteSelectedConfirm(toDelete.length))) return;
+
+    try {
+      await Promise.all(
+        toDelete
+          .filter((item) => item.sourceIdentificationId)
+          .map((item) => deleteIdentification(item.sourceIdentificationId!)),
+      );
+
+      toDelete.forEach((item) => {
+        if (item.src.startsWith("blob:")) {
+          URL.revokeObjectURL(item.src);
+        }
+      });
+
+      const ids = new Set(toDelete.map((item) => item.id));
+      setBatches((prev) =>
+        prev.map((batch) => ({
+          ...batch,
+          items: batch.items.filter((item) => !ids.has(item.id)),
+        })),
+      );
+      setSelectedItemIds(new Set());
+      setSelectedBoxId(null);
+      setActiveItemId((current) => {
+        if (current === null || !ids.has(current)) return current;
+        return activeBatch?.items.find((item) => !ids.has(item.id))?.id ?? null;
+      });
+      onLog?.("success", copy.logs.annotationSource, copy.logs.deleted(toDelete.length));
+    } catch (error) {
+      console.error("Failed to delete selected images:", error);
+      setDetectionError(copy.deleteFailed);
+    }
+  };
+
   const bulkValidate = () => {
     const toValidate = filteredItems.filter(
       (item) => selectedItemIds.has(item.id) && item.boxes.length > 0 && item.status !== "validated",
@@ -611,6 +668,19 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
     return json.data as ApiIdentification;
   }, []);
 
+  const deleteIdentification = useCallback(async (identificationId: number) => {
+    const response = await fetch(`/api/v1/identifications/${identificationId}`, {
+      method: "DELETE",
+    });
+
+    const json = await response.json();
+    if (!response.ok || !json.success) {
+      throw new Error(json.error?.message || "Failed to delete identification");
+    }
+
+    return json.data as ApiIdentification;
+  }, []);
+
   // AI Detection function — sends image to /api/v1/plants/detect
   // Runs per-item so multiple images can be detected concurrently after bulk upload
   const detectPlant = useCallback(async (item: AnnotationItem) => {
@@ -705,6 +775,7 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
               const size = await readImageSize(src);
               const plantName = identification.plant?.name;
               const isValidated = identification.validationStatus === "validated";
+              const isRejected = identification.validationStatus === "rejected";
               return {
                 id: getNextAnnotationId(),
                 filename: identification.image?.name || `identification-${identification.id}`,
@@ -712,7 +783,7 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                 imageWidth: size.width,
                 imageHeight: size.height,
                 boxes: [],
-                status: isValidated ? "validated" as ItemStatus : "pending" as ItemStatus,
+                status: isRejected ? "rejected" as ItemStatus : isValidated ? "validated" as ItemStatus : "pending" as ItemStatus,
                 aiDetected: false,
                 aiSpecies: plantName ? findSpeciesClass(plantName) || plantName : undefined,
                 aiConfidence: identification.confidence,
@@ -961,6 +1032,28 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
     });
   };
 
+  const rejectAnnotation = async () => {
+    if (!activeItem) return;
+
+    if (activeItem.sourceIdentificationId) {
+      await updateIdentification(activeItem.sourceIdentificationId, { validationStatus: "rejected" });
+    }
+
+    setItemValue(activeItem.id, (item) => ({
+      ...item,
+      status: "rejected",
+      validatedBy: undefined,
+      validatedAt: undefined,
+    }));
+
+    onLog?.("warning", copy.logs.verificationSource, copy.logs.rejected(activeItem.filename));
+    setSuccessNotice({
+      title: copy.rejectedTitle,
+      message: copy.rejectedMessage(activeItem.filename),
+      buttonLabel: copy.done,
+    });
+  };
+
   const saveIdentificationNotes = async () => {
     if (!activeItem?.sourceIdentificationId) return;
 
@@ -1104,17 +1197,27 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                 <ListFilter className="h-4 w-4" />
                 {copy.images}
               </div>
-              <button
-                onClick={toggleSelectAll}
-                className="text-xs font-medium text-primary hover:underline"
-              >
-                {allFilteredSelected ? copy.deselectAll : copy.selectAll}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={deleteSelectedImages}
+                  disabled={selectedCount === 0}
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:pointer-events-none disabled:text-muted-foreground/50"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  {copy.deleteSelected}
+                </button>
+                <button
+                  onClick={toggleSelectAll}
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  {allFilteredSelected ? copy.deselectAll : copy.selectAll}
+                </button>
+              </div>
             </div>
 
             <div className="flex gap-1 flex-wrap mb-3">
-              {(["all", "pending", "annotated", "validated"] as const).map((f) => {
-                const filterLabel = f === "all" ? copy.filterAll : f === "pending" ? copy.filterPending : f === "annotated" ? copy.filterAnnotated : copy.filterValidated;
+              {(["all", "pending", "annotated", "validated", "rejected"] as const).map((f) => {
+                const filterLabel = f === "all" ? copy.filterAll : f === "pending" ? copy.filterPending : f === "annotated" ? copy.filterAnnotated : f === "validated" ? copy.filterValidated : copy.filterRejected;
                 return (
                   <button
                     key={f}
@@ -1257,6 +1360,14 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   {copy.validate}
+                </button>
+                <button
+                  onClick={rejectAnnotation}
+                  disabled={!activeItem}
+                  className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  <AlertCircle className="h-4 w-4" />
+                  {copy.reject}
                 </button>
               </div>
             </div>
