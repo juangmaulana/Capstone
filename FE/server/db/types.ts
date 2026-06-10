@@ -59,7 +59,7 @@ export interface IdentificationTable {
   notes: string | null
   ranger_id: number | null
   admin_id: number | null
-  uploaded_by: number
+  uploaded_by: number | null
   readonly identified_at: Date
 }
 
@@ -71,8 +71,14 @@ export interface ImageTable {
   latitude: number
   longitude: number
   elevation: number
+  bb_x1: number
+  bb_x2: number
+  bb_y1: number
+  bb_y2: number
+  uploaded_by: number | null
   readonly uploaded_at: Date
 }
+export type ImageSelect = Selectable<ImageTable>
 
 export interface NotificationTable {
   readonly id: number
@@ -117,8 +123,8 @@ export type UserWithRoleSelect = Selectable<UserWithRole>;
 export interface EnrichedIdentification {
   readonly id: number
   confidence: number
-  ai_response: string
-  is_success: boolean
+  ai_response: string | null
+  is_success: boolean | null
   notes: string | null
 
   image_id: number | null
@@ -128,6 +134,10 @@ export interface EnrichedIdentification {
   image_latitude: number | null
   image_longitude: number | null
   image_elevation: number | null
+  image_bb_x1: number | null
+  image_bb_x2: number | null
+  image_bb_y1: number | null
+  image_bb_y2: number | null
   image_uploaded_at: Date | null
 
   plant_id: number | null

@@ -3,6 +3,13 @@ import { Identification } from '../model/identification.model'
 import { Image } from '../model/image.model'
 
 export const toIdentification = (row: EnrichedIdentificationSelect): Identification => {
+  const uploader = row.uploader_id !== null
+    ? {
+        id: row.uploader_id,
+        name: row.uploader_name!,
+      }
+    : undefined
+
   return new Identification(
     row.id,
     row.confidence,
@@ -11,7 +18,6 @@ export const toIdentification = (row: EnrichedIdentificationSelect): Identificat
     row.identified_at,
     row.notes,
 
-    // image
     row.image_id !== null
       ? new Image(
           row.image_id,
@@ -21,11 +27,15 @@ export const toIdentification = (row: EnrichedIdentificationSelect): Identificat
           row.image_latitude!,
           row.image_longitude!,
           row.image_elevation!,
-          row.image_uploaded_at!
+          row.image_bb_x1!,
+          row.image_bb_x2!,
+          row.image_bb_y1!,
+          row.image_bb_y2!,
+          row.image_uploaded_at!,
+          uploader,
         )
       : undefined,
 
-    // plant
     row.plant_id !== null
       ? {
           id: row.plant_id,
@@ -33,7 +43,6 @@ export const toIdentification = (row: EnrichedIdentificationSelect): Identificat
         }
       : undefined,
 
-    // ranger
     row.ranger_id !== null
       ? {
           id: row.ranger_id,
@@ -41,20 +50,13 @@ export const toIdentification = (row: EnrichedIdentificationSelect): Identificat
         }
       : undefined,
 
-    // uploader
-    row.uploader_id !== null
-      ? {
-          id: row.uploader_id,
-          name: row.uploader_name!,
-        }
-      : undefined,
+    uploader,
 
-    // admin
     row.admin_id !== null
       ? {
           id: row.admin_id,
           name: row.admin_name!,
-          email: row.admin_email!,
+          email: row.admin_email,
         }
       : undefined,
   )

@@ -54,6 +54,11 @@ export async function up(db: Kysely<Database>) {
     .addColumn('latitude', 'double precision', (col) => col.notNull())
     .addColumn('longitude', 'double precision', (col) => col.notNull())
     .addColumn('elevation', 'double precision', (col) => col.notNull())
+    .addColumn('bb_x1', 'double precision', (col) => col.notNull())
+    .addColumn('bb_x2', 'double precision', (col) => col.notNull())
+    .addColumn('bb_y1', 'double precision', (col) => col.notNull())
+    .addColumn('bb_y2', 'double precision', (col) => col.notNull())
+    .addColumn('uploaded_by', 'integer', (col) => col.references('users.id').onDelete('set null'))
     .addColumn('uploaded_at', 'timestamp', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
     .execute()
 
@@ -93,6 +98,18 @@ export async function up(db: Kysely<Database>) {
     .createIndex('users_email_idx')
     .on('users')
     .column('email')
+    .execute()
+
+  await db.schema
+    .createIndex('images_coordinate_idx')
+    .on('images')
+    .columns(['latitude', 'longitude'])
+    .execute()
+
+  await db.schema
+    .createIndex('images_uploader_idx')
+    .on('images')
+    .column('uploaded_by')
     .execute()
 
   await db.schema

@@ -82,6 +82,7 @@ export const DELETE = withErrorHandling(async (
     entityId: id.toString(),
     entityType: 'User',
     action: 'DELETE',
+    message: `User #${authUser.userId} deleted User #${id}`
   })
 
   return NextResponse.json({ success: true, data })

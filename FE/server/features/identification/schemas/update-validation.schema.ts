@@ -11,7 +11,10 @@ export const UpdateIdentificationValidationSchema = z.object({
 }).refine((input) => input.rangerValidated !== undefined || input.adminValidated !== undefined || input.notes !== undefined, {
   message: 'rangerValidated, adminValidated, or notes is required',
 }).openapi({
-  title: 'UpdateIdentificationValidationRequest',
+  title: 'UpdateValidationRequest',
 })
 
+export const UpdateValidationSchema = UpdateIdentificationValidationSchema
+
 export type UpdateIdentificationValidationRequest = z.infer<typeof UpdateIdentificationValidationSchema>
+export type UpdateValidationRequest = UpdateIdentificationValidationRequest

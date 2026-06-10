@@ -61,6 +61,7 @@ export const PATCH = withErrorHandling(async (
     entityId: id.toString(),
     entityType: 'Plant',
     action: 'UPDATE',
+    message: `User #${authUser.userId} updated Plant #${id}`
   })
 
   return NextResponse.json({ success: true, data })
@@ -84,6 +85,7 @@ export const DELETE = withErrorHandling(async (
     entityId: id.toString(),
     entityType: 'Plant',
     action: 'DELETE',
+    message: `User #${authUser.userId} deleted Plant #${id}`
   })
 
   return NextResponse.json({ success: true, data })

@@ -31,6 +31,12 @@ export type IdentificationRepo = {
     notes?: string | null
     actingUserId: number
   }): Promise<Identification | null>
+  updateBoundingBox(id: number, box: {
+    x1: number,
+    x2: number,
+    y1: number,
+    y2: number,
+  }): Promise<Identification | null>
   delete(id: number): Promise<Identification | null>
   statistics(filter: StatisticFilter): Promise<{
     total: number,
@@ -44,6 +50,42 @@ export type IdentificationRepo = {
     }[]
   }>
 }
+
+const baseIdentificationQuery = (db: DB) =>
+  db.selectFrom('identifications')
+    .leftJoin('images', 'images.id', 'identifications.image_id')
+    .leftJoin('plants', 'plants.id', 'identifications.plant_id')
+    .leftJoin('users as ranger', 'ranger.id', 'identifications.ranger_id')
+    .leftJoin('users as admin', 'admin.id', 'identifications.admin_id')
+    .leftJoin('users as uploader', 'uploader.id', 'images.uploaded_by')
+    .selectAll('identifications')
+    .select([
+      'images.id as image_id',
+      'images.file_name as image_name',
+      'images.file_path as image_path',
+      'images.file_size as image_size',
+      'images.latitude as image_latitude',
+      'images.longitude as image_longitude',
+      'images.elevation as image_elevation',
+      'images.bb_x1 as image_bb_x1',
+      'images.bb_x2 as image_bb_x2',
+      'images.bb_y1 as image_bb_y1',
+      'images.bb_y2 as image_bb_y2',
+      'images.uploaded_at as image_uploaded_at',
+
+      'plants.id as plant_id',
+      'plants.scientific_name as plant_name',
+
+      'ranger.id as ranger_id',
+      'ranger.name as ranger_name',
+
+      'admin.id as admin_id',
+      'admin.name as admin_name',
+      'admin.email as admin_email',
+
+      'uploader.id as uploader_id',
+      'uploader.name as uploader_name',
+    ])
 
 export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
   findAll: async (filter) => {
@@ -79,7 +121,7 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
     }
 
     const totalResult = await query
-      .select((eb) => eb.fn.count<number>('id').as('count'))
+      .select((eb) => eb.fn.countAll<number>().as('count'))
       .executeTakeFirst()
     const total = Number(totalResult?.count ?? 0)
 
@@ -89,11 +131,10 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
       .leftJoin('images', 'images.id', 'identifications.image_id')
       .leftJoin('plants', 'plants.id', 'identifications.plant_id')
       .leftJoin('users as ranger', 'ranger.id', 'identifications.ranger_id')
-      .leftJoin('users as uploader', 'uploader.id', 'identifications.uploaded_by')
       .leftJoin('users as admin', 'admin.id', 'identifications.admin_id')
+      .leftJoin('users as uploader', 'uploader.id', 'images.uploaded_by')
       .selectAll('identifications')
       .select([
-        // images
         'images.id as image_id',
         'images.file_name as image_name',
         'images.file_path as image_path',
@@ -101,24 +142,24 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
         'images.latitude as image_latitude',
         'images.longitude as image_longitude',
         'images.elevation as image_elevation',
+        'images.bb_x1 as image_bb_x1',
+        'images.bb_x2 as image_bb_x2',
+        'images.bb_y1 as image_bb_y1',
+        'images.bb_y2 as image_bb_y2',
         'images.uploaded_at as image_uploaded_at',
 
-        // plant
         'plants.id as plant_id',
         'plants.scientific_name as plant_name',
 
-        // ranger
         'ranger.id as ranger_id',
         'ranger.name as ranger_name',
 
-        // uploader
-        'uploader.id as uploader_id',
-        'uploader.name as uploader_name',
-
-        // admin
         'admin.id as admin_id',
         'admin.name as admin_name',
         'admin.email as admin_email',
+
+        'uploader.id as uploader_id',
+        'uploader.name as uploader_name',
       ])
       .orderBy('identified_at', 'desc')
       .execute()
@@ -128,41 +169,7 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
   },
 
   findById: async (id) =>
-    db.selectFrom('identifications')
-      .innerJoin('images', 'images.id', 'identifications.image_id')
-      .innerJoin('plants', 'plants.id', 'identifications.plant_id')
-      .leftJoin('users as ranger', 'ranger.id', 'identifications.ranger_id')
-      .innerJoin('users as uploader', 'uploader.id', 'identifications.uploaded_by')
-      .leftJoin('users as admin', 'admin.id', 'identifications.admin_id')
-      .selectAll('identifications')
-      .select([
-        // images
-        'images.id as image_id',
-        'images.file_name as image_name',
-        'images.file_path as image_path',
-        'images.file_size as image_size',
-        'images.latitude as image_latitude',
-        'images.longitude as image_longitude',
-        'images.elevation as image_elevation',
-        'images.uploaded_at as image_uploaded_at',
-
-        // plant
-        'plants.id as plant_id',
-        'plants.scientific_name as plant_name',
-
-        // ranger
-        'ranger.id as ranger_id',
-        'ranger.name as ranger_name',
-
-        // uploader
-        'uploader.id as uploader_id',
-        'uploader.name as uploader_name',
-
-        // admin
-        'admin.id as admin_id',
-        'admin.name as admin_name',
-        'admin.email as admin_email',
-      ])
+    baseIdentificationQuery(db)
       .where('identifications.id', '=', id)
       .executeTakeFirst()
       .then(toIdentificationOrNull),
@@ -190,47 +197,38 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
     const updated = await db
       .updateTable('identifications')
       .set(updateData)
-      .where('id', '=', id)
-      .returning('id')
+      .where('identifications.id', '=', id)
+      .returning('identifications.id')
       .executeTakeFirst()
 
     if (!updated) return null
 
-    return db.selectFrom('identifications')
-      .innerJoin('images', 'images.id', 'identifications.image_id')
-      .innerJoin('plants', 'plants.id', 'identifications.plant_id')
-      .leftJoin('users as ranger', 'ranger.id', 'identifications.ranger_id')
-      .innerJoin('users as uploader', 'uploader.id', 'identifications.uploaded_by')
-      .leftJoin('users as admin', 'admin.id', 'identifications.admin_id')
-      .selectAll('identifications')
-      .select([
-        // images
-        'images.id as image_id',
-        'images.file_name as image_name',
-        'images.file_path as image_path',
-        'images.file_size as image_size',
-        'images.latitude as image_latitude',
-        'images.longitude as image_longitude',
-        'images.elevation as image_elevation',
-        'images.uploaded_at as image_uploaded_at',
+    return baseIdentificationQuery(db)
+      .where('identifications.id', '=', updated.id)
+      .executeTakeFirst()
+      .then(toIdentificationOrNull)
+  },
 
-        // plant
-        'plants.id as plant_id',
-        'plants.scientific_name as plant_name',
+  updateBoundingBox: async (id, box) => {
+    const identification = await db
+      .selectFrom('identifications')
+      .select('image_id')
+      .where('identifications.id', '=', id)
+      .executeTakeFirst()
 
-        // ranger
-        'ranger.id as ranger_id',
-        'ranger.name as ranger_name',
+    if (!identification) return null
 
-        // uploader
-        'uploader.id as uploader_id',
-        'uploader.name as uploader_name',
+    await db.updateTable('images')
+      .set({
+        bb_x1: box.x1,
+        bb_x2: box.x2,
+        bb_y1: box.y1,
+        bb_y2: box.y2,
+      })
+      .where('id', '=', identification.image_id)
+      .execute()
 
-        // admin
-        'admin.id as admin_id',
-        'admin.name as admin_name',
-        'admin.email as admin_email',
-      ])
+    return baseIdentificationQuery(db)
       .where('identifications.id', '=', id)
       .executeTakeFirst()
       .then(toIdentificationOrNull)

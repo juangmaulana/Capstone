@@ -10,6 +10,9 @@ export const createUserSchema = z.object({
   email: z.email().openapi({
     example: 'john@example.com',
   }),
+  country: z.string().nullable().optional().openapi({
+    example: 'Indonesia',
+  }),
   password: z.string().min(8).openapi({
     example: 'secret123',
   }),

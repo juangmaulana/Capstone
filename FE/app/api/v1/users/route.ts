@@ -56,7 +56,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
 
   await logEvent({
     actorId: authUser.userId.toString(),
-    entityId: data.user.id,
+    entityId: data.id.toString(),
     entityType: 'User',
     action: 'CREATE',
   })

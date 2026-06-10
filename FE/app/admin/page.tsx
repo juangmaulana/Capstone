@@ -978,7 +978,6 @@ export default function AdminPage() {
           name: addUserForm.name.trim(),
           email: addUserForm.email.trim(),
           password: tempPassword,
-          confirmPassword: tempPassword,
           roleId: selectedRole.id,
         }),
       });

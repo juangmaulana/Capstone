@@ -4,7 +4,7 @@ import { ErrorCode } from '@/lib/api/errors/error-codes'
 import { RoleRepo } from '../../role/repo'
 import { mapDbError } from '@/lib/db/mappers'
 import { CreateUserRequest } from '../schemas/create-user.schema'
-import { register } from '@/server/services/auth'
+import { hashPassword } from '@/server/services/auth'
 
 export const createUser = (deps: {
   userRepo: UserRepo,
@@ -24,12 +24,15 @@ export const createUser = (deps: {
     }
 
     try {
-      return await register(
-        input.roleId,
-        input.name,
-        input.email,
-        input.password
-      );
+      const passwordHash = await hashPassword(input.password);
+
+      return await deps.userRepo.create({
+        email: input.email,
+        name: input.name,
+        country: input.country ?? null,
+        password_hash: passwordHash,
+        role_id: input.roleId
+      })
     } catch (err) {
       throw mapDbError(err)
     }

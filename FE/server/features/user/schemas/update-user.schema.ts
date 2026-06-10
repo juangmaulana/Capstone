@@ -10,7 +10,7 @@ export const updateUserSchema = z.object({
   email: z.email().optional().openapi({
     example: 'john@example.com',
   }),
-  country: z.string().optional().openapi({
+  country: z.string().nullable().optional().openapi({
     example: 'Indonesia',
   }),
   password: z.string().min(6).optional().openapi({
@@ -23,7 +23,7 @@ export const updateUserSchema = z.object({
     roleId?: number
     name?: string
     email?: string
-    country?: string
+    country?: string | null
     password?: string
   } = {}
 

@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const GET = withErrorHandling(async (req: NextRequest) => {
   const searchParams = {
+    species: req.nextUrl.searchParams.get("species") ?? undefined,
     page: req.nextUrl.searchParams.get("page") ?? undefined,
     limit: req.nextUrl.searchParams.get("limit") ?? undefined,
   }
