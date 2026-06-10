@@ -16,7 +16,6 @@ export async function up(db: Kysely<Database>) {
     .addColumn('name', 'varchar(255)', (col) => col.notNull())
     .addColumn('email', 'varchar(255)', (col) => col.notNull().unique())
     .addColumn('password_hash', 'varchar(255)', (col) => col.notNull())
-    .addColumn('country', 'varchar(255)', (col) => col.defaultTo(null))
     .addColumn('last_login_at', 'timestamp')
     .addColumn('created_at', 'timestamp', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
     .addColumn('updated_at', 'timestamp', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
@@ -54,6 +53,11 @@ export async function up(db: Kysely<Database>) {
     .addColumn('latitude', 'double precision', (col) => col.notNull())
     .addColumn('longitude', 'double precision', (col) => col.notNull())
     .addColumn('elevation', 'double precision', (col) => col.notNull())
+    .addColumn('bb_x1', 'double precision', (col) => col.notNull())
+    .addColumn('bb_x2', 'double precision', (col) => col.notNull())
+    .addColumn('bb_y1', 'double precision', (col) => col.notNull())
+    .addColumn('bb_y2', 'double precision', (col) => col.notNull())
+    .addColumn('uploaded_by', 'integer', (col) => col.references('users.id').onDelete('set null'))
     .addColumn('uploaded_at', 'timestamp', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
     .execute()
 
@@ -66,12 +70,9 @@ export async function up(db: Kysely<Database>) {
     .addColumn('ai_response', 'text')
     .addColumn('identified_at', 'timestamp', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
     .addColumn('is_success', 'boolean', (col) => col.defaultTo(true))
-    .addColumn('validation_status', 'varchar(20)', (col) => col.notNull().defaultTo('pending'))
-    .addColumn('validated_by', 'integer', (col) => col.references('users.id').onDelete('set null'))
-    .addColumn('validated_at', 'timestamp')
     .addColumn('notes', 'text')
     .addColumn('ranger_id', 'integer', (col) => col.references('users.id').onDelete('set null'))
-    .addColumn('uploaded_by', 'integer', (col) => col.references('users.id').onDelete('set null'))
+    .addColumn('admin_id', 'integer', (col) => col.references('users.id').onDelete('set null'))
     .execute()
 
   await db.schema
@@ -98,6 +99,18 @@ export async function up(db: Kysely<Database>) {
     .execute()
 
   await db.schema
+    .createIndex('images_coordinate_idx')
+    .on('images')
+    .columns(['latitude', 'longitude'])
+    .execute()
+
+  await db.schema
+    .createIndex('images_uploader_idx')
+    .on('images')
+    .column('uploaded_by')
+    .execute()
+
+  await db.schema
     .createIndex('identifications_plant_id_idx')
     .on('identifications')
     .column('plant_id')
@@ -107,12 +120,6 @@ export async function up(db: Kysely<Database>) {
     .createIndex('identifications_image_id_idx')
     .on('identifications')
     .column('image_id')
-    .execute()
-
-  await db.schema
-    .createIndex('identifications_validation_status_idx')
-    .on('identifications')
-    .column('validation_status')
     .execute()
 
   await db.schema

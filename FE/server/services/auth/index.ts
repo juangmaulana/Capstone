@@ -18,27 +18,6 @@ export const authenticate = async (accessToken: string) => {
   return json.data
 }
 
-export const register = async (roleId: number, name: string, email: string, password: string) => {
-  const response = await fetch(`${AUTH_API_URL}/api/auth/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ roleId, name, email, password })
-  });
-
-  const json = await response.json();
-  if (!json.success) {
-    if (json.error.statusCode === 400 || json.error.statusCode === 409) {
-      throw new ApiError('BAD_REQUEST', json.error.message)
-    }
-    if (json.error.statusCode === 429) {
-      throw new ApiError('TOO_MANY_REQUEST', json.error.message)
-    }
-    throw new Error(`[Auth Service] ${json.error.code} | ${json.error.message}`)
-  }
-
-  return json.data
-}
-
 export const login = async (email: string, password: string) => {
   const response = await fetch(`${AUTH_API_URL}/api/auth/login`, {
     method: 'POST',
@@ -189,6 +168,21 @@ export const changePassword = async (accessToken: string, userId: number, newPas
     if (json.error.statusCode === 403) {
       throw new ApiError('FORBIDDEN', json.error.message);
     }
+    throw new Error(`[Auth Service] ${json.error.code} | ${json.error.message}`)
+  }
+
+  return json.data
+}
+
+export const hashPassword = async (password: string) => {
+  const response = await fetch(`${AUTH_API_URL}/api/auth/hash-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password })
+  })
+
+  const json = await response.json()
+  if (!json.success) {
     throw new Error(`[Auth Service] ${json.error.code} | ${json.error.message}`)
   }
 
