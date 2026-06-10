@@ -32,3 +32,15 @@ registry.registerPath({
     },
   },
 })
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/users/{id}/notifications/{notificationId}',
+  tags: ['Users'],
+  summary: 'Mark notification as read',
+  responses: {
+    200: {
+      description: 'Successfully marked notification as read'
+    }
+  }
+})
