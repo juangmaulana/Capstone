@@ -126,6 +126,7 @@ interface DraftBox {
 
 interface Props {
   adminName: string;
+  canDelete?: boolean;
   onLog?: (level: "info" | "warning" | "error" | "success", source: string, message: string) => void;
 }
 
@@ -186,6 +187,8 @@ const ANNOTATION_COPY = {
     saveNotes: "Save Notes",
     notesSaved: "Notes saved.",
     notesSaveFailed: "Failed to save notes.",
+    validateFailed: "Failed to validate annotation. Please try again.",
+    rejectFailed: "Failed to reject annotation. Please try again.",
     notesUnavailable: "Notes can be saved for API identifications only.",
     itemStatus: "Item status",
     validatedBy: "validated by",
@@ -269,6 +272,8 @@ const ANNOTATION_COPY = {
     saveNotes: "Simpan Catatan",
     notesSaved: "Catatan tersimpan.",
     notesSaveFailed: "Gagal menyimpan catatan.",
+    validateFailed: "Gagal memvalidasi anotasi. Silakan coba lagi.",
+    rejectFailed: "Gagal menolak anotasi. Silakan coba lagi.",
     notesUnavailable: "Catatan hanya dapat disimpan untuk identification dari API.",
     itemStatus: "Status item",
     validatedBy: "divalidasi oleh",
@@ -382,7 +387,7 @@ const isSeedHerbariumIdentification = (identification: ApiIdentification) => {
   );
 };
 
-export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
+export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }: Props) {
   const { language } = useLanguage();
   const copy = ANNOTATION_COPY[language];
   const [batches, setBatches] = useState<AnnotationBatch[]>([
@@ -484,35 +489,53 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
     if (toDelete.length === 0) return;
     if (!window.confirm(copy.deleteSelectedConfirm(toDelete.length))) return;
 
-    try {
-      await Promise.all(
-        toDelete
-          .filter((item) => item.sourceIdentificationId)
-          .map((item) => deleteIdentification(item.sourceIdentificationId!)),
-      );
+    // Delete server-backed items individually so a single failure doesn't
+    // block removing the ones that did succeed. Local-only items (no
+    // sourceIdentificationId) have nothing to delete server-side.
+    const results = await Promise.all(
+      toDelete.map(async (item) => {
+        if (!item.sourceIdentificationId) return { item, deleted: true };
+        try {
+          await deleteIdentification(item.sourceIdentificationId);
+          return { item, deleted: true };
+        } catch (error) {
+          console.error(`Failed to delete identification ${item.sourceIdentificationId}:`, error);
+          return { item, deleted: false };
+        }
+      }),
+    );
 
-      toDelete.forEach((item) => {
+    const deletedItems = results.filter((r) => r.deleted).map((r) => r.item);
+    const failedCount = results.length - deletedItems.length;
+
+    if (deletedItems.length > 0) {
+      deletedItems.forEach((item) => {
         if (item.src.startsWith("blob:")) {
           URL.revokeObjectURL(item.src);
         }
       });
 
-      const ids = new Set(toDelete.map((item) => item.id));
+      const ids = new Set(deletedItems.map((item) => item.id));
       setBatches((prev) =>
         prev.map((batch) => ({
           ...batch,
           items: batch.items.filter((item) => !ids.has(item.id)),
         })),
       );
-      setSelectedItemIds(new Set());
+      setSelectedItemIds((prev) => {
+        const next = new Set(prev);
+        ids.forEach((id) => next.delete(id));
+        return next;
+      });
       setSelectedBoxId(null);
       setActiveItemId((current) => {
         if (current === null || !ids.has(current)) return current;
         return activeBatch?.items.find((item) => !ids.has(item.id))?.id ?? null;
       });
-      onLog?.("success", copy.logs.annotationSource, copy.logs.deleted(toDelete.length));
-    } catch (error) {
-      console.error("Failed to delete selected images:", error);
+      onLog?.("success", copy.logs.annotationSource, copy.logs.deleted(deletedItems.length));
+    }
+
+    if (failedCount > 0) {
       setDetectionError(copy.deleteFailed);
     }
   };
@@ -1013,45 +1036,55 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
   const validateAnnotation = async () => {
     if (!activeItem || activeItem.boxes.length === 0) return;
 
-    if (activeItem.sourceIdentificationId) {
-      await updateIdentification(activeItem.sourceIdentificationId, { validationStatus: "validated" });
+    try {
+      if (activeItem.sourceIdentificationId) {
+        await updateIdentification(activeItem.sourceIdentificationId, { validationStatus: "validated" });
+      }
+
+      setItemValue(activeItem.id, (item) => ({
+        ...item,
+        status: "validated",
+        validatedBy: adminName,
+        validatedAt: toDateLabel(),
+      }));
+
+      onLog?.("success", copy.logs.verificationSource, copy.logs.validated(activeItem.filename));
+      setSuccessNotice({
+        title: copy.validatedTitle,
+        message: copy.validatedMessage(activeItem.filename),
+        buttonLabel: copy.done,
+      });
+    } catch (error) {
+      console.error("Failed to validate annotation:", error);
+      setDetectionError(copy.validateFailed);
     }
-
-    setItemValue(activeItem.id, (item) => ({
-      ...item,
-      status: "validated",
-      validatedBy: adminName,
-      validatedAt: toDateLabel(),
-    }));
-
-    onLog?.("success", copy.logs.verificationSource, copy.logs.validated(activeItem.filename));
-    setSuccessNotice({
-      title: copy.validatedTitle,
-      message: copy.validatedMessage(activeItem.filename),
-      buttonLabel: copy.done,
-    });
   };
 
   const rejectAnnotation = async () => {
     if (!activeItem) return;
 
-    if (activeItem.sourceIdentificationId) {
-      await updateIdentification(activeItem.sourceIdentificationId, { validationStatus: "rejected" });
+    try {
+      if (activeItem.sourceIdentificationId) {
+        await updateIdentification(activeItem.sourceIdentificationId, { validationStatus: "rejected" });
+      }
+
+      setItemValue(activeItem.id, (item) => ({
+        ...item,
+        status: "rejected",
+        validatedBy: undefined,
+        validatedAt: undefined,
+      }));
+
+      onLog?.("warning", copy.logs.verificationSource, copy.logs.rejected(activeItem.filename));
+      setSuccessNotice({
+        title: copy.rejectedTitle,
+        message: copy.rejectedMessage(activeItem.filename),
+        buttonLabel: copy.done,
+      });
+    } catch (error) {
+      console.error("Failed to reject annotation:", error);
+      setDetectionError(copy.rejectFailed);
     }
-
-    setItemValue(activeItem.id, (item) => ({
-      ...item,
-      status: "rejected",
-      validatedBy: undefined,
-      validatedAt: undefined,
-    }));
-
-    onLog?.("warning", copy.logs.verificationSource, copy.logs.rejected(activeItem.filename));
-    setSuccessNotice({
-      title: copy.rejectedTitle,
-      message: copy.rejectedMessage(activeItem.filename),
-      buttonLabel: copy.done,
-    });
   };
 
   const saveIdentificationNotes = async () => {
@@ -1198,14 +1231,16 @@ export function AdminDataAnnotationPanel({ adminName, onLog }: Props) {
                 {copy.images}
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={deleteSelectedImages}
-                  disabled={selectedCount === 0}
-                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:pointer-events-none disabled:text-muted-foreground/50"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  {copy.deleteSelected}
-                </button>
+                {canDelete && (
+                  <button
+                    onClick={deleteSelectedImages}
+                    disabled={selectedCount === 0}
+                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:pointer-events-none disabled:text-muted-foreground/50"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    {copy.deleteSelected}
+                  </button>
+                )}
                 <button
                   onClick={toggleSelectAll}
                   className="text-xs font-medium text-primary hover:underline"

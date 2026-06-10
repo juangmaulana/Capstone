@@ -751,6 +751,11 @@ export default function AdminPage() {
   const [confirmAction, setConfirmAction] = useState<AdminConfirmAction | null>(null);
 
   const canManageUsers = isAdminRole(user?.role || "");
+  // Mirrors the DELETE /identifications API guard: admin or researcher only.
+  const canDeleteIdentifications = ((role: string) => {
+    const normalized = role.trim().toLowerCase();
+    return normalized === "admin" || normalized === "super admin" || normalized === "researcher";
+  })(user?.role || "");
 
   // User management state (must be declared before fetch functions)
   const [users, setUsers] = useState<DisplayUser[]>([]);
@@ -1814,6 +1819,7 @@ export default function AdminPage() {
       {activeTab === "annotation" && (
         <AdminDataAnnotationPanel
           adminName={user?.name || "Admin"}
+          canDelete={canDeleteIdentifications}
           onLog={(level, source, message) => addLog(level, source, message)}
         />
       )}
