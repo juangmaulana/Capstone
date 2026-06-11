@@ -40,7 +40,8 @@ export const updateUser = (deps: {
     if (input.password !== undefined) {
       // Keep the local DB password_hash in sync with the Auth Service.
       // hashPassword calls the Auth Service so both stores stay consistent.
-      updateData.password_hash = await hashPassword(input.password)
+      const { passwordHash } = await hashPassword(input.password)
+      updateData.password_hash = passwordHash
     }
 
     if (Object.keys(updateData).length === 0)

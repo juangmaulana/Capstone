@@ -1,4 +1,5 @@
 import { ApiError } from '@/lib/api/api-error';
+import { convertSegmentPathToStaticExportFilename } from 'next/dist/shared/lib/segment-cache/segment-value-encoding';
 
 const AUTH_API_URL = process.env.AUTH_API_URL
 
@@ -174,7 +175,7 @@ export const changePassword = async (accessToken: string, userId: number, newPas
   return json.data
 }
 
-export const hashPassword = async (password: string) => {
+export const hashPassword = async (password: string): Promise<{ passwordHash: string }> => {
   const response = await fetch(`${AUTH_API_URL}/api/auth/hash-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

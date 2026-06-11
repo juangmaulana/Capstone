@@ -24,7 +24,7 @@ export const createUser = (deps: {
     }
 
     try {
-      const passwordHash = await hashPassword(input.password);
+      const { passwordHash } = await hashPassword(input.password);
 
       return await deps.userRepo.create({
         email: input.email,
