@@ -1200,7 +1200,7 @@ export default function AdminPage() {
       const res = await fetch(`/api/v1/users/${user?.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: passwordForm.newPassword }),
+        body: JSON.stringify({ password: passwordForm.newPassword, currentPassword: passwordForm.currentPassword }),
       });
       if (!res.ok) {
         setPasswordErrors({ repeatNewPassword: "", currentPassword: copy.profileModal.currentWrong });

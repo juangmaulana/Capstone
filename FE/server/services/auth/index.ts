@@ -151,14 +151,14 @@ export const resetPassword = async (resetToken: string, newPassword: string) => 
   return json.data;
 }
 
-export const changePassword = async (accessToken: string, userId: number, newPassword: string) => {
+export const changePassword = async (accessToken: string, userId: number, oldPassword: string, newPassword: string) => {
   const response = await fetch(`${AUTH_API_URL}/api/auth/change-password/${userId}`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ newPassword })
+    body: JSON.stringify({ oldPassword, newPassword })
   })
 
   const json = await response.json()

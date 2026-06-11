@@ -10,7 +10,10 @@ export const updateUserSchema = z.object({
   email: z.email().optional().openapi({
     example: 'john@example.com',
   }),
-  password: z.string().min(6).optional().openapi({
+  password: z.string().min(8).optional().openapi({
+    example: 'secret123',
+  }),
+  currentPassword: z.string().min(8).optional().openapi({
     example: 'secret123',
   }),
 })
@@ -21,12 +24,14 @@ export const updateUserSchema = z.object({
     name?: string
     email?: string
     password?: string
+    currentPassword?: string
   } = {}
 
   if (data.roleId !== undefined) result.roleId = data.roleId
   if (data.name !== undefined) result.name = data.name
   if (data.email !== undefined) result.email = data.email
   if (data.password !== undefined) result.password = data.password
+  if (data.currentPassword !== undefined) result.currentPassword = data.currentPassword
 
   return result
 })
