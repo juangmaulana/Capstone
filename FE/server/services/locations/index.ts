@@ -6,7 +6,7 @@ import { NearbyImagesRequest } from './schema/nearby.schema'
 const LOCATION_API_URL = process.env.UPLOAD_API_URL
 
 export const listLocations = async (filter: LocationFilterRequest) => {
-  const response = await fetch(`${LOCATION_API_URL}/api/locations/?page=${filter.page}&limit=${filter.limit}`)
+  const response = await fetch(`${LOCATION_API_URL}/api/locations/?species=${filter.species ?? ''}&page=${filter.page ?? ''}&limit=${filter.limit ?? ''}`)
 
   const { status, ...data }  = await response.json()
   if (status !== 'success') {
@@ -17,7 +17,7 @@ export const listLocations = async (filter: LocationFilterRequest) => {
 }
 
 export const getLocationDetails = async (req: LocationDetailRequest) => {
-  const response = await fetch(`${LOCATION_API_URL}/api/locations/details?latitude=${req.latitude}&longitude=${req.longitude}`)
+  const response = await fetch(`${LOCATION_API_URL}/api/locations/details?species=${req.species ?? ''}&latitude=${req.latitude}&longitude=${req.longitude}`)
 
   const { status, ...data }  = await response.json()
   if (status !== 'success') {
@@ -39,7 +39,7 @@ export const getLocationStats = async () => {
 }
 
 export const nearbyImages = async (req: NearbyImagesRequest) => {
-  const response = await fetch(`${LOCATION_API_URL}/api/locations/nearby?latitude=${req.latitude}&longitude=${req.longitude}&radius=${req.radius}`)
+  const response = await fetch(`${LOCATION_API_URL}/api/locations/nearby?species=${req.species ?? ''}&latitude=${req.latitude}&longitude=${req.longitude}&radius=${req.radius}`)
 
   const { status, ...data }  = await response.json()
   if (status !== 'success') {

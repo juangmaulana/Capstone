@@ -1,16 +1,16 @@
 import { notFound } from '@/lib/api/errors/http.error'
 import { IdentificationRepo } from '../repo'
-import { UpdateValidationRequest } from '../schemas/update-validation.schema'
+import { UpdateBoundingBoxRequest } from '../schemas/update-bounding-box.schema'
 import { mapDbError } from '@/lib/db/mappers'
 
-export const updateIdentificationValidation = (deps: {
+export const updateBoundingBox = (deps: {
   identificationRepo: IdentificationRepo,
 }) => async (
   id: number,
-  input: UpdateValidationRequest,
+  input: UpdateBoundingBoxRequest,
 ) => {
   try {
-    const identification = await deps.identificationRepo.updateValidation(id, input.adminId)
+    const identification = await deps.identificationRepo.updateBoundingBox(id, input)
     if (!identification) throw notFound(`Identification with id ${id} not found`)
 
     return identification

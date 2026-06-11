@@ -8,9 +8,7 @@ export const toIdentification = (row: EnrichedIdentificationSelect): Identificat
     row.confidence,
     row.ai_response,
     row.is_success,
-    row.validation_status ?? 'pending',
     row.identified_at,
-    row.validated_at,
     row.notes,
 
     // image
@@ -23,7 +21,17 @@ export const toIdentification = (row: EnrichedIdentificationSelect): Identificat
           row.image_latitude!,
           row.image_longitude!,
           row.image_elevation!,
-          row.image_uploaded_at!
+          row.image_bb_x1!,
+          row.image_bb_x2!,
+          row.image_bb_y1!,
+          row.image_bb_y2!,
+          row.image_uploaded_at!,
+          row.uploader_id !== null
+            ? {
+                id: row.uploader_id!,
+                name: row.uploader_name!,
+              }
+            : undefined,
         )
       : undefined,
 
@@ -43,20 +51,11 @@ export const toIdentification = (row: EnrichedIdentificationSelect): Identificat
         }
       : undefined,
 
-    // uploader
-    row.uploader_id !== null
+    // admin
+    row.admin_id !== null
       ? {
-          id: row.uploader_id,
-          name: row.uploader_name!,
-        }
-      : undefined,
-
-    // validator
-    row.validator_id !== null
-      ? {
-          id: row.validator_id,
-          name: row.validator_name!,
-          email: row.validator_email!,
+          id: row.admin_id,
+          name: row.admin_name!,
         }
       : undefined,
   )

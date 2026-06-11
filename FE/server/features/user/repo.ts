@@ -1,5 +1,5 @@
 import { User } from './models/user.model';
-import { DB, UserUpdate } from '@/server/db/types';
+import { DB, UserInsert, UserUpdate } from '@/server/db/types';
 import { toUser, toUserOrNull } from './mappers/to-model';
 
 export type UserFilter = {
@@ -18,6 +18,7 @@ export type UserRepo = {
   }>
   findById(id: number): Promise<User | null>
   findByEmail(email: string): Promise<User | null>
+  create(data: UserInsert): Promise<User>
   update(id: number, data: UserUpdate): Promise<User | null>
   delete(id: number): Promise<boolean>
 }
@@ -76,6 +77,25 @@ export const createUserRepo = (db: DB): UserRepo => ({
       .where('email', '=', email)
       .executeTakeFirst()
       .then(toUserOrNull),
+
+  create: async (data) => {
+    return db.transaction().execute(async (trx) => {
+      const user = await trx
+        .insertInto('users')
+        .values(data)
+        .returning('id')
+        .executeTakeFirstOrThrow();
+
+      return trx
+        .selectFrom('users')
+        .innerJoin('roles', 'roles.id', 'users.role_id')
+        .selectAll('users')
+        .select(['roles.name as role_name'])
+        .where('users.id', '=', user.id)
+        .executeTakeFirstOrThrow()
+        .then(toUser);
+      })
+    },
 
   update: async (id, data) => {
     return db.transaction().execute(async (trx) => {

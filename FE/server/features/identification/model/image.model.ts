@@ -7,7 +7,15 @@ export class Image {
     public latitude: number,
     public longitude: number,
     public elevation: number,
+    public bb_x1: number,
+    public bb_x2: number,
+    public bb_y1: number,
+    public bb_y2: number,
     public uploadedAt: Date,
+    public uploader?: {
+      id: number,
+      name: string,
+    },
   ) {
     if (size < 0) {
       throw new Error("size must be >= 0")

@@ -8,7 +8,6 @@ export interface UserTable {
   name: string
   email: string
   password_hash: string
-  country: string | null
   last_login_at: Date | null
   readonly created_at: Generated<Date>
   readonly updated_at: Generated<Date>
@@ -56,12 +55,9 @@ export interface IdentificationTable {
   confidence: number
   ai_response: string
   is_success: boolean
-  validation_status: 'pending' | 'validated' | 'rejected'
-  validated_by: number | null
-  validated_at: Date | null
   notes: string | null
   ranger_id: number
-  uploaded_by: number
+  admin_id: number
   readonly identified_at: Date
 }
 
@@ -73,8 +69,14 @@ export interface ImageTable {
   latitude: number
   longitude: number
   elevation: number
+  bb_x1: number
+  bb_x2: number
+  bb_y1: number
+  bb_y2: number
+  uploaded_by: number
   readonly uploaded_at: Date
 }
+export type ImageSelect = Selectable<ImageTable>
 
 export interface NotificationTable {
   readonly id: number
@@ -109,7 +111,6 @@ export interface UserWithRole {
   name: string;
   email: string;
   password_hash: string;
-  country: string | null;
   last_login_at: Date | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
@@ -121,8 +122,6 @@ export interface EnrichedIdentification {
   confidence: number
   ai_response: string
   is_success: boolean
-  validation_status: 'pending' | 'validated' | 'rejected'
-  validated_at: Date | null
   notes: string | null
 
   image_id: number | null
@@ -132,6 +131,10 @@ export interface EnrichedIdentification {
   image_latitude: number | null
   image_longitude: number | null
   image_elevation: number | null
+  image_bb_x1: number | null
+  image_bb_x2: number | null
+  image_bb_y1: number | null
+  image_bb_y2: number | null
   image_uploaded_at: Date | null
 
   plant_id: number | null
@@ -140,12 +143,11 @@ export interface EnrichedIdentification {
   ranger_id: number | null
   ranger_name: string | null
 
+  admin_id: number | null
+  admin_name: string | null
+
   uploader_id: number | null
   uploader_name: string | null
-
-  validator_id: number | null
-  validator_name: string | null
-  validator_email: string | null
 
   readonly identified_at: Generated<Date>
 }

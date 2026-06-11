@@ -65,6 +65,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     entityId: data.id.toString(),
     entityType: 'Plant',
     action: 'CREATE',
+    message: `User #${authUser.userId} created new Plant #${data.id}`
   })
 
   return NextResponse.json({ success: true, data }, { status: 201 })
