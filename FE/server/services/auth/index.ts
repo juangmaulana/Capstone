@@ -58,7 +58,7 @@ export const logout = async (refreshToken: string) => {
   return json.data;
 }
 
-export const refresh = async (refreshToken: string) => {
+export const refresh = async (refreshToken: string, throwError: boolean = true) => {
   const response = await fetch(`${AUTH_API_URL}/api/auth/refresh`, {
     method: 'POST',
     headers: {
@@ -67,7 +67,7 @@ export const refresh = async (refreshToken: string) => {
   });
 
   const json = await response.json();
-  if (!json.success) {
+  if (!json.success && throwError) {
     if (json.error.statusCode == 401) {
       throw new ApiError('UNAUTHORIZED', json.error.message);
     }
