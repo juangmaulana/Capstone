@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Camera, Upload, X, ScanSearch, CheckCircle2, AlertCircle, Video, CircleDot, SwitchCamera, ArrowLeft, Map as MapIcon } from "lucide-react";
+import { Camera, Upload, X, ScanSearch, CheckCircle2, AlertCircle, Video, CircleDot, SwitchCamera, ArrowLeft } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -63,7 +63,6 @@ const CAMERA_COPY = {
     otherDetections: "Other detections:",
     clear: "Clear",
     viewDetails: "View Details",
-    viewSdmMap: "View SDM Map",
   },
   id: {
     titles: { menu: "Cari dengan Gambar", camera: "Ambil Foto", result: "Hasil Deteksi" },
@@ -93,7 +92,6 @@ const CAMERA_COPY = {
     otherDetections: "Deteksi lainnya:",
     clear: "Bersihkan",
     viewDetails: "Lihat Detail",
-    viewSdmMap: "Lihat Peta SDM",
   },
 } as const;
 
@@ -287,12 +285,6 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
     handleOpenChange(false);
     const id = plantName.toLowerCase().replace(/\s+/g, '-');
     router.push(`/species/${id}`);
-  };
-
-  const handleViewSDM = (plantName: string) => {
-    handleOpenChange(false);
-    const speciesSlug = plantName.toLowerCase().replace(/\s+/g, '-');
-    router.push(`/modeling?species=${speciesSlug}`);
   };
 
   const handleTakePhotoClick = () => {
@@ -547,16 +539,6 @@ export function CameraSearchDialog({ open, onOpenChange }: CameraSearchDialogPro
                     </Button>
                   )}
                 </div>
-                {topResult && (
-                  <Button
-                    variant="outline"
-                    className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10"
-                    onClick={() => handleViewSDM(topResult.name)}
-                  >
-                    <MapIcon className="h-4 w-4" />
-                    {copy.viewSdmMap}
-                  </Button>
-                )}
               </div>
             </div>
           )}

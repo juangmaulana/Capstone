@@ -16,7 +16,13 @@ const requiredEnv = (key: string) => {
 const CANONICAL_ADMIN_EMAIL = requiredEnv('FALLBACK_ADMIN_EMAIL')
 const CANONICAL_ADMIN_PASSWORD = requiredEnv('FALLBACK_ADMIN_PASSWORD')
 const CANONICAL_ADMIN_NAME = requiredEnv('FALLBACK_ADMIN_NAME')
+const CANONICAL_ADMIN_ROLE = 'admin'
 const LEGACY_ADMIN_EMAIL = process.env.LEGACY_ADMIN_EMAIL?.trim()
+const SYSTEM_ROLES = [
+  { name: 'admin', description: 'Administrator - kelola user, assign role, dan CRUD plants' },
+  { name: 'ranger', description: 'Petugas ranger - bisa upload tanaman baru ke database' },
+  { name: 'visitor', description: 'User biasa - bisa upload dan identifikasi tanaman' },
+]
 
 async function columnExists(db: Kysely<Database>, tableName: string, columnName: string) {
   const result = await sql<{ column_name: string }>`
@@ -225,19 +231,40 @@ const seedPlants: PlantInsert[] = [
   },
 ]
 
-async function migrateAdminRole(db: Kysely<Database>) {
-  const superAdminRole = await db.selectFrom('roles').selectAll().where('name', '=', 'Super Admin').executeTakeFirst()
-  const adminRole = await db.selectFrom('roles').selectAll().where('name', '=', 'Admin').executeTakeFirst()
+async function mergeRole(db: Kysely<Database>, sourceName: string, targetName: string, targetDescription: string) {
+  const sourceRole = await db.selectFrom('roles').selectAll().where('name', '=', sourceName).executeTakeFirst()
+  const targetRole = await db.selectFrom('roles').selectAll().where('name', '=', targetName).executeTakeFirst()
 
-  if (superAdminRole && adminRole) {
-    // Reassign all users from old "Admin" role to "Super Admin" role (which will become "Admin")
-    await db.updateTable('users').set({ role_id: superAdminRole.id }).where('role_id', '=', adminRole.id).execute()
-    await db.deleteFrom('roles').where('id', '=', adminRole.id).execute()
-    await db.updateTable('roles').set({ name: 'Admin', description: 'Full system access' }).where('id', '=', superAdminRole.id).execute()
-    console.log('Migrated: Super Admin → Admin, old Admin role removed')
-  } else if (superAdminRole && !adminRole) {
-    await db.updateTable('roles').set({ name: 'Admin', description: 'Full system access' }).where('id', '=', superAdminRole.id).execute()
-    console.log('Renamed: Super Admin → Admin')
+  if (sourceRole && targetRole) {
+    await db.updateTable('users').set({ role_id: targetRole.id }).where('role_id', '=', sourceRole.id).execute()
+    await db.deleteFrom('roles').where('id', '=', sourceRole.id).execute()
+    console.log(`Merged legacy ${sourceName} role into ${targetName}`)
+  } else if (sourceRole && !targetRole) {
+    await db
+      .updateTable('roles')
+      .set({ name: targetName, description: targetDescription })
+      .where('id', '=', sourceRole.id)
+      .execute()
+    console.log(`Renamed legacy ${sourceName} role to ${targetName}`)
+  }
+}
+
+async function syncSystemRoles(db: Kysely<Database>) {
+  await mergeRole(db, 'Admin', 'admin', 'Administrator - kelola user, assign role, dan CRUD plants')
+  await mergeRole(db, 'Field Officer', 'ranger', 'Petugas ranger - bisa upload tanaman baru ke database')
+  await mergeRole(db, 'Ranger', 'ranger', 'Petugas ranger - bisa upload tanaman baru ke database')
+  await mergeRole(db, 'Researcher', 'visitor', 'User biasa - bisa upload dan identifikasi tanaman')
+  await mergeRole(db, 'User', 'visitor', 'User biasa - bisa upload dan identifikasi tanaman')
+  await mergeRole(db, 'Visitor', 'visitor', 'User biasa - bisa upload dan identifikasi tanaman')
+
+  for (const role of SYSTEM_ROLES) {
+    const existingRole = await db.selectFrom('roles').select(['id']).where('name', '=', role.name).executeTakeFirst()
+    if (!existingRole) {
+      await db.insertInto('roles').values(role).execute()
+      console.log(`Seeded ${role.name} role`)
+    } else {
+      await db.updateTable('roles').set({ description: role.description }).where('id', '=', existingRole.id).execute()
+    }
   }
 }
 
@@ -252,24 +279,12 @@ async function seed() {
 
   console.log('Seeding database...')
   await alignSchema(db)
-  await migrateAdminRole(db)
-
-  const existingRoles = await db.selectFrom('roles').selectAll().execute()
-  if (existingRoles.length === 0) {
-    await db.insertInto('roles').values([
-      { name: 'Admin', description: 'Full system access' },
-      { name: 'Researcher', description: 'Research and data access' },
-      { name: 'Ranger', description: 'Field data collection and monitoring' },
-    ]).execute()
-    console.log('Roles seeded')
-  } else {
-    console.log('Roles already exist, skipping')
-  }
+  await syncSystemRoles(db)
 
   const adminRole = await db
     .selectFrom('roles')
     .selectAll()
-    .where('name', '=', 'Admin')
+    .where('name', '=', CANONICAL_ADMIN_ROLE)
     .executeTakeFirst()
 
   if (adminRole) {

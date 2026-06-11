@@ -18,9 +18,8 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   const data = await login(input.email, input.password);
 
   // Role gate BEFORE establishing a session. Credentials may be valid, but only
-  // admin-system roles get a cookie here — otherwise a ranger/visitor login would
-  // leave a "ghost" session that blocks every subsequent login with
-  // "User already authenticated".
+  // admin/ranger roles get a cookie here. Visitor keeps using the public upload
+  // and identification flow without entering the admin shell.
   const roleName =
     typeof data.user?.role === 'string' ? data.user.role : data.user?.role?.name;
   if (!canAccessAdminSystem(roleName)) {

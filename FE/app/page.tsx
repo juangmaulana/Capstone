@@ -1,12 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Search, Camera, Loader2, CalendarClock, Database, MapPinned, ScanSearch, Sprout } from "lucide-react";
 import { CameraSearchDialog } from "@/components/CameraSearchDialog";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { fetchLocationStats, fetchMapObservations, type LocationStats, type MapObservation } from "@/lib/map-observations";
+import { fetchMapObservations, type MapObservation } from "@/lib/map-observations";
 import { createScientificNameSlug, getScientificNameWithAuthor } from "@/lib/plant/scientific-name-author";
 
 interface PlantSearchRecord {
@@ -50,7 +50,7 @@ const COPY = {
   },
   id: {
     eyebrow: "Bio-Inspector | Pemantauan Spesies Asing Invasif",
-    headline: <>Akses bebas dan terbuka untuk<br />data biodiversitas di Baluran</>,
+    headline: <>Akses bebas dan terbuka untuk<br />data biodiversitas</>,
     searchPlaceholder: "Cari spesies...",
     cameraTitle: "Cari dengan gambar (seperti Google Lens)",
     loadingSpecies: "Memuat data spesies...",
@@ -89,31 +89,46 @@ export default function Dashboard() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [speciesList, setSpeciesList] = useState<string[]>([]);
   const [observations, setObservations] = useState<MapObservation[]>([]);
-  const [locationStats, setLocationStats] = useState<LocationStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { language } = useLanguage();
   const copy = COPY[language];
+  const getObservationTimestamp = (observation: MapObservation) => {
+    const timestamp = new Date(observation.date).getTime();
+    return Number.isNaN(timestamp) ? 0 : timestamp;
+  };
+  const formatObservationDate = (dateValue: string) => {
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return dateValue === "-" ? "-" : dateValue;
+
+    return new Intl.DateTimeFormat(language === "id" ? "id-ID" : "en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }).format(date);
+  };
+  const detectedSpeciesCount = useMemo(
+    () => new Set(observations.map((observation) => observation.species)).size,
+    [observations],
+  );
+  const monitoredLocationCount = useMemo(
+    () => new Set(observations.map((observation) => `${observation.lat.toFixed(5)},${observation.lng.toFixed(5)}`)).size,
+    [observations],
+  );
   const latestObservation = observations.length > 0
-    ? observations.reduce((latest, observation) => observation.date > latest.date ? observation : latest)
+    ? observations.reduce((latest, observation) => getObservationTimestamp(observation) > getObservationTimestamp(latest) ? observation : latest)
     : null;
   const averageConfidence = observations.length > 0
     ? Math.round(observations.reduce((total, observation) => total + observation.confidence, 0) / observations.length)
     : 0;
   const quickStats = [
-    { label: copy.stats.records, value: (locationStats?.totalImages || observations.length).toLocaleString("id-ID"), icon: Database },
-    { label: copy.stats.species, value: new Set(observations.map((observation) => observation.species)).size.toString(), icon: Sprout },
-    { label: copy.stats.hotspots, value: (locationStats?.totalLocations || new Set(observations.map((observation) => observation.location)).size).toString(), icon: MapPinned },
+    { label: copy.stats.records, value: observations.length.toLocaleString("id-ID"), icon: Database },
+    { label: copy.stats.species, value: detectedSpeciesCount.toLocaleString("id-ID"), icon: Sprout },
+    { label: copy.stats.hotspots, value: monitoredLocationCount.toLocaleString("id-ID"), icon: MapPinned },
     {
       label: copy.stats.latest,
-      value: latestObservation
-        ? new Intl.DateTimeFormat(language === "id" ? "id-ID" : "en-GB", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-          }).format(new Date(`${latestObservation.date}T00:00:00`))
-        : "-",
+      value: latestObservation ? formatObservationDate(latestObservation.date) : "-",
       icon: CalendarClock,
     },
     { label: copy.stats.confidence, value: `${averageConfidence}%`, icon: ScanSearch },
@@ -155,10 +170,14 @@ export default function Dashboard() {
   useEffect(() => {
     let isMounted = true;
 
-    Promise.all([fetchMapObservations(), fetchLocationStats()]).then(([nextObservations, nextLocationStats]) => {
-      if (isMounted) setObservations(nextObservations);
-      if (isMounted) setLocationStats(nextLocationStats);
-    });
+    fetchMapObservations()
+      .then((nextObservations) => {
+        if (isMounted) setObservations(nextObservations);
+      })
+      .catch((error) => {
+        console.error("Failed to fetch map distribution stats:", error);
+        if (isMounted) setObservations([]);
+      });
 
     return () => {
       isMounted = false;
@@ -207,7 +226,7 @@ export default function Dashboard() {
             <p className="mb-4 text-sm font-semibold tracking-wide text-white drop-shadow-md">
               {copy.eyebrow}
             </p>
-            <h1 className="mb-8 text-4xl font-bold leading-tight tracking-tight text-white drop-shadow-md sm:text-5xl lg:text-6xl">
+            <h1 className="mb-8 text-3xl font-bold leading-tight tracking-tight text-white drop-shadow-md sm:text-4xl lg:text-5xl">
               {copy.headline}
             </h1>
 
@@ -241,7 +260,7 @@ export default function Dashboard() {
 
               {/* Dropdown */}
               {isDropdownOpen && (
-                <div className="absolute left-0 top-full z-50 max-h-[min(36dvh,22rem)] w-full overflow-y-auto overscroll-contain rounded-b-2xl border-t border-gray-100 bg-white py-1.5 shadow-xl sm:max-h-[min(42dvh,22rem)]">
+                <div className="absolute left-0 top-full z-50 max-h-[min(28dvh,18rem)] w-full overflow-y-auto overscroll-contain rounded-b-2xl border-t border-gray-100 bg-white py-1.5 shadow-xl sm:max-h-[min(32dvh,18rem)]">
                   {isLoading ? (
                     <div className="flex items-center justify-center px-5 py-2.5 text-gray-500">
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />

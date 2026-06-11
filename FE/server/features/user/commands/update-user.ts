@@ -5,6 +5,7 @@ import { mapDbError } from '@/lib/db/mappers';
 import { RoleRepo } from '../../role/repo';
 import { UpdateUserRequest } from '../schemas/update-user.schema';
 import { UserUpdate } from '@/server/db/types';
+import { hashPassword } from '@/server/services/auth';
 
 export const updateUser = (deps: {
   userRepo: UserRepo,
@@ -36,8 +37,10 @@ export const updateUser = (deps: {
       updateData.email = input.email
     }
 
-    if (input.country !== undefined) {
-      updateData.country = input.country
+    if (input.password !== undefined) {
+      // Keep the local DB password_hash in sync with the Auth Service.
+      // hashPassword calls the Auth Service so both stores stay consistent.
+      updateData.password_hash = await hashPassword(input.password)
     }
 
     if (Object.keys(updateData).length === 0)

@@ -1,16 +1,10 @@
 import { z } from '@/lib/openapi/zod'
+import { AdminIdSchema } from './base.schema'
 
-export const IdentificationValidationStatusSchema = z.enum(['pending', 'validated', 'rejected']).openapi({
-  example: 'validated',
-})
-
-export const UpdateIdentificationValidationSchema = z.object({
-  validationStatus: IdentificationValidationStatusSchema.optional(),
-  notes: z.string().max(1000).nullable().optional(),
-}).refine((input) => input.validationStatus !== undefined || input.notes !== undefined, {
-  message: 'validationStatus or notes is required',
+export const UpdateValidationSchema = z.object({
+  adminId: AdminIdSchema
 }).openapi({
-  title: 'UpdateIdentificationValidationRequest',
+  title: 'UpdateValidationRequest',
 })
 
-export type UpdateIdentificationValidationRequest = z.infer<typeof UpdateIdentificationValidationSchema>
+export type UpdateValidationRequest = z.infer<typeof UpdateValidationSchema>

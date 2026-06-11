@@ -1,6 +1,9 @@
 import { z } from '@/lib/openapi/zod'
 import { BooleanFromStringSchema } from '@/server/shared/schemas/boolean.schema'
 
+export const AdminIdSchema = z.coerce.number().min(1).openapi({
+  example: 1,
+})
 export const ImageIdSchema = z.coerce.number().min(1).openapi({
   example: 1,
 })

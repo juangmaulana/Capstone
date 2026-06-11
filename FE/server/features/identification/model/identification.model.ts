@@ -6,9 +6,7 @@ export class Identification {
     public confidence: number,
     public aiResponse: string,
     public isSuccess: boolean,
-    public validationStatus: 'pending' | 'validated' | 'rejected',
     public identifiedAt: Date,
-    public validatedAt?: Date | null,
     public notes?: string | null,
     public image?: Image,
     public plant?: {
@@ -19,14 +17,9 @@ export class Identification {
       id: number,
       name: string,
     },
-    public uploader?: {
+    public admin?: {
       id: number,
       name: string,
-    },
-    public validatedBy?: {
-      id: number,
-      name: string,
-      email: string,
     },
   ) {
     if (confidence < 0 || confidence > 1) {

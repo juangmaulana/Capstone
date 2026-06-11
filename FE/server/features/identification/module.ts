@@ -1,3 +1,5 @@
+import { deleteIdentification } from './commands/delete'
+import { updateBoundingBox } from './commands/update-bounding-box'
 import { updateIdentificationValidation } from './commands/update-validation'
 import { getIdentificationById } from './queries/get-by-id'
 import { listIdentifications } from './queries/list'
@@ -16,6 +18,8 @@ export const createIdentificationModule = (deps: {
       statistics: identificationStatistics({ identificationRepo }),
     },
     commands: {
+      delete: deleteIdentification({ identificationRepo }),
+      updateBoundingBox: updateBoundingBox({ identificationRepo }),
       updateValidation: updateIdentificationValidation({ identificationRepo }),
     },
   }

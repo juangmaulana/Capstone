@@ -2,6 +2,9 @@ import { z } from '@/lib/openapi/zod'
 import { LatitudeParamSchema, LongitudeParamSchema } from '@/server/shared/schemas/coordinate.schema'
 
 export const LocationDetailSchema = z.object({
+  species: z.string().optional().openapi({
+    example: 'Acer'
+  }),
   latitude: LatitudeParamSchema,
   longitude: LongitudeParamSchema,
 })
