@@ -53,6 +53,30 @@ const FALLBACK_SPECIES_COLORS = [
   "#558B2F",
 ];
 
+type PlantRecord = {
+  id: number;
+  scientificName?: string;
+  scientific_name?: string;
+  commonName?: string;
+  common_name?: string;
+};
+
+const getPlantLabel = (plant: PlantRecord) =>
+  plant.scientificName || plant.scientific_name || plant.commonName || plant.common_name || `Species #${plant.id}`;
+
+const sortSpecies = (species: string[]) =>
+  Array.from(new Set(species.filter(Boolean))).sort((a, b) => a.localeCompare(b));
+
+const fetchPlantSpecies = async (): Promise<string[]> => {
+  const response = await fetch("/api/v1/plants?limit=100");
+  if (!response.ok) return [];
+
+  const json = await response.json();
+  if (!Array.isArray(json.data)) return [];
+
+  return sortSpecies(json.data.map((plant: PlantRecord) => getPlantLabel(plant)));
+};
+
 const getUniqueSpeciesColor = (species: string, index: number, usedColors: Set<string>) => {
   const candidates = [
     MAP_SPECIES_COLOR[species],
@@ -77,13 +101,14 @@ export function GISMap() {
   const locationLayer = useRef<L.LayerGroup | null>(null);
   const [observations, setObservations] = useState<MapObservation[]>([]);
   const [locations, setLocations] = useState<MapLocation[]>([]);
+  const [plantSpecies, setPlantSpecies] = useState<string[]>([]);
   const [selectedSpecies, setSelectedSpecies] = useState<string[]>([]);
   const [isLoadingPlants, setIsLoadingPlants] = useState(true);
   const { language } = useLanguage();
   const copy = MAP_COPY[language];
   const speciesList = useMemo(
-    () => Array.from(new Set(observations.map((observation) => observation.species))).sort((a, b) => a.localeCompare(b)),
-    [observations],
+    () => sortSpecies([...plantSpecies, ...observations.map((observation) => observation.species)]),
+    [observations, plantSpecies],
   );
   const speciesColor = useMemo(() => {
     const usedColors = new Set<string>();
@@ -113,16 +138,31 @@ export function GISMap() {
   useEffect(() => {
     let isMounted = true;
 
-    fetchMapObservations()
-      .then((nextObservations) => {
+    Promise.allSettled([fetchMapObservations(), fetchPlantSpecies()])
+      .then(([observationsResult, plantSpeciesResult]) => {
         if (!isMounted) return;
+        const nextObservations = observationsResult.status === "fulfilled" ? observationsResult.value : [];
+        const nextPlantSpecies = plantSpeciesResult.status === "fulfilled" ? plantSpeciesResult.value : [];
+        const nextSpeciesList = sortSpecies([
+          ...nextPlantSpecies,
+          ...nextObservations.map((observation) => observation.species),
+        ]);
         setObservations(nextObservations);
-        setSelectedSpecies(Array.from(new Set(nextObservations.map((observation) => observation.species))).sort((a, b) => a.localeCompare(b)));
+        setPlantSpecies(nextPlantSpecies);
+        setSelectedSpecies(nextSpeciesList);
+
+        if (observationsResult.status === "rejected" || plantSpeciesResult.status === "rejected") {
+          console.error("Failed to load complete map plant data:", {
+            observationsError: observationsResult.status === "rejected" ? observationsResult.reason : undefined,
+            plantSpeciesError: plantSpeciesResult.status === "rejected" ? plantSpeciesResult.reason : undefined,
+          });
+        }
       })
       .catch((error) => {
         console.error("Failed to load map plants:", error);
         if (isMounted) {
           setObservations([]);
+          setPlantSpecies([]);
           setSelectedSpecies([]);
         }
       })

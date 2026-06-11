@@ -264,11 +264,12 @@ export function AnalyticsPanel() {
     }));
   }, [trendKey, selectedYear, monthlyObservations]);
 
-  // Charts focus on species that actually have observations (the dropdown
-  // still lists every species from the DB), sorted so the most observed
-  // species appear first.
   const chartSpecies = useMemo(
-    () => [...speciesTotals].sort((a, b) => b.value - a.value).filter((species) => species.value > 0),
+    () =>
+      [...speciesTotals].sort((a, b) => {
+        if (b.value !== a.value) return b.value - a.value;
+        return a.label.localeCompare(b.label);
+      }),
     [speciesTotals],
   );
   const speciesChartHeight = Math.max(226, chartSpecies.length * 34);

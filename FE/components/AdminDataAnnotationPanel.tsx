@@ -53,6 +53,7 @@ const findSpeciesClass = (speciesClasses: string[], name: string) => {
 type ItemStatus = "pending" | "annotated" | "validated";
 type EditorMode = "draw" | "select";
 type ValidationFilter = "none" | "ranger" | "admin";
+type ValidationSource = "ranger" | "admin";
 
 const VALIDATION_FILTERS: ValidationFilter[] = ["none", "ranger", "admin"];
 
@@ -105,6 +106,10 @@ interface ApiIdentification {
     name?: string;
     path?: string;
     size?: number;
+    bb_x1?: number;
+    bb_x2?: number;
+    bb_y1?: number;
+    bb_y2?: number;
     uploadedAt?: string;
   };
   plant?: {
@@ -123,6 +128,8 @@ interface AnnotationItem {
   boxes: BoundingBox[];
   status: ItemStatus;
   validatedBy?: string;
+  validatedById?: number;
+  validationSource?: ValidationSource;
   validatedAt?: string;
   aiDetected?: boolean;
   aiSpecies?: string;
@@ -169,8 +176,8 @@ const ANNOTATION_COPY = {
   en: {
     stats: {
       totalBatch: "Total Observations",
-      pending: "Ranger Validation",
-      validated: "Admin Validation",
+      pending: "Validated by ranger",
+      validated: "Validated by admin",
     },
     quickTitle: "Quick Guide",
     quickDesc: "Follow the sequence below so annotations stay easy to read and review.",
@@ -205,11 +212,12 @@ const ANNOTATION_COPY = {
     deleteItemFailed: "Failed to delete observation. Please try again.",
     itemStatus: "Item status",
     validatedBy: "validated by",
+    validatorId: "user ID",
     deleteBox: "Delete Box",
-    status: { pending: "pending", annotated: "annotated", validated: "validated" },
-    filterNone: "None",
-    filterRanger: "Ranger",
-    filterAdmin: "Admin",
+    status: { pending: "not validated", annotated: "validated by ranger", validated: "validated by admin" },
+    filterNone: "Not validated",
+    filterRanger: "Validated by ranger",
+    filterAdmin: "Validated by admin",
     selectAll: "Select All",
     deselectAll: "Deselect All",
     deleteSelected: "Delete",
@@ -241,8 +249,8 @@ const ANNOTATION_COPY = {
   id: {
     stats: {
       totalBatch: "Total Observasi",
-      pending: "Ranger Validation",
-      validated: "Admin Validation",
+      pending: "Validated by ranger",
+      validated: "Validated by admin",
     },
     quickTitle: "Panduan Cepat",
     quickDesc: "Ikuti urutan di bawah agar anotasi lebih mudah dibaca dan tidak membingungkan.",
@@ -277,11 +285,12 @@ const ANNOTATION_COPY = {
     deleteItemFailed: "Gagal menghapus observasi. Silakan coba lagi.",
     itemStatus: "Status item",
     validatedBy: "divalidasi oleh",
+    validatorId: "ID user",
     deleteBox: "Hapus Box",
-    status: { pending: "pending", annotated: "annotated", validated: "validated" },
-    filterNone: "None",
-    filterRanger: "Ranger",
-    filterAdmin: "Admin",
+    status: { pending: "belum divalidasi", annotated: "validated by ranger", validated: "validated by admin" },
+    filterNone: "Belum divalidasi",
+    filterRanger: "Validated by ranger",
+    filterAdmin: "Validated by admin",
     selectAll: "Pilih Semua",
     deselectAll: "Batal Pilih",
     deleteSelected: "Hapus",
@@ -385,6 +394,41 @@ const normalizeDetectedBox = (
   };
 };
 
+const buildBoxFromImageBounds = (
+  image: ApiIdentification["image"],
+  imageWidth: number,
+  imageHeight: number,
+): Omit<BoundingBox, "id" | "className"> | null => {
+  if (!image) return null;
+
+  const { bb_x1: x1, bb_x2: x2, bb_y1: y1, bb_y2: y2 } = image;
+  if (![x1, x2, y1, y2].every((value) => Number.isFinite(value))) return null;
+
+  const width = Math.abs(x2! - x1!);
+  const height = Math.abs(y2! - y1!);
+  if (width <= 0 || height <= 0) return null;
+
+  const constrainedBox = constrainBoxToImage(
+    {
+      id: 0,
+      className: UNKNOWN_SPECIES_CLASS,
+      x: Math.min(x1!, x2!),
+      y: Math.min(y1!, y2!),
+      width,
+      height,
+    },
+    imageWidth,
+    imageHeight,
+  );
+
+  return {
+    x: constrainedBox.x,
+    y: constrainedBox.y,
+    width: constrainedBox.width,
+    height: constrainedBox.height,
+  };
+};
+
 const constrainBoxToImage = (
   box: BoundingBox,
   imageWidth: number,
@@ -409,6 +453,33 @@ const readImageSize = (url: string) =>
     img.onerror = () => resolve({ width: 1280, height: 720 });
     img.src = url;
   });
+
+const getValidationInfo = (identification: ApiIdentification): {
+  status: ItemStatus;
+  validatedBy?: string;
+  validatedById?: number;
+  validationSource?: ValidationSource;
+} => {
+  if (identification.admin) {
+    return {
+      status: "validated",
+      validatedBy: identification.admin.name || `Admin #${identification.admin.id ?? "-"}`,
+      validatedById: identification.admin.id,
+      validationSource: "admin",
+    };
+  }
+
+  if (identification.ranger) {
+    return {
+      status: "annotated",
+      validatedBy: identification.ranger.name || `Ranger #${identification.ranger.id ?? "-"}`,
+      validatedById: identification.ranger.id,
+      validationSource: "ranger",
+    };
+  }
+
+  return { status: "pending" };
+};
 
 export function AdminDataAnnotationPanel({ adminName, adminId, canDelete = false, onLog }: Props) {
   const { language } = useLanguage();
@@ -593,7 +664,14 @@ export function AdminDataAnnotationPanel({ adminName, adminId, canDelete = false
         ...batch,
         items: batch.items.map((item) =>
           ids.has(item.id)
-            ? { ...item, status: "validated" as ItemStatus, validatedBy: adminName, validatedAt: toDateLabel() }
+            ? {
+              ...item,
+              status: "validated" as ItemStatus,
+              validatedBy: adminName,
+              validatedById: adminId,
+              validationSource: "admin" as ValidationSource,
+              validatedAt: toDateLabel(),
+            }
             : item,
         ),
       })),
@@ -858,25 +936,26 @@ export function AdminDataAnnotationPanel({ adminName, adminId, canDelete = false
               const size = await readImageSize(src);
               const plantName = identification.plant?.name;
               const detectedName = plantName || identification.aiResponse || undefined;
-              const isAdminValidated = identification.admin != null;
-              const isRangerValidated = identification.ranger != null;
+              const matchedClass = detectedName ? findSpeciesClass(speciesClasses, detectedName) || detectedName : UNKNOWN_SPECIES_CLASS;
+              const storedBox = buildBoxFromImageBounds(identification.image, size.width, size.height);
+              const validationInfo = getValidationInfo(identification);
               return {
                 id: getNextAnnotationId(),
                 filename: identification.image?.name || `identification-${identification.id}`,
                 src,
                 imageWidth: size.width,
                 imageHeight: size.height,
-                boxes: [],
-                status: isAdminValidated
-                  ? "validated" as ItemStatus
-                  : isRangerValidated
-                    ? "annotated" as ItemStatus
-                    : "pending" as ItemStatus,
+                boxes: storedBox
+                  ? [{ id: getNextAnnotationId(), className: matchedClass, ...storedBox }]
+                  : [],
+                status: validationInfo.status,
                 aiDetected: true,
-                aiSpecies: detectedName ? findSpeciesClass(speciesClasses, detectedName) || detectedName : undefined,
+                aiSpecies: detectedName ? matchedClass : undefined,
                 aiConfidence: identification.confidence,
                 notes: identification.notes ?? "",
-                validatedBy: identification.admin?.name || identification.ranger?.name,
+                validatedBy: validationInfo.validatedBy,
+                validatedById: validationInfo.validatedById,
+                validationSource: validationInfo.validationSource,
                 validatedAt: undefined,
                 sourceIdentificationId: identification.id,
               };
@@ -1047,10 +1126,20 @@ export function AdminDataAnnotationPanel({ adminName, adminId, canDelete = false
 
     setItemValue(activeItem.id, (item) => {
       const nextBoxes = item.boxes.filter((box) => box.id !== selectedBoxId);
+      const nextStatus: ItemStatus = nextBoxes.length === 0
+        ? "pending"
+        : item.status === "validated"
+          ? "annotated"
+          : item.status;
+      const shouldClearValidation = nextStatus !== item.status || nextStatus === "pending";
+
       return {
         ...item,
         boxes: nextBoxes,
-        status: nextBoxes.length === 0 ? "pending" : item.status === "validated" ? "annotated" : item.status,
+        status: nextStatus,
+        ...(shouldClearValidation
+          ? { validatedBy: undefined, validatedById: undefined, validationSource: undefined, validatedAt: undefined }
+          : {}),
       };
     });
 
@@ -1078,6 +1167,8 @@ export function AdminDataAnnotationPanel({ adminName, adminId, canDelete = false
       ...item,
       status: nextStatus,
       validatedBy: undefined,
+      validatedById: undefined,
+      validationSource: undefined,
       validatedAt: undefined,
     }));
 
@@ -1101,6 +1192,8 @@ export function AdminDataAnnotationPanel({ adminName, adminId, canDelete = false
         ...item,
         status: "validated",
         validatedBy: adminName,
+        validatedById: adminId,
+        validationSource: "admin",
         validatedAt: toDateLabel(),
       }));
 
@@ -1321,6 +1414,15 @@ export function AdminDataAnnotationPanel({ adminName, adminId, canDelete = false
                           </span>
                           <span className="text-xs text-muted-foreground">{item.boxes.length} {copy.box}</span>
                         </div>
+                        {item.validatedBy && (
+                          <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                            <span className="truncate">
+                              {copy.validatedBy} {item.validatedBy}
+                              {typeof item.validatedById === "number" ? ` (${copy.validatorId}: ${item.validatedById})` : ""}
+                            </span>
+                          </div>
+                        )}
                         {item.isDetecting && (
                           <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1567,8 +1669,12 @@ export function AdminDataAnnotationPanel({ adminName, adminId, canDelete = false
                 <div className="md:col-span-5 flex flex-col gap-3 rounded-xl bg-muted/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm text-muted-foreground">
                     {copy.itemStatus}: <span className="font-medium text-foreground">{copy.status[activeItem.status]}</span>
-                    {activeItem.validatedBy && activeItem.validatedAt && (
-                      <span> • {copy.validatedBy} {activeItem.validatedBy} ({activeItem.validatedAt})</span>
+                    {activeItem.validatedBy && (
+                      <span>
+                        {" "}• {copy.validatedBy} {activeItem.validatedBy}
+                        {typeof activeItem.validatedById === "number" ? ` (${copy.validatorId}: ${activeItem.validatedById})` : ""}
+                        {activeItem.validatedAt ? ` (${activeItem.validatedAt})` : ""}
+                      </span>
                     )}
                   </p>
                   <button

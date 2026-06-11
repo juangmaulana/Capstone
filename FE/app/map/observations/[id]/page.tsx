@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ExternalLink, Image as ImageIcon, MapPin, Sprout } from "lucide-react";
-import { ExternalSourceText } from "@/components/ExternalSourceText";
+import { ArrowLeft, ExternalLink, Image as ImageIcon, MapPin, Sprout, StickyNote } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useEffect, useState } from "react";
 import {
@@ -200,7 +199,6 @@ export default function MapObservationDetailPage() {
             {plantDetail?.family && <DetailRow label={copy.family}>{plantDetail.family}</DetailRow>}
             <DetailRow label={copy.confidence}>{observation.confidence.toFixed(1)}%</DetailRow>
             <DetailRow label={copy.identifiedAt}>{observation.identifiedAt}</DetailRow>
-            <DetailRow label={copy.notes}>{observation.notes || copy.noNotes}</DetailRow>
           </section>
 
           <section className="rounded-lg border bg-card p-3 shadow-sm lg:p-5">
@@ -214,7 +212,6 @@ export default function MapObservationDetailPage() {
             <DetailRow label={copy.longitude}>{observation.lng.toFixed(8)}</DetailRow>
             <div className="hidden lg:block">
               <DetailRow label={copy.elevation}>{observation.elevation} m dpl</DetailRow>
-              <DetailRow label={copy.capturedLocation}>{observation.location}</DetailRow>
             </div>
           </section>
 
@@ -227,19 +224,16 @@ export default function MapObservationDetailPage() {
             </div>
             <DetailRow label={copy.file}>{observation.imageFile}</DetailRow>
             <DetailRow label={copy.size}>{observation.imageSize}</DetailRow>
-            <DetailRow label={copy.source}>
-              <ExternalSourceText value={observation.source} />
-            </DetailRow>
-            {plantDetail?.source && (
-              <DetailRow label={copy.source}>
-                <ExternalSourceText value={plantDetail.source} />
-              </DetailRow>
-            )}
-            {plantDetail?.imageSource && (
-              <DetailRow label={copy.imageSource}>
-                <ExternalSourceText value={plantDetail.imageSource} />
-              </DetailRow>
-            )}
+          </section>
+
+          <section className="rounded-lg border bg-card p-3 shadow-sm lg:col-span-2 lg:p-5">
+            <div className="mb-2 flex items-center gap-2.5 lg:mb-4 lg:gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary lg:h-9 lg:w-9">
+                <StickyNote className="h-4 w-4" />
+              </div>
+              <h2 className="text-sm font-semibold lg:text-base">{copy.notes}</h2>
+            </div>
+            <DetailRow label={copy.notes}>{observation.notes || copy.noNotes}</DetailRow>
           </section>
         </main>
       </div>
