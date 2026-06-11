@@ -8,7 +8,6 @@ export interface UserTable {
   name: string
   email: string
   password_hash: string
-  country: string | null
   last_login_at: Date | null
   readonly created_at: Generated<Date>
   readonly updated_at: Generated<Date>
@@ -59,7 +58,6 @@ export interface IdentificationTable {
   notes: string | null
   ranger_id: number | null
   admin_id: number | null
-  uploaded_by: number | null
   readonly identified_at: Date
 }
 
@@ -113,7 +111,6 @@ export interface UserWithRole {
   name: string;
   email: string;
   password_hash: string;
-  country: string | null;
   last_login_at: Date | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
@@ -123,8 +120,8 @@ export type UserWithRoleSelect = Selectable<UserWithRole>;
 export interface EnrichedIdentification {
   readonly id: number
   confidence: number
-  ai_response: string | null
-  is_success: boolean | null
+  ai_response: string
+  is_success: boolean
   notes: string | null
 
   image_id: number | null
@@ -146,12 +143,11 @@ export interface EnrichedIdentification {
   ranger_id: number | null
   ranger_name: string | null
 
-  uploader_id: number | null
-  uploader_name: string | null
-
   admin_id: number | null
   admin_name: string | null
-  admin_email: string | null
+
+  uploader_id: number | null
+  uploader_name: string | null
 
   readonly identified_at: Generated<Date>
 }

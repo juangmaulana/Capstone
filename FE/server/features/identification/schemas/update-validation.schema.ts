@@ -1,14 +1,10 @@
 import { z } from '@/lib/openapi/zod'
+import { AdminIdSchema } from './base.schema'
 
-export const UpdateIdentificationValidationSchema = z.object({
-  adminId: z.coerce.number().min(1).openapi({
-    example: 1,
-  }),
+export const UpdateValidationSchema = z.object({
+  adminId: AdminIdSchema
 }).openapi({
   title: 'UpdateValidationRequest',
 })
 
-export const UpdateValidationSchema = UpdateIdentificationValidationSchema
-
-export type UpdateIdentificationValidationRequest = z.infer<typeof UpdateIdentificationValidationSchema>
-export type UpdateValidationRequest = UpdateIdentificationValidationRequest
+export type UpdateValidationRequest = z.infer<typeof UpdateValidationSchema>

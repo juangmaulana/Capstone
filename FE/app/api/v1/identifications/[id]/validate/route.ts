@@ -1,10 +1,9 @@
 import { withErrorHandling } from '@/lib/api/errors/error-handler';
 import { forbidden } from '@/lib/api/errors/http.error';
-import { canValidateIdentification } from '@/lib/admin-roles';
-import { getAuthUser } from '@/lib/auth';
+import { authorize, getAuthUser } from '@/lib/auth';
 import { parseWithZod } from '@/lib/validation/parse-with-zod';
 import { identification } from '@/server/features/identification';
-import { UpdateIdentificationValidationSchema } from '@/server/features/identification/schemas/update-validation.schema';
+import { UpdateValidationSchema } from '@/server/features/identification/schemas/update-validation.schema';
 import { logEvent } from '@/server/services/audit';
 import { IdSchema } from '@/server/shared/schemas/id.schema';
 import { NextRequest, NextResponse } from 'next/server';
@@ -15,12 +14,12 @@ export const POST = withErrorHandling(async (
 ) => {
   const authUser = await getAuthUser();
   if (!authUser) throw forbidden('Unauthenticated');
-  if (!canValidateIdentification(authUser.role)) {
-    throw forbidden('Only admin can validate identification');
+  if (!authorize(authUser, ['admin'])) {
+    throw forbidden('Only admin can validate');
   }
 
   const { id } = parseWithZod(IdSchema, await params)
-  const input = parseWithZod(UpdateIdentificationValidationSchema, await req.json())
+  const input = parseWithZod(UpdateValidationSchema, await req.json())
 
   const data = await identification.commands.updateValidation(id, input)
 

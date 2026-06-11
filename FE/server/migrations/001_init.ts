@@ -16,7 +16,6 @@ export async function up(db: Kysely<Database>) {
     .addColumn('name', 'varchar(255)', (col) => col.notNull())
     .addColumn('email', 'varchar(255)', (col) => col.notNull().unique())
     .addColumn('password_hash', 'varchar(255)', (col) => col.notNull())
-    .addColumn('country', 'varchar(255)', (col) => col.defaultTo(null))
     .addColumn('last_login_at', 'timestamp')
     .addColumn('created_at', 'timestamp', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
     .addColumn('updated_at', 'timestamp', (col) => col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
@@ -74,7 +73,6 @@ export async function up(db: Kysely<Database>) {
     .addColumn('notes', 'text')
     .addColumn('ranger_id', 'integer', (col) => col.references('users.id').onDelete('set null'))
     .addColumn('admin_id', 'integer', (col) => col.references('users.id').onDelete('set null'))
-    .addColumn('uploaded_by', 'integer', (col) => col.references('users.id').onDelete('set null'))
     .execute()
 
   await db.schema
@@ -122,18 +120,6 @@ export async function up(db: Kysely<Database>) {
     .createIndex('identifications_image_id_idx')
     .on('identifications')
     .column('image_id')
-    .execute()
-
-  await db.schema
-    .createIndex('identifications_ranger_id_idx')
-    .on('identifications')
-    .column('ranger_id')
-    .execute()
-
-  await db.schema
-    .createIndex('identifications_admin_id_idx')
-    .on('identifications')
-    .column('admin_id')
     .execute()
 
   await db.schema

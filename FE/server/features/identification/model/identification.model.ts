@@ -4,8 +4,8 @@ export class Identification {
   constructor(
     public id: number,
     public confidence: number,
-    public aiResponse: string | null,
-    public isSuccess: boolean | null,
+    public aiResponse: string,
+    public isSuccess: boolean,
     public identifiedAt: Date,
     public notes?: string | null,
     public image?: Image,
@@ -17,14 +17,9 @@ export class Identification {
       id: number,
       name: string,
     },
-    public uploader?: {
-      id: number,
-      name: string,
-    },
     public admin?: {
       id: number,
       name: string,
-      email?: string | null,
     },
   ) {
     if (confidence < 0 || confidence > 1) {

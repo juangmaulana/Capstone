@@ -226,7 +226,7 @@ export default function Dashboard() {
             <p className="mb-4 text-sm font-semibold tracking-wide text-white drop-shadow-md">
               {copy.eyebrow}
             </p>
-            <h1 className="mb-8 text-4xl font-bold leading-tight tracking-tight text-white drop-shadow-md sm:text-5xl lg:text-6xl">
+            <h1 className="mb-8 text-3xl font-bold leading-tight tracking-tight text-white drop-shadow-md sm:text-4xl lg:text-5xl">
               {copy.headline}
             </h1>
 
@@ -260,7 +260,7 @@ export default function Dashboard() {
 
               {/* Dropdown */}
               {isDropdownOpen && (
-                <div className="absolute left-0 top-full z-50 max-h-[min(36dvh,22rem)] w-full overflow-y-auto overscroll-contain rounded-b-2xl border-t border-gray-100 bg-white py-1.5 shadow-xl sm:max-h-[min(42dvh,22rem)]">
+                <div className="absolute left-0 top-full z-50 max-h-[min(28dvh,18rem)] w-full overflow-y-auto overscroll-contain rounded-b-2xl border-t border-gray-100 bg-white py-1.5 shadow-xl sm:max-h-[min(32dvh,18rem)]">
                   {isLoading ? (
                     <div className="flex items-center justify-center px-5 py-2.5 text-gray-500">
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />

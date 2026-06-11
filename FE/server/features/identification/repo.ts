@@ -24,9 +24,7 @@ export type IdentificationRepo = {
     page: number,
   }>
   findById(id: number): Promise<Identification | null>
-  updateValidation(id: number, input: {
-    adminId: number
-  }): Promise<Identification | null>
+  updateValidation(id: number, adminId: number): Promise<Identification | null>
   updateBoundingBox(id: number, box: {
     x1: number,
     x2: number,
@@ -77,7 +75,6 @@ const baseIdentificationQuery = (db: DB) =>
 
       'admin.id as admin_id',
       'admin.name as admin_name',
-      'admin.email as admin_email',
 
       'uploader.id as uploader_id',
       'uploader.name as uploader_name',
@@ -88,10 +85,13 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
     const limit = filter.limit;
     const offset = (filter.page - 1) * limit;
 
-    let query = db.selectFrom('identifications')
+    // Build the base query with all filters applied once.
+    // This single query is reused for both COUNT and data fetch
+    // so that the pagination total is always consistent with the rows returned.
+    let filteredQuery = db.selectFrom('identifications')
 
     if (filter.search !== undefined) {
-      query = query.where((eb) =>
+      filteredQuery = filteredQuery.where((eb) =>
         eb.or([
           eb('ai_response', 'ilike', `%${filter.search}%`),
         ])
@@ -99,19 +99,19 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
     }
 
     if (filter.plantId !== undefined) {
-      query = query.where('plant_id', '=', filter.plantId)
+      filteredQuery = filteredQuery.where('plant_id', '=', filter.plantId)
     }
 
     if (filter.isSuccess !== undefined) {
-      query = query.where('is_success', '=', filter.isSuccess)
+      filteredQuery = filteredQuery.where('is_success', '=', filter.isSuccess)
     }
 
-    const totalResult = await query
+    const totalResult = await filteredQuery
       .select((eb) => eb.fn.countAll<number>().as('count'))
       .executeTakeFirst()
     const total = Number(totalResult?.count ?? 0)
 
-    const data = await query
+    const data = await filteredQuery
       .limit(limit)
       .offset(offset)
       .leftJoin('images', 'images.id', 'identifications.image_id')
@@ -142,7 +142,6 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
 
         'admin.id as admin_id',
         'admin.name as admin_name',
-        'admin.email as admin_email',
 
         'uploader.id as uploader_id',
         'uploader.name as uploader_name',
@@ -160,10 +159,12 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
       .executeTakeFirst()
       .then(toIdentificationOrNull),
 
-  updateValidation: async (id, input) => {
+  updateValidation: async (id, adminId) => {
     const updated = await db
       .updateTable('identifications')
-      .set({ admin_id: input.adminId })
+      .set({
+        admin_id: adminId,
+      })
       .where('identifications.id', '=', id)
       .returning('identifications.id')
       .executeTakeFirst()
