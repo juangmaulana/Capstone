@@ -1,6 +1,6 @@
 import { withErrorHandling } from '@/lib/api/errors/error-handler';
 import { forbidden } from '@/lib/api/errors/http.error';
-import { canSaveIdentificationNotes, canValidateIdentification } from '@/lib/admin-roles';
+import { canValidateIdentification } from '@/lib/admin-roles';
 import { getAuthUser } from '@/lib/auth';
 import { parseWithZod } from '@/lib/validation/parse-with-zod';
 import { identification } from '@/server/features/identification';
@@ -15,18 +15,14 @@ export const POST = withErrorHandling(async (
 ) => {
   const authUser = await getAuthUser();
   if (!authUser) throw forbidden('Unauthenticated');
+  if (!canValidateIdentification(authUser.role)) {
+    throw forbidden('Only admin can validate identification');
+  }
 
   const { id } = parseWithZod(IdSchema, await params)
   const input = parseWithZod(UpdateIdentificationValidationSchema, await req.json())
-  const isNotesOnlyUpdate = input.notes !== undefined && input.rangerValidated === undefined && input.adminValidated === undefined;
-  if (!canValidateIdentification(authUser.role) && !(isNotesOnlyUpdate && canSaveIdentificationNotes(authUser.role))) {
-    throw forbidden('Only admin can validate identification; ranger can update notes only');
-  }
 
-  const data = await identification.commands.updateValidation(id, {
-    ...input,
-    actingUserId: authUser.userId,
-  })
+  const data = await identification.commands.updateValidation(id, input)
 
   await logEvent({
     actorId: authUser.userId.toString(),

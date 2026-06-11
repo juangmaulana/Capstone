@@ -2,7 +2,6 @@ import {
   LayoutDashboard,
   Map,
   BarChart3,
-  Brain,
   Database,
   Users,
   Sprout,
@@ -40,7 +39,6 @@ const NAV_COPY = {
       dashboard: "Dashboard",
       map: "Map Explorer",
       analytics: "Analytics",
-      modeling: "Prediction (SDM)",
       data: "Data Explorer",
       users: "User Management",
       species: "Species Management",
@@ -57,7 +55,6 @@ const NAV_COPY = {
       dashboard: "Dasbor",
       map: "Penjelajah Peta",
       analytics: "Analitik",
-      modeling: "Prediksi (SDM)",
       data: "Penjelajah Data",
       users: "Manajemen User",
       species: "Manajemen Spesies",
@@ -71,7 +68,6 @@ const mainItems = [
   { key: "dashboard", url: "/", icon: LayoutDashboard },
   { key: "map", url: "/map", icon: Map },
   { key: "analytics", url: "/analytics", icon: BarChart3 },
-  { key: "modeling", url: "/modeling", icon: Brain },
   { key: "data", url: "/data", icon: Database },
 ] as const;
 

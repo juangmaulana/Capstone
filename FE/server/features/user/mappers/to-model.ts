@@ -11,7 +11,6 @@ export const toUser = (row: UserWithRoleSelect): User => {
     ),
     row.name,
     row.email,
-    row.country,
     row.last_login_at,
     row.created_at,
     row.updated_at,

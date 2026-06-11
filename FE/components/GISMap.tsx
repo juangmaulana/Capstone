@@ -3,8 +3,10 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useLanguage } from "@/contexts/LanguageContext";
 import {
+  fetchLocations,
   fetchMapObservations,
   MAP_SPECIES_COLOR,
+  type MapLocation,
   type MapObservation,
 } from "@/lib/map-observations";
 
@@ -23,6 +25,7 @@ const MAP_COPY = {
     viewDetails: "View details",
     loading: "Loading plants...",
     empty: "No plants found.",
+    images: "images",
   },
   id: {
     filter: "Filter Tanaman",
@@ -33,6 +36,7 @@ const MAP_COPY = {
     viewDetails: "Lihat detail",
     loading: "Memuat tanaman...",
     empty: "Tidak ada tanaman ditemukan.",
+    images: "gambar",
   },
 } as const;
 
@@ -70,7 +74,9 @@ export function GISMap() {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<L.Map | null>(null);
   const markerLayer = useRef<L.LayerGroup | null>(null);
+  const locationLayer = useRef<L.LayerGroup | null>(null);
   const [observations, setObservations] = useState<MapObservation[]>([]);
+  const [locations, setLocations] = useState<MapLocation[]>([]);
   const [selectedSpecies, setSelectedSpecies] = useState<string[]>([]);
   const [isLoadingPlants, setIsLoadingPlants] = useState(true);
   const { language } = useLanguage();
@@ -130,6 +136,46 @@ export function GISMap() {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
+    const loadLocations = async () => {
+      try {
+        let nextLocations: MapLocation[];
+
+        if (isLoadingPlants || allSelected) {
+          nextLocations = await fetchLocations();
+        } else if (selectedSpecies.length === 0) {
+          nextLocations = [];
+        } else {
+          const results = await Promise.all(selectedSpecies.map((species) => fetchLocations(species)));
+          const merged = new Map<string, MapLocation>();
+          results.flat().forEach((location) => {
+            const key = `${location.lat.toFixed(5)},${location.lng.toFixed(5)}`;
+            const existing = merged.get(key);
+            if (existing) {
+              existing.imageCount += location.imageCount;
+            } else {
+              merged.set(key, { ...location });
+            }
+          });
+          nextLocations = Array.from(merged.values());
+        }
+
+        if (isMounted) setLocations(nextLocations);
+      } catch (error) {
+        console.error("Failed to load map locations:", error);
+        if (isMounted) setLocations([]);
+      }
+    };
+
+    loadLocations();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isLoadingPlants, allSelected, selectedSpecies]);
+
+  useEffect(() => {
     if (!mapRef.current || mapInstance.current) return;
 
     const map = L.map(mapRef.current, {
@@ -146,6 +192,7 @@ export function GISMap() {
     }).addTo(map);
 
     markerLayer.current = L.layerGroup().addTo(map);
+    locationLayer.current = L.layerGroup().addTo(map);
     mapInstance.current = map;
 
     // Fix map responsive behavior: Observe parent size changes
@@ -161,6 +208,7 @@ export function GISMap() {
       map.remove();
       mapInstance.current = null;
       markerLayer.current = null;
+      locationLayer.current = null;
     };
   }, []);
 
@@ -199,6 +247,38 @@ export function GISMap() {
       `);
     });
   }, [copy.date, copy.elevation, copy.viewDetails, filteredMarkers, speciesColor]);
+
+  useEffect(() => {
+    const layer = locationLayer.current;
+    if (!layer) return;
+
+    layer.clearLayers();
+
+    locations.forEach((location) => {
+      const icon = L.divIcon({
+        className: "",
+        html: `
+          <div style="position:relative;display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50% 50% 50% 0;background:#D32F2F;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4);transform:rotate(-45deg)">
+            <span style="transform:rotate(45deg);color:white;font-size:10px;font-weight:700">${location.imageCount}</span>
+          </div>
+        `,
+        iconSize: [28, 28],
+        iconAnchor: [14, 28],
+        popupAnchor: [0, -28],
+      });
+
+      const marker = L.marker([location.lat, location.lng], { icon }).addTo(layer);
+
+      marker.bindPopup(`
+        <div style="font-family:Inter,sans-serif;min-width:160px">
+          <h3 style="margin:0 0 6px;font-size:14px;font-weight:600">${escapeHtml(location.name)}</h3>
+          <p style="margin:4px 0;font-size:12px;color:#888">${copy.elevation}: ${location.elevation} m dpl</p>
+          <p style="margin:4px 0;font-size:12px;color:#888">${location.imageCount} ${copy.images}</p>
+          <p style="margin:0;font-size:11px;color:#666">${location.lat.toFixed(5)}°, ${location.lng.toFixed(5)}°</p>
+        </div>
+      `);
+    });
+  }, [copy.elevation, copy.images, locations]);
 
   return (
     <div className="relative isolate h-full w-full">

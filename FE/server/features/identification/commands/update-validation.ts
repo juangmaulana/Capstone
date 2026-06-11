@@ -7,7 +7,7 @@ export const updateIdentificationValidation = (deps: {
   identificationRepo: IdentificationRepo,
 }) => async (
   id: number,
-  input: UpdateIdentificationValidationRequest & { actingUserId: number },
+  input: UpdateIdentificationValidationRequest,
 ) => {
   try {
     const identification = await deps.identificationRepo.updateValidation(id, input)

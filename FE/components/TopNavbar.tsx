@@ -1,15 +1,15 @@
 import { Bell, ChevronRight, Languages, Settings } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useOptionalAuth } from "@/contexts/AuthContext";
 
 const routeLabels: Record<"en" | "id", Record<string, string>> = {
   en: {
     "/": "Dashboard",
     "/map": "Map Explorer",
     "/analytics": "Analytics",
-    "/modeling": "Modeling (SDM)",
     "/data": "Data Explorer",
     "/reports": "Reports",
     "/admin": "Admin System",
@@ -22,7 +22,6 @@ const routeLabels: Record<"en" | "id", Record<string, string>> = {
     "/": "Dasbor",
     "/map": "Penjelajah Peta",
     "/analytics": "Analitik",
-    "/modeling": "Pemodelan (SDM)",
     "/data": "Penjelajah Data",
     "/reports": "Laporan",
     "/admin": "Sistem Admin",
@@ -33,63 +32,136 @@ const routeLabels: Record<"en" | "id", Record<string, string>> = {
   },
 };
 
-type NotificationItem = {
-  title: string;
-  time: string;
+type ApiNotification = {
+  id: number;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
 };
 
 type NotificationCopy = {
   title: string;
   markAllRead: string;
+  markRead: string;
   settings: string;
-  viewFull: string;
-  viewAll: string;
   unreadLabel: string;
   empty: string;
-  items: NotificationItem[];
+  loading: string;
+  error: string;
+  justNow: string;
+  minutesAgo: (n: number) => string;
+  hoursAgo: (n: number) => string;
+  daysAgo: (n: number) => string;
 };
 
 const NOTIFICATION_COPY: Record<"en" | "id", NotificationCopy> = {
   en: {
     title: "Notifications",
     markAllRead: "Mark all read",
+    markRead: "Mark as read",
     settings: "Notification settings",
-    viewFull: "View full notification",
-    viewAll: "View all notifications",
     unreadLabel: "Unread notifications",
     empty: "No new notifications.",
-    items: [
-      { title: "New identification needs ranger validation", time: "15 hours 22 mins ago" },
-      { title: "Overdue: Review Baluran field observations", time: "1 day 14 hours ago" },
-      { title: "Plant identification report has been submitted", time: "2 days 1 hour ago" },
-    ],
+    loading: "Loading notifications...",
+    error: "Failed to load notifications.",
+    justNow: "Just now",
+    minutesAgo: (n) => `${n} minute${n === 1 ? "" : "s"} ago`,
+    hoursAgo: (n) => `${n} hour${n === 1 ? "" : "s"} ago`,
+    daysAgo: (n) => `${n} day${n === 1 ? "" : "s"} ago`,
   },
   id: {
     title: "Notifikasi",
     markAllRead: "Tandai dibaca",
+    markRead: "Tandai dibaca",
     settings: "Pengaturan notifikasi",
-    viewFull: "Lihat notifikasi penuh",
-    viewAll: "Lihat semua notifikasi",
     unreadLabel: "Notifikasi belum dibaca",
     empty: "Tidak ada notifikasi baru.",
-    items: [
-      { title: "Identifikasi baru perlu validasi ranger", time: "15 jam 22 menit lalu" },
-      { title: "Terlambat: Review observasi lapangan Baluran", time: "1 hari 14 jam lalu" },
-      { title: "Laporan identifikasi tanaman telah dikirim", time: "2 hari 1 jam lalu" },
-    ],
+    loading: "Memuat notifikasi...",
+    error: "Gagal memuat notifikasi.",
+    justNow: "Baru saja",
+    minutesAgo: (n) => `${n} menit lalu`,
+    hoursAgo: (n) => `${n} jam lalu`,
+    daysAgo: (n) => `${n} hari lalu`,
   },
+};
+
+const formatRelativeTime = (isoDate: string, copy: NotificationCopy) => {
+  const diffMs = Date.now() - new Date(isoDate).getTime();
+  const diffMinutes = Math.floor(diffMs / (60 * 1000));
+
+  if (diffMinutes < 1) return copy.justNow;
+  if (diffMinutes < 60) return copy.minutesAgo(diffMinutes);
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return copy.hoursAgo(diffHours);
+
+  const diffDays = Math.floor(diffHours / 24);
+  return copy.daysAgo(diffDays);
 };
 
 export function TopNavbar() {
   const pathname = usePathname();
   const { language, setLanguage } = useLanguage();
+  const auth = useOptionalAuth();
+  const userId = auth?.user?.id;
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [notifications, setNotifications] = useState<ApiNotification[]>([]);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
+  const [notificationError, setNotificationError] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
   const notificationCopy = NOTIFICATION_COPY[language];
-  const unreadCount = notificationCopy.items.length;
+  const unreadCount = notifications.filter((item) => !item.isRead).length;
   const currentLabel = routeLabels[language][pathname]
     || routeLabels[language][Object.keys(routeLabels[language]).find(key => pathname.startsWith(key) && key !== "/") || ""]
     || (language === "id" ? "Halaman" : "Page");
+
+  const fetchNotifications = useCallback(async () => {
+    if (!userId) return;
+
+    setIsLoadingNotifications(true);
+    setNotificationError(false);
+
+    try {
+      const response = await fetch(`/api/v1/users/${userId}/notifications`);
+      const json = await response.json();
+      if (!response.ok || !json.success) throw new Error("Failed to fetch notifications");
+
+      setNotifications(Array.isArray(json.data) ? json.data : []);
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+      setNotificationError(true);
+    } finally {
+      setIsLoadingNotifications(false);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
+
+  const markAsRead = useCallback(async (notificationId: number) => {
+    if (!userId) return;
+
+    setNotifications((prev) =>
+      prev.map((item) => (item.id === notificationId ? { ...item, isRead: true } : item)),
+    );
+
+    try {
+      const response = await fetch(`/api/v1/users/${userId}/notifications/${notificationId}`, {
+        method: "POST",
+      });
+      const json = await response.json();
+      if (!response.ok || !json.success) throw new Error("Failed to mark notification as read");
+    } catch (error) {
+      console.error("Failed to mark notification as read:", error);
+    }
+  }, [userId]);
+
+  const markAllAsRead = useCallback(() => {
+    notifications.filter((item) => !item.isRead).forEach((item) => {
+      void markAsRead(item.id);
+    });
+  }, [notifications, markAsRead]);
 
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
@@ -137,12 +209,15 @@ export function TopNavbar() {
             <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
               <h2 className="text-base font-semibold text-foreground">{notificationCopy.title}</h2>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="text-xs font-medium text-primary underline-offset-2 hover:underline"
-                >
-                  {notificationCopy.markAllRead}
-                </button>
+                {unreadCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={markAllAsRead}
+                    className="text-xs font-medium text-primary underline-offset-2 hover:underline"
+                  >
+                    {notificationCopy.markAllRead}
+                  </button>
+                )}
                 <button
                   type="button"
                   className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
@@ -154,27 +229,35 @@ export function TopNavbar() {
             </div>
 
             <div className="max-h-72 overflow-y-auto">
-              {notificationCopy.items.length === 0 ? (
+              {isLoadingNotifications ? (
+                <p className="px-4 py-5 text-sm text-muted-foreground">{notificationCopy.loading}</p>
+              ) : notificationError ? (
+                <p className="px-4 py-5 text-sm text-muted-foreground">{notificationCopy.error}</p>
+              ) : notifications.length === 0 ? (
                 <p className="px-4 py-5 text-sm text-muted-foreground">{notificationCopy.empty}</p>
               ) : (
-                notificationCopy.items.map((item) => (
-                  <div key={`${item.title}-${item.time}`} className="border-b px-4 py-3 last:border-b-0">
-                    <p className="text-sm font-medium leading-snug text-foreground">{item.title}</p>
-                    <p className="mt-1 text-xs font-semibold text-muted-foreground">{item.time}</p>
-                    <button type="button" className="mt-2 text-xs font-medium text-primary hover:underline">
-                      {notificationCopy.viewFull}
-                    </button>
+                notifications.map((item) => (
+                  <div
+                    key={item.id}
+                    className={`border-b px-4 py-3 last:border-b-0 ${item.isRead ? "" : "bg-primary/5"}`}
+                  >
+                    <p className="text-sm font-medium leading-snug text-foreground">{item.message}</p>
+                    <p className="mt-1 text-xs font-semibold text-muted-foreground">
+                      {formatRelativeTime(item.createdAt, notificationCopy)}
+                    </p>
+                    {!item.isRead && (
+                      <button
+                        type="button"
+                        onClick={() => markAsRead(item.id)}
+                        className="mt-2 text-xs font-medium text-primary hover:underline"
+                      >
+                        {notificationCopy.markRead}
+                      </button>
+                    )}
                   </div>
                 ))
               )}
             </div>
-
-            <button
-              type="button"
-              className="w-full bg-muted/50 px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-muted"
-            >
-              {notificationCopy.viewAll}
-            </button>
           </div>
         )}
       </div>

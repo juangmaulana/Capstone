@@ -291,3 +291,9 @@ export function useAuth() {
   }
   return context;
 }
+
+// Returns undefined outside of an AuthProvider instead of throwing, for
+// components (like TopNavbar) that render both inside and outside /admin.
+export function useOptionalAuth() {
+  return useContext(AuthContext);
+}

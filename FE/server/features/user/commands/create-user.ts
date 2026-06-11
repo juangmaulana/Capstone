@@ -29,7 +29,6 @@ export const createUser = (deps: {
       return await deps.userRepo.create({
         email: input.email,
         name: input.name,
-        country: input.country ?? null,
         password_hash: passwordHash,
         role_id: input.roleId
       })

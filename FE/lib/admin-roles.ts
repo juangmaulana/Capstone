@@ -29,9 +29,4 @@ export const canDeletePlants = (role?: string): boolean =>
   normalizeSystemRole(role) === "admin";
 
 export const canValidateIdentification = (role?: string): boolean =>
-  normalizeSystemRole(role) === "admin";
-
-export const canSaveIdentificationNotes = (role?: string): boolean => {
-  const normalized = normalizeSystemRole(role);
-  return normalized === "admin" || normalized === "ranger";
-};
+  normalizeSystemRole(role) === "admin";;

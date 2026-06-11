@@ -1945,6 +1945,7 @@ export default function AdminPage() {
       {activeTab === "annotation" && (
         <AdminDataAnnotationPanel
           adminName={user?.name || "Admin"}
+          adminId={user?.id}
           canDelete={canDeleteIdentifications}
           onLog={(level, source, message) => addLog(level, source, message)}
         />

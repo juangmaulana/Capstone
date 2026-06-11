@@ -7,7 +7,6 @@ export type IdentificationFilter = {
   search?: string
   plantId?: number
   isSuccess?: boolean
-  validationStage?: 'none' | 'ranger' | 'admin'
   limit: number
   page: number
 }
@@ -26,10 +25,7 @@ export type IdentificationRepo = {
   }>
   findById(id: number): Promise<Identification | null>
   updateValidation(id: number, input: {
-    rangerValidated?: boolean
-    adminValidated?: boolean
-    notes?: string | null
-    actingUserId: number
+    adminId: number
   }): Promise<Identification | null>
   updateBoundingBox(id: number, box: {
     x1: number,
@@ -110,16 +106,6 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
       query = query.where('is_success', '=', filter.isSuccess)
     }
 
-    if (filter.validationStage !== undefined) {
-      if (filter.validationStage === 'none') {
-        query = query.where('ranger_id', 'is', null).where('admin_id', 'is', null)
-      } else if (filter.validationStage === 'ranger') {
-        query = query.where('ranger_id', 'is not', null).where('admin_id', 'is', null)
-      } else {
-        query = query.where('admin_id', 'is not', null)
-      }
-    }
-
     const totalResult = await query
       .select((eb) => eb.fn.countAll<number>().as('count'))
       .executeTakeFirst()
@@ -175,28 +161,9 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
       .then(toIdentificationOrNull),
 
   updateValidation: async (id, input) => {
-    const updateData: {
-      ranger_id?: number | null
-      admin_id?: number | null
-      notes?: string | null
-    } = {}
-
-    if (input.rangerValidated !== undefined) {
-      updateData.ranger_id = input.rangerValidated ? input.actingUserId : null
-    }
-
-    if (input.adminValidated !== undefined) {
-      updateData.admin_id = input.adminValidated ? input.actingUserId : null
-    }
-
-    if (input.notes !== undefined) {
-      const normalizedNotes = input.notes?.trim()
-      updateData.notes = normalizedNotes ? normalizedNotes : null
-    }
-
     const updated = await db
       .updateTable('identifications')
-      .set(updateData)
+      .set({ admin_id: input.adminId })
       .where('identifications.id', '=', id)
       .returning('identifications.id')
       .executeTakeFirst()

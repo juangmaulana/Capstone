@@ -12,7 +12,6 @@ export const GET = withErrorHandling(async (
     search: req.nextUrl.searchParams.get("search") ?? undefined,
     plantId: req.nextUrl.searchParams.get("plantId") ?? undefined,
     isSuccess: req.nextUrl.searchParams.get("isSuccess") ?? undefined,
-    validationStage: req.nextUrl.searchParams.get("validationStage") ?? undefined,
     limit: req.nextUrl.searchParams.get("limit") ?? undefined,
     page: req.nextUrl.searchParams.get("page") ?? undefined,
   }

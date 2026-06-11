@@ -148,6 +148,7 @@ interface DraftBox {
 
 interface Props {
   adminName: string;
+  adminId?: number;
   canDelete?: boolean;
   onLog?: (level: "info" | "warning" | "error" | "success", source: string, message: string) => void;
 }
@@ -409,7 +410,7 @@ const readImageSize = (url: string) =>
     img.src = url;
   });
 
-export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }: Props) {
+export function AdminDataAnnotationPanel({ adminName, adminId, canDelete = false, onLog }: Props) {
   const { language } = useLanguage();
   const copy = ANNOTATION_COPY[language];
   const [batches, setBatches] = useState<AnnotationBatch[]>([
@@ -598,11 +599,13 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
       })),
     );
     setSelectedItemIds(new Set());
-    toValidate
-      .filter((item) => item.sourceIdentificationId)
-      .forEach((item) => {
-        void updateIdentification(item.sourceIdentificationId!, { adminValidated: true });
-      });
+    if (adminId) {
+      toValidate
+        .filter((item) => item.sourceIdentificationId)
+        .forEach((item) => {
+          void updateIdentification(item.sourceIdentificationId!, { adminId });
+        });
+    }
     onLog?.("success", copy.logs.verificationSource, copy.logs.validated(`${toValidate.length} items`));
   };
 
@@ -707,13 +710,11 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
   const updateIdentification = useCallback(async (
     identificationId: number,
     input: {
-      rangerValidated?: boolean;
-      adminValidated?: boolean;
-      notes?: string | null;
+      adminId: number;
     },
   ) => {
-    const response = await fetch(`/api/v1/identifications/${identificationId}`, {
-      method: "PATCH",
+    const response = await fetch(`/api/v1/identifications/${identificationId}/validate`, {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
     });
@@ -721,6 +722,24 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
     const json = await response.json();
     if (!response.ok || !json.success) {
       throw new Error(json.error?.message || "Failed to update identification");
+    }
+
+    return json.data as ApiIdentification;
+  }, []);
+
+  const updateBoundingBox = useCallback(async (
+    identificationId: number,
+    box: { x1: number; y1: number; x2: number; y2: number },
+  ) => {
+    const response = await fetch(`/api/v1/identifications/${identificationId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(box),
+    });
+
+    const json = await response.json();
+    if (!response.ok || !json.success) {
+      throw new Error(json.error?.message || "Failed to update bounding box");
     }
 
     return json.data as ApiIdentification;
@@ -1044,10 +1063,15 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
     const nextStatus: ItemStatus = activeItem.boxes.length > 0 ? "annotated" : "pending";
 
     if (activeItem.sourceIdentificationId) {
-      void updateIdentification(activeItem.sourceIdentificationId, {
-        rangerValidated: nextStatus === "annotated",
-        ...(activeItem.status === "validated" ? { adminValidated: false } : {}),
-      });
+      const box = activeItem.boxes[0];
+      if (box) {
+        void updateBoundingBox(activeItem.sourceIdentificationId, {
+          x1: box.x,
+          y1: box.y,
+          x2: box.x + box.width,
+          y2: box.y + box.height,
+        });
+      }
     }
 
     setItemValue(activeItem.id, (item) => ({
@@ -1069,8 +1093,8 @@ export function AdminDataAnnotationPanel({ adminName, canDelete = false, onLog }
     if (!activeItem || activeItem.boxes.length === 0) return;
 
     try {
-      if (activeItem.sourceIdentificationId) {
-        await updateIdentification(activeItem.sourceIdentificationId, { adminValidated: true });
+      if (activeItem.sourceIdentificationId && adminId) {
+        await updateIdentification(activeItem.sourceIdentificationId, { adminId });
       }
 
       setItemValue(activeItem.id, (item) => ({

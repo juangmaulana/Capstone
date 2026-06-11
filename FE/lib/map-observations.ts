@@ -191,9 +191,10 @@ const pickIdentificationLocationName = (record: IdentificationApiRecord) =>
 const pickIdentificationImagePath = (record: IdentificationApiRecord) =>
   record.image?.path || record.imageUrl || record.image_url || record.fileUrl || record.file_url || record.imagePath || record.image_path || record.filePath || record.file_path || "/placeholder.svg";
 
-export const fetchLocations = async (): Promise<MapLocation[]> => {
+export const fetchLocations = async (species?: string): Promise<MapLocation[]> => {
   try {
-    const response = await fetch("/api/v1/locations?limit=250");
+    const query = species ? `&species=${encodeURIComponent(species)}` : "";
+    const response = await fetch(`/api/v1/locations?limit=250${query}`);
     if (!response.ok) return [];
     const json = await response.json();
     const payload = unwrapApiData(json);
