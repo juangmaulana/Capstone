@@ -1,5 +1,4 @@
 import { ApiError } from '@/lib/api/api-error';
-import { convertSegmentPathToStaticExportFilename } from 'next/dist/shared/lib/segment-cache/segment-value-encoding';
 
 const AUTH_API_URL = process.env.AUTH_API_URL
 

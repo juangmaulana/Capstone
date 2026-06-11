@@ -27,7 +27,7 @@ export async function middleware(req: NextRequest) {
 
   // 2. Try refresh
   if (refreshToken) {
-    const data = await refresh(refreshToken, false)
+    const data = await refresh(refreshToken!, false)
 
     if (data) {
       const response = NextResponse.next()
