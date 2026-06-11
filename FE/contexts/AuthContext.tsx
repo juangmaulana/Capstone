@@ -33,6 +33,9 @@ const ADMIN_EMAIL = "admin@bio-inspector.id";
 
 const getAuthStorage = () => localStorage;
 const getLegacyAuthStorage = () => sessionStorage;
+const notifyAuthSessionChanged = () => {
+  window.dispatchEvent(new Event("biowatch-auth-changed"));
+};
 
 const normalizeLoginEmail = (email: string) => {
   const value = email.trim().toLowerCase();
@@ -51,7 +54,8 @@ const getRoleName = (role: unknown) => {
 const normalizeRoleName = (role: string) => {
   const normalized = role.trim().toLowerCase();
   if (normalized === "super admin" || normalized === "admin") return "Admin";
-  if (normalized === "researcher") return "Researcher";
+  if (normalized === "researcher" || normalized === "visitor" || normalized === "user") return "Visitor";
+  if (normalized === "field officer") return "Ranger";
   if (normalized === "ranger") return "Ranger";
   return role.trim();
 };
@@ -77,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsAuthenticated(false);
     getAuthStorage().removeItem(AUTH_STORAGE_KEY);
     getLegacyAuthStorage().removeItem(AUTH_STORAGE_KEY);
+    notifyAuthSessionChanged();
   }, []);
 
   const applyAuthUser = useCallback((authUser: AuthUser) => {
@@ -89,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsAuthenticated(true);
     getAuthStorage().setItem(AUTH_STORAGE_KEY, JSON.stringify(authUser));
     getLegacyAuthStorage().removeItem(AUTH_STORAGE_KEY);
+    notifyAuthSessionChanged();
   }, [clearAuthSession]);
 
   const fetchServerAuth = useCallback(async (): Promise<AuthUser | null> => {
@@ -284,4 +290,10 @@ export function useAuth() {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
+}
+
+// Returns undefined outside of an AuthProvider instead of throwing, for
+// components (like TopNavbar) that render both inside and outside /admin.
+export function useOptionalAuth() {
+  return useContext(AuthContext);
 }

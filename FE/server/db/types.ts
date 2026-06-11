@@ -56,8 +56,8 @@ export interface IdentificationTable {
   ai_response: string
   is_success: boolean
   notes: string | null
-  ranger_id: number
-  admin_id: number
+  ranger_id: number | null
+  admin_id: number | null
   readonly identified_at: Date
 }
 
@@ -73,7 +73,7 @@ export interface ImageTable {
   bb_x2: number
   bb_y1: number
   bb_y2: number
-  uploaded_by: number
+  uploaded_by: number | null
   readonly uploaded_at: Date
 }
 export type ImageSelect = Selectable<ImageTable>

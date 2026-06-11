@@ -23,6 +23,8 @@ const OBSERVATION_COPY = {
     detectedSpecies: "Detected Species",
     confidence: "Confidence",
     identifiedAt: "Identified At",
+    notes: "Notes",
+    noNotes: "No notes",
     location: "Location",
     latitude: "Latitude",
     longitude: "Longitude",
@@ -43,6 +45,8 @@ const OBSERVATION_COPY = {
     detectedSpecies: "Spesies Terdeteksi",
     confidence: "Kepercayaan",
     identifiedAt: "Diidentifikasi Pada",
+    notes: "Catatan",
+    noNotes: "Tidak ada catatan",
     location: "Lokasi",
     latitude: "Latitude",
     longitude: "Longitude",
@@ -196,6 +200,7 @@ export default function MapObservationDetailPage() {
             {plantDetail?.family && <DetailRow label={copy.family}>{plantDetail.family}</DetailRow>}
             <DetailRow label={copy.confidence}>{observation.confidence.toFixed(1)}%</DetailRow>
             <DetailRow label={copy.identifiedAt}>{observation.identifiedAt}</DetailRow>
+            <DetailRow label={copy.notes}>{observation.notes || copy.noNotes}</DetailRow>
           </section>
 
           <section className="rounded-lg border bg-card p-3 shadow-sm lg:p-5">

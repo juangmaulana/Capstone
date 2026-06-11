@@ -1,5 +1,6 @@
 import { withErrorHandling } from '@/lib/api/errors/error-handler';
 import { forbidden } from '@/lib/api/errors/http.error';
+import { canValidateIdentification } from '@/lib/admin-roles';
 import { authorize, getAuthUser } from '@/lib/auth';
 import { parseWithZod } from '@/lib/validation/parse-with-zod';
 import { identification } from '@/server/features/identification';
@@ -8,7 +9,6 @@ import { logEvent } from '@/server/services/audit';
 import { deleteImage } from '@/server/services/upload';
 import { IdSchema } from '@/server/shared/schemas/id.schema';
 import { NextRequest, NextResponse } from 'next/server';
-
 
 export const GET = withErrorHandling(async (
   req: NextRequest,
@@ -49,7 +49,7 @@ export const DELETE = withErrorHandling(async (
 ) => {
   const authUser = await getAuthUser();
   if (!authUser) throw forbidden('Unauthenticated');
-  if (!authorize(authUser, ['admin'])) {
+  if (!canValidateIdentification(authUser.role)) {
     throw forbidden('Only admin can delete identification');
   }
 

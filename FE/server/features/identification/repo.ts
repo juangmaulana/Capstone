@@ -85,10 +85,13 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
     const limit = filter.limit;
     const offset = (filter.page - 1) * limit;
 
-    let query = db.selectFrom('identifications')
+    // Build the base query with all filters applied once.
+    // This single query is reused for both COUNT and data fetch
+    // so that the pagination total is always consistent with the rows returned.
+    let filteredQuery = db.selectFrom('identifications')
 
     if (filter.search !== undefined) {
-      query = query.where((eb) =>
+      filteredQuery = filteredQuery.where((eb) =>
         eb.or([
           eb('ai_response', 'ilike', `%${filter.search}%`),
         ])
@@ -96,19 +99,19 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
     }
 
     if (filter.plantId !== undefined) {
-      query = query.where('plant_id', '=', filter.plantId)
+      filteredQuery = filteredQuery.where('plant_id', '=', filter.plantId)
     }
 
     if (filter.isSuccess !== undefined) {
-      query = query.where('is_success', '=', filter.isSuccess)
+      filteredQuery = filteredQuery.where('is_success', '=', filter.isSuccess)
     }
 
-    const totalResult = await query
+    const totalResult = await filteredQuery
       .select((eb) => eb.fn.countAll<number>().as('count'))
       .executeTakeFirst()
     const total = Number(totalResult?.count ?? 0)
 
-    const data = await query
+    const data = await filteredQuery
       .limit(limit)
       .offset(offset)
       .leftJoin('images', 'images.id', 'identifications.image_id')
@@ -183,7 +186,7 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
 
     if (!identification) return null
 
-    db.updateTable('images')
+    await db.updateTable('images')
       .set({
         bb_x1: box.x1,
         bb_x2: box.x2,
@@ -197,7 +200,7 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
       .where('identifications.id', '=', id)
       .executeTakeFirst()
       .then(toIdentificationOrNull)
-    },
+  },
 
   delete: async (id) => {
     const existing = await createIdentificationRepo(db).findById(id)

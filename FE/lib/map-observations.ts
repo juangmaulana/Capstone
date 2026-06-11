@@ -15,14 +15,19 @@ export type MapObservation = {
   imagePath: string;
   imageFile: string;
   imageSize: string;
+  notes: string | null;
 };
 
 type IdentificationApiRecord = {
   id: number;
   plantId?: number;
+  plant_id?: number;
   confidence?: number;
   isSuccess?: boolean;
   identifiedAt?: string;
+  identified_at?: string;
+  aiResponse?: string;
+  ai_response?: string;
   location?: string;
   locationName?: string;
   location_name?: string;
@@ -50,6 +55,24 @@ type IdentificationApiRecord = {
   imageLatitude?: number;
   imageLongitude?: number;
   imageElevation?: number;
+  notes?: string | null;
+  image?: {
+    id?: number;
+    name?: string;
+    path?: string;
+    size?: number;
+    latitude?: number;
+    longitude?: number;
+    elevation?: number;
+    uploadedAt?: string;
+    uploaded_at?: string;
+  };
+  plant?: {
+    id?: number;
+    name?: string;
+    scientificName?: string;
+    scientific_name?: string;
+  };
 };
 
 type LocationApiRecord = {
@@ -166,11 +189,12 @@ const pickIdentificationLocationName = (record: IdentificationApiRecord) =>
   record.locationName || record.location_name || record.location || record.address || record.place || record.area || null;
 
 const pickIdentificationImagePath = (record: IdentificationApiRecord) =>
-  record.imageUrl || record.image_url || record.fileUrl || record.file_url || record.imagePath || record.image_path || record.filePath || record.file_path || "/placeholder.svg";
+  record.image?.path || record.imageUrl || record.image_url || record.fileUrl || record.file_url || record.imagePath || record.image_path || record.filePath || record.file_path || "/placeholder.svg";
 
-export const fetchLocations = async (): Promise<MapLocation[]> => {
+export const fetchLocations = async (species?: string): Promise<MapLocation[]> => {
   try {
-    const response = await fetch("/api/v1/locations?limit=250");
+    const query = species ? `&species=${encodeURIComponent(species)}` : "";
+    const response = await fetch(`/api/v1/locations?limit=250${query}`);
     if (!response.ok) return [];
     const json = await response.json();
     const payload = unwrapApiData(json);
@@ -279,42 +303,45 @@ export const fetchPlantById = async (id: number): Promise<PlantDetail | null> =>
 };
 
 const mapIdentificationToObservation = async (record: IdentificationApiRecord): Promise<MapObservation | null> => {
-  const lat = record.imageLatitude ?? record.latitude;
-  const lng = record.imageLongitude ?? record.longitude;
-  const elev = record.imageElevation ?? record.elevation ?? 0;
+  const lat = record.image?.latitude ?? record.imageLatitude ?? record.latitude;
+  const lng = record.image?.longitude ?? record.imageLongitude ?? record.longitude;
+  const elev = record.image?.elevation ?? record.imageElevation ?? record.elevation ?? 0;
 
   if (!record.id || lat === undefined || lng === undefined) return null;
 
   const locationName = pickIdentificationLocationName(record) || await getLocationName(lat, lng);
-  const species = getScientificNameWithAuthor(record.scientificName || record.plantName || "Unknown species");
+  const plantName = record.plant?.scientificName || record.plant?.scientific_name || record.plant?.name || record.scientificName || record.plantName || record.aiResponse || record.ai_response || "Unknown species";
+  const species = getScientificNameWithAuthor(plantName);
   const rawConfidence = typeof record.confidence === 'number' ? record.confidence : 0;
   const confidence = rawConfidence <= 1 ? rawConfidence * 100 : rawConfidence;
-  const date = record.identifiedAt ? new Date(record.identifiedAt) : null;
+  const identifiedAt = record.identifiedAt || record.identified_at;
+  const date = identifiedAt ? new Date(identifiedAt) : null;
   const dateValue = date && !Number.isNaN(date.getTime())
     ? date.toISOString().slice(0, 10)
-    : formatDate(record.identifiedAt);
+    : formatDate(identifiedAt);
 
   return {
     id: String(record.id),
-    plantId: record.plantId,
+    plantId: record.plant?.id ?? record.plantId ?? record.plant_id,
     lat,
     lng,
     elevation: elev,
     species,
     location: locationName || `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
     date: dateValue,
-    identifiedAt: formatDateTime(record.identifiedAt),
+    identifiedAt: formatDateTime(identifiedAt),
     source: "AI Identification API",
     confidence,
     imagePath: pickIdentificationImagePath(record),
-    imageFile: record.imageName || record.imageFile || record.image_file || `identification-${record.id}`,
-    imageSize: formatFileSize(record.imageSize ?? record.image_size),
+    imageFile: record.image?.name || record.imageName || record.imageFile || record.image_file || `identification-${record.id}`,
+    imageSize: formatFileSize(record.image?.size ?? record.imageSize ?? record.image_size),
+    notes: record.notes ?? null,
   };
 };
 
 export const fetchMapObservations = async (): Promise<MapObservation[]> => {
   try {
-    const response = await fetch("/api/v1/identifications?limit=100&is_success=true");
+    const response = await fetch("/api/v1/identifications?limit=100&isSuccess=true");
     if (!response.ok) return [];
 
     const json = await response.json();

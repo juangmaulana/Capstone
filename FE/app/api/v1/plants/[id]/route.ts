@@ -1,6 +1,7 @@
 import { withErrorHandling } from '@/lib/api/errors/error-handler';
 import { forbidden } from '@/lib/api/errors/http.error';
-import { authorize, getAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
+import { canDeletePlants, canUpdatePlants } from '@/lib/admin-roles';
 import { parseWithZod } from '@/lib/validation/parse-with-zod';
 import { plant } from '@/server/features/plant';
 import { UpdatePlantSchema, UpdatePlantWithFileSchema } from '@/server/features/plant/schemas/update.schema';
@@ -26,7 +27,7 @@ export const PATCH = withErrorHandling(async (
   const authUser = await getAuthUser();
   if (!authUser)
     throw forbidden('Unauthenticated');
-  if (!authorize(authUser, ['Admin', 'admin', 'Researcher', 'researcher']))
+  if (!canUpdatePlants(authUser.role))
     throw forbidden('Only admins allowed for updating plants')
 
   const { id } = parseWithZod(IdSchema, await params)
@@ -73,7 +74,7 @@ export const DELETE = withErrorHandling(async (
   const authUser = await getAuthUser();
     if (!authUser)
       throw forbidden('Unauthenticated');
-    if (!authorize(authUser, ['Admin', 'admin', 'Researcher', 'researcher']))
+    if (!canDeletePlants(authUser.role))
       throw forbidden('Plant deletion only allowed for admins')
 
   const { id } = parseWithZod(IdSchema, await params)
