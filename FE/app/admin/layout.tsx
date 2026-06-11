@@ -1,6 +1,6 @@
 "use client";
 
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { AdminLoginPage } from "@/components/AdminLoginPage";
 import { usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -40,9 +40,5 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <AuthProvider>
-      <AdminGate>{children}</AdminGate>
-    </AuthProvider>
-  );
+  return <AdminGate>{children}</AdminGate>;
 }

@@ -210,6 +210,7 @@ const ANNOTATION_COPY = {
     boxHelp: "Select a bounding box to edit coordinates, class, or delete the box.",
     class: "Class",
     validateFailed: "Failed to validate annotation. Please try again.",
+    saveFailed: "Failed to save annotation. Please try again.",
     deleteItemFailed: "Failed to delete observation. Please try again.",
     itemStatus: "Item status",
     validatedBy: "validated by",
@@ -284,6 +285,7 @@ const ANNOTATION_COPY = {
     boxHelp: "Pilih bounding box untuk mengedit koordinat, class, atau hapus box.",
     class: "Class",
     validateFailed: "Gagal memvalidasi anotasi. Silakan coba lagi.",
+    saveFailed: "Gagal menyimpan anotasi. Silakan coba lagi.",
     deleteItemFailed: "Gagal menghapus observasi. Silakan coba lagi.",
     itemStatus: "Status item",
     validatedBy: "divalidasi oleh",
@@ -503,6 +505,7 @@ export function AdminDataAnnotationPanel({ adminName, adminId, canDelete = false
   ]);
   const [activeItemId, setActiveItemId] = useState<number | null>(null);
   const [speciesClasses, setSpeciesClasses] = useState<string[]>([UNKNOWN_SPECIES_CLASS]);
+  const [speciesPlantIds, setSpeciesPlantIds] = useState<Record<string, number>>({});
   const [selectedClass, setSelectedClass] = useState<string>(UNKNOWN_SPECIES_CLASS);
   const [mode, setMode] = useState<EditorMode>("draw");
   const [draftBox, setDraftBox] = useState<DraftBox | null>(null);
@@ -810,7 +813,7 @@ export function AdminDataAnnotationPanel({ adminName, adminId, canDelete = false
 
   const updateBoundingBox = useCallback(async (
     identificationId: number,
-    box: { x1: number; y1: number; x2: number; y2: number },
+    box: { x1: number; y1: number; x2: number; y2: number; plantId?: number },
   ) => {
     const response = await fetch(`/api/v1/identifications/${identificationId}`, {
       method: "PATCH",
@@ -1010,6 +1013,14 @@ export function AdminDataAnnotationPanel({ adminName, adminId, canDelete = false
 
     fetchPlantRecords().then((plants) => {
       if (isCancelled) return;
+
+      const plantIdByLabel: Record<string, number> = {};
+      plants.forEach((plant) => {
+        const label = getPlantLabel(plant);
+        if (!label.startsWith("Species #")) plantIdByLabel[label] = plant.id;
+      });
+      setSpeciesPlantIds(plantIdByLabel);
+
       const names = plants
         .map(getPlantLabel)
         .filter((name) => !name.startsWith("Species #"))
@@ -1150,38 +1161,39 @@ export function AdminDataAnnotationPanel({ adminName, adminId, canDelete = false
     setSelectedBoxId(null);
   };
 
-  const saveAnnotation = () => {
+  const saveAnnotation = async () => {
     if (!activeItem) return;
 
-    const nextStatus: ItemStatus = activeItem.boxes.length > 0 ? "annotated" : "pending";
+    try {
+      if (activeItem.sourceIdentificationId) {
+        const box = activeItem.boxes[0];
+        if (box) {
+          const plantId = speciesPlantIds[box.className];
+          await updateBoundingBox(activeItem.sourceIdentificationId, {
+            x1: box.x,
+            y1: box.y,
+            x2: box.x + box.width,
+            y2: box.y + box.height,
+            ...(plantId !== undefined ? { plantId } : {}),
+          });
 
-    if (activeItem.sourceIdentificationId) {
-      const box = activeItem.boxes[0];
-      if (box) {
-        void updateBoundingBox(activeItem.sourceIdentificationId, {
-          x1: box.x,
-          y1: box.y,
-          x2: box.x + box.width,
-          y2: box.y + box.height,
-        });
+          setItemValue(activeItem.id, (item) => ({
+            ...item,
+            aiSpecies: box.className,
+          }));
+        }
       }
+
+      onLog?.("success", copy.logs.annotationSource, copy.logs.saved(activeItem.filename));
+      setSuccessNotice({
+        title: copy.savedTitle,
+        message: copy.savedMessage(activeItem.filename),
+        buttonLabel: copy.savedButton,
+      });
+    } catch (error) {
+      console.error("Failed to save annotation:", error);
+      setDetectionError(copy.saveFailed);
     }
-
-    setItemValue(activeItem.id, (item) => ({
-      ...item,
-      status: nextStatus,
-      validatedBy: undefined,
-      validatedById: undefined,
-      validationSource: undefined,
-      validatedAt: undefined,
-    }));
-
-    onLog?.("success", copy.logs.annotationSource, copy.logs.saved(activeItem.filename));
-    setSuccessNotice({
-      title: copy.savedTitle,
-      message: copy.savedMessage(activeItem.filename),
-      buttonLabel: copy.savedButton,
-    });
   };
 
   const validateAnnotation = async () => {

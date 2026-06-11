@@ -162,7 +162,8 @@ const formatFileSize = (value?: number) => {
 const pickLocationName = (record: unknown): string | null => {
   if (!record || typeof record !== "object") return null;
   const location = record as LocationApiRecord;
-  const direct = location.name || location.location || location.address || location.place || location.area;
+  const candidates = [location.name, location.location, location.address, location.place, location.area];
+  const direct = candidates.find((value) => typeof value === "string" && value.trim().length > 0);
   if (direct) return direct;
   return pickLocationName(location.data);
 };
@@ -185,8 +186,10 @@ const getLocationName = async (lat: number, lng: number) => {
   }
 };
 
-const pickIdentificationLocationName = (record: IdentificationApiRecord) =>
-  record.locationName || record.location_name || record.location || record.address || record.place || record.area || null;
+const pickIdentificationLocationName = (record: IdentificationApiRecord) => {
+  const candidates = [record.locationName, record.location_name, record.location, record.address, record.place, record.area];
+  return candidates.find((value) => typeof value === "string" && value.trim().length > 0) || null;
+};
 
 const pickIdentificationImagePath = (record: IdentificationApiRecord) =>
   record.image?.path || record.imageUrl || record.image_url || record.fileUrl || record.file_url || record.imagePath || record.image_path || record.filePath || record.file_path || "/placeholder.svg";

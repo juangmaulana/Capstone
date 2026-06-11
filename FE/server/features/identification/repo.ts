@@ -30,6 +30,7 @@ export type IdentificationRepo = {
     x2: number,
     y1: number,
     y2: number,
+    plantId?: number,
   }): Promise<Identification | null>
   delete(id: number): Promise<Identification | null>
   statistics(filter: StatisticFilter): Promise<{
@@ -195,6 +196,13 @@ export const createIdentificationRepo = (db: DB): IdentificationRepo => ({
       })
       .where('id', '=', identification.image_id)
       .execute()
+
+    if (box.plantId !== undefined) {
+      await db.updateTable('identifications')
+        .set({ plant_id: box.plantId })
+        .where('identifications.id', '=', id)
+        .execute()
+    }
 
     return baseIdentificationQuery(db)
       .where('identifications.id', '=', id)
