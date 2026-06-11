@@ -36,10 +36,6 @@ export const updateUser = (deps: {
       updateData.email = input.email
     }
 
-    if (input.country !== undefined) {
-      updateData.country = input.country
-    }
-
     if (Object.keys(updateData).length === 0)
       return
 
