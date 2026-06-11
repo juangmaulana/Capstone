@@ -28,17 +28,26 @@ export async function getAuthUser(): Promise<AuthUser | null> {
   return await authenticate(accessToken);
 }
 
+const normalizeRoleForAuthorization = (role: string): string => {
+  const normalized = role.trim().toLowerCase();
+  return normalized === 'super admin' ? 'admin' : normalized;
+}
+
 export function authorize(authUser: AuthUser | null, allowedRoles: string[]): boolean {
-  if (!authUser) return false
-  return allowedRoles.includes(authUser.role);
+  if (!authUser) return false;
+
+  const userRole = normalizeRoleForAuthorization(authUser.role);
+  return allowedRoles.some(
+    (role) => normalizeRoleForAuthorization(role) === userRole
+  );
 }
 
 async function refreshSession(cookieStore: ReadonlyRequestCookies): Promise<string | undefined> {
-  const refreshToken = cookieStore.get('refresh_token')?.value
-  if (!refreshToken) return undefined
+  const refreshToken = cookieStore.get('refresh_token')?.value;
+  if (!refreshToken) return undefined;
 
-  const result = await refresh(refreshToken)
-  if (!result) return undefined
+  const result = await refresh(refreshToken);
+  if (!result) return undefined;
 
   cookieStore.set("refresh_token", result.refreshToken, {
     httpOnly: true,
@@ -56,5 +65,5 @@ async function refreshSession(cookieStore: ReadonlyRequestCookies): Promise<stri
     maxAge: ACCESS_TOKEN_MAX_AGE,
   });
 
-  return result.accessToken
+  return result.accessToken;
 }
