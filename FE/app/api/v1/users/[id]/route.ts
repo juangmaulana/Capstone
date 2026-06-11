@@ -5,7 +5,7 @@ import { user } from '@/server/features/user';
 import { updateUserSchema } from '@/server/features/user/schemas/update-user.schema';
 import { NextRequest, NextResponse } from 'next/server';
 import { authorize, getAuthUser } from '@/lib/auth';
-import { forbidden } from '@/lib/api/errors/http.error';
+import { badRequest, forbidden } from '@/lib/api/errors/http.error';
 import { logEvent } from '@/server/services/audit';
 import { changePassword } from '@/server/services/auth';
 import { cookies } from 'next/headers';
@@ -44,10 +44,16 @@ export const PATCH = withErrorHandling(async (
     throw forbidden('Only admin can update roles');
 
   const data = await user.commands.update(id, input)
-  if (input.password) {
+  if (
+    (input.password && !input.currentPassword) ||
+    (!input.password && input.currentPassword)
+  ) {
+    throw badRequest('Both Password and Current Password is required')
+  }
+  if (input.password && input.currentPassword) {
     const cookieStore = await cookies()
     const accessToken = cookieStore.get('access_token')?.value
-    await changePassword(accessToken!, id, input.password)
+    await changePassword(accessToken!, id, input.currentPassword, input.password)
 
     // Only invalidate the current session when the user changes their OWN
     // password. When an admin changes someone else's password, the admin
