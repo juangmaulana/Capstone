@@ -131,6 +131,7 @@ interface AnnotationItem {
   validatedById?: number;
   validationSource?: ValidationSource;
   validatedAt?: string;
+  identifiedAt?: string;
   aiDetected?: boolean;
   aiSpecies?: string;
   aiConfidence?: number;
@@ -213,6 +214,7 @@ const ANNOTATION_COPY = {
     itemStatus: "Item status",
     validatedBy: "validated by",
     validatorId: "user ID",
+    identificationLabel: "Identification ID",
     deleteBox: "Delete Box",
     status: { pending: "not validated", annotated: "validated by ranger", validated: "validated by admin" },
     filterNone: "Not validated",
@@ -286,6 +288,7 @@ const ANNOTATION_COPY = {
     itemStatus: "Status item",
     validatedBy: "divalidasi oleh",
     validatorId: "ID user",
+    identificationLabel: "ID Identifikasi",
     deleteBox: "Hapus Box",
     status: { pending: "belum divalidasi", annotated: "validated by ranger", validated: "validated by admin" },
     filterNone: "Belum divalidasi",
@@ -957,6 +960,7 @@ export function AdminDataAnnotationPanel({ adminName, adminId, canDelete = false
                 validatedById: validationInfo.validatedById,
                 validationSource: validationInfo.validationSource,
                 validatedAt: undefined,
+                identifiedAt: identification.identifiedAt,
                 sourceIdentificationId: identification.id,
               };
             }),
@@ -1407,7 +1411,12 @@ export function AdminDataAnnotationPanel({ adminName, adminId, canDelete = false
                         }}
                         className="w-full px-3 pt-3 pb-2 text-left"
                       >
-                        <p className="font-semibold truncate pr-6">{item.filename}</p>
+                        <p className="font-semibold truncate pr-6">
+                          {copy.identificationLabel} {item.sourceIdentificationId ?? item.id}
+                          {item.identifiedAt
+                            ? ` • ${new Date(item.identifiedAt).toLocaleString(language === "id" ? "id-ID" : "en-US")}`
+                            : ""}
+                        </p>
                         <div className="mt-2 flex items-center justify-between gap-2">
                           <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${statusStyles[item.status]}`}>
                             {copy.status[item.status]}
