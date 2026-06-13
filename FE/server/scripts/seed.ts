@@ -70,15 +70,34 @@ async function ensureColumn(
   db: Kysely<Database>,
   tableName: string,
   columnName: string,
-  columnType: 'boolean' | 'text' | 'varchar(255)'
+  columnType: 'boolean' | 'double precision' | 'text' | 'varchar(255)'
 ) {
   if (await columnExists(db, tableName, columnName)) return
 
   const builder = db.schema.alterTable(tableName)
   if (columnType === 'boolean') {
     await builder.addColumn(columnName, 'boolean', (col) => col.notNull().defaultTo(true)).execute()
+  } else if (columnType === 'double precision') {
+    await builder.addColumn(columnName, 'double precision', (col) => col.notNull().defaultTo(0)).execute()
   } else {
     await builder.addColumn(columnName, columnType, (col) => col.notNull().defaultTo('')).execute()
+  }
+  console.log(`Added ${tableName}.${columnName}`)
+}
+
+async function ensureNullableIntegerColumn(
+  db: Kysely<Database>,
+  tableName: string,
+  columnName: string,
+  references?: string
+) {
+  if (await columnExists(db, tableName, columnName)) return
+
+  const builder = db.schema.alterTable(tableName)
+  if (references) {
+    await builder.addColumn(columnName, 'integer', (col) => col.references(references).onDelete('set null')).execute()
+  } else {
+    await builder.addColumn(columnName, 'integer').execute()
   }
   console.log(`Added ${tableName}.${columnName}`)
 }
@@ -100,6 +119,15 @@ async function alignSchema(db: Kysely<Database>) {
   await ensureColumn(db, 'plants', 'source_reference', 'text')
   await ensureColumn(db, 'plants', 'image_reference', 'text')
   await ensureColumn(db, 'plants', 'is_detectable', 'boolean')
+
+  await ensureColumn(db, 'images', 'bb_x1', 'double precision')
+  await ensureColumn(db, 'images', 'bb_x2', 'double precision')
+  await ensureColumn(db, 'images', 'bb_y1', 'double precision')
+  await ensureColumn(db, 'images', 'bb_y2', 'double precision')
+  await ensureNullableIntegerColumn(db, 'images', 'uploaded_by', 'users.id')
+
+  await ensureNullableIntegerColumn(db, 'identifications', 'admin_id', 'users.id')
+  await ensureNullableIntegerColumn(db, 'identifications', 'ranger_id', 'users.id')
 }
 
 const sourceText = {
