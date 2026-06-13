@@ -3,7 +3,7 @@ import { Pool } from 'pg'
 import bcrypt from 'bcryptjs'
 import 'dotenv/config'
 import { getScientificNameWithAuthor } from '../../lib/plant/scientific-name-author'
-import { Database, PlantInsert } from '../db/types'
+import { Database, IdentificationInsert, ImageInsert, PlantInsert } from '../db/types'
 
 const requiredEnv = (key: string) => {
   const value = process.env[key]?.trim()
@@ -231,6 +231,153 @@ const seedPlants: PlantInsert[] = [
   },
 ]
 
+type MapObservationSeed = {
+  plantCommonName: string
+  fileName: string
+  filePath: string
+  fileSize: number
+  latitude: number
+  longitude: number
+  elevation: number
+  bbX1: number
+  bbX2: number
+  bbY1: number
+  bbY2: number
+  confidence: number
+  notes: string
+}
+
+const seedMapObservations: MapObservationSeed[] = [
+  {
+    plantCommonName: 'Babul',
+    fileName: 'map-seed-babul-bekol.jpg',
+    filePath: '/uploads/map-seed-babul-bekol.jpg',
+    fileSize: 106921,
+    latitude: -7.8488,
+    longitude: 114.3956,
+    elevation: 25,
+    bbX1: 0.18, bbX2: 0.82, bbY1: 0.22, bbY2: 0.88,
+    confidence: 92.5,
+    notes: 'Ditemukan di sabana Bekol, tumbuh berkelompok membentuk semak belukar.',
+  },
+  {
+    plantCommonName: 'Tembelekan',
+    fileName: 'map-seed-tembelekan-manting.jpg',
+    filePath: '/uploads/map-seed-tembelekan-manting.jpg',
+    fileSize: 1209037,
+    latitude: -7.8825,
+    longitude: 114.4234,
+    elevation: 80,
+    bbX1: 0.15, bbX2: 0.75, bbY1: 0.2, bbY2: 0.85,
+    confidence: 88.2,
+    notes: 'Tumbuh padat di tepi hutan evergreen Manting, bunga berwarna-warni terlihat jelas.',
+  },
+  {
+    plantCommonName: 'Kangkung Pagar',
+    fileName: 'map-seed-kangkungpagar-balanan.jpg',
+    filePath: '/uploads/map-seed-kangkungpagar-balanan.jpg',
+    fileSize: 638752,
+    latitude: -7.9012,
+    longitude: 114.4567,
+    elevation: 15,
+    bbX1: 0.1, bbX2: 0.7, bbY1: 0.3, bbY2: 0.9,
+    confidence: 81.7,
+    notes: 'Merambat menutupi vegetasi bawah di tepi hutan dekat Pantai Balanan.',
+  },
+  {
+    plantCommonName: 'Telang',
+    fileName: 'map-seed-telang-bekol2.jpg',
+    filePath: '/uploads/map-seed-telang-bekol2.jpg',
+    fileSize: 616460,
+    latitude: -7.8521,
+    longitude: 114.3889,
+    elevation: 30,
+    bbX1: 0.25, bbX2: 0.78, bbY1: 0.18, bbY2: 0.8,
+    confidence: 90.4,
+    notes: 'Tanaman merambat dengan bunga biru khas, tumbuh di pinggir sabana Bekol.',
+  },
+  {
+    plantCommonName: 'Bandotan',
+    fileName: 'map-seed-bandotan-bama.jpg',
+    filePath: '/uploads/map-seed-bandotan-bama.jpg',
+    fileSize: 119368,
+    latitude: -7.8654,
+    longitude: 114.4623,
+    elevation: 5,
+    bbX1: 0.2, bbX2: 0.8, bbY1: 0.25, bbY2: 0.92,
+    confidence: 76.9,
+    notes: 'Gulma herba ditemukan di lahan terbuka dekat Resort Bama.',
+  },
+]
+
+async function seedMapExplorerData(
+  db: Kysely<Database>,
+  plantIdByCommonName: Map<string, number>,
+  uploaderId: number | null
+) {
+  let seededCount = 0
+
+  for (const obs of seedMapObservations) {
+    const plantId = plantIdByCommonName.get(obs.plantCommonName)
+    if (!plantId) continue
+
+    const existingImage = await db
+      .selectFrom('images')
+      .select(['id'])
+      .where('file_name', '=', obs.fileName)
+      .executeTakeFirst()
+
+    let imageId: number
+    if (existingImage) {
+      imageId = existingImage.id
+    } else {
+      const insertedImage = await db
+        .insertInto('images')
+        .values({
+          file_name: obs.fileName,
+          file_path: obs.filePath,
+          file_size: obs.fileSize,
+          latitude: obs.latitude,
+          longitude: obs.longitude,
+          elevation: obs.elevation,
+          bb_x1: obs.bbX1,
+          bb_x2: obs.bbX2,
+          bb_y1: obs.bbY1,
+          bb_y2: obs.bbY2,
+          uploaded_by: uploaderId,
+        } satisfies ImageInsert)
+        .returning('id')
+        .executeTakeFirstOrThrow()
+      imageId = insertedImage.id
+    }
+
+    const existingIdentification = await db
+      .selectFrom('identifications')
+      .select(['id'])
+      .where('image_id', '=', imageId)
+      .executeTakeFirst()
+
+    if (!existingIdentification) {
+      await db
+        .insertInto('identifications')
+        .values({
+          plant_id: plantId,
+          image_id: imageId,
+          confidence: obs.confidence,
+          ai_response: `Teridentifikasi sebagai ${obs.plantCommonName} dengan tingkat keyakinan ${obs.confidence}%.`,
+          is_success: true,
+          notes: obs.notes,
+          ranger_id: uploaderId,
+          admin_id: null,
+        } satisfies IdentificationInsert)
+        .execute()
+      seededCount++
+    }
+  }
+
+  console.log(`Map Explorer sample data seeded (${seededCount} new observation(s))`)
+}
+
 async function mergeRole(db: Kysely<Database>, sourceName: string, targetName: string, targetDescription: string) {
   const sourceRole = await db.selectFrom('roles').selectAll().where('name', '=', sourceName).executeTakeFirst()
   const targetRole = await db.selectFrom('roles').selectAll().where('name', '=', targetName).executeTakeFirst()
@@ -337,6 +484,8 @@ async function seed() {
     }
   }
 
+  const plantIdByCommonName = new Map<string, number>()
+
   for (const seedPlant of seedPlants) {
     const existingPlant = await db
       .selectFrom('plants')
@@ -346,14 +495,28 @@ async function seed() {
 
     if (existingPlant) {
       await db.updateTable('plants').set(seedPlant).where('id', '=', existingPlant.id).execute()
+      plantIdByCommonName.set(seedPlant.common_name, existingPlant.id)
     } else {
-      await db.insertInto('plants').values(seedPlant).execute()
+      const insertedPlant = await db
+        .insertInto('plants')
+        .values(seedPlant)
+        .returning('id')
+        .executeTakeFirstOrThrow()
+      plantIdByCommonName.set(seedPlant.common_name, insertedPlant.id)
     }
   }
 
   console.log('Plants seeded or updated (5 invasive alien species)')
 
-  console.log('Seeding complete. Map Explorer and Analytics sample data were skipped.')
+  const adminUser = await db
+    .selectFrom('users')
+    .select(['id'])
+    .where('email', '=', CANONICAL_ADMIN_EMAIL)
+    .executeTakeFirst()
+
+  await seedMapExplorerData(db, plantIdByCommonName, adminUser?.id ?? null)
+
+  console.log('Seeding complete.')
   await db.destroy()
 }
 

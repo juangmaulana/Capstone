@@ -49,7 +49,7 @@ export type PlantInsert = Insertable<PlantTable>
 export type PlantUpdate = Updateable<PlantTable>
 
 export interface IdentificationTable {
-  readonly id: number
+  readonly id: Generated<number>
   plant_id: number
   image_id: number
   confidence: number
@@ -58,11 +58,12 @@ export interface IdentificationTable {
   notes: string | null
   ranger_id: number | null
   admin_id: number | null
-  readonly identified_at: Date
+  readonly identified_at: Generated<Date>
 }
+export type IdentificationInsert = Insertable<IdentificationTable>
 
 export interface ImageTable {
-  readonly id: number
+  readonly id: Generated<number>
   file_name: string
   file_path: string
   file_size: number
@@ -74,9 +75,10 @@ export interface ImageTable {
   bb_y1: number
   bb_y2: number
   uploaded_by: number | null
-  readonly uploaded_at: Date
+  readonly uploaded_at: Generated<Date>
 }
 export type ImageSelect = Selectable<ImageTable>
+export type ImageInsert = Insertable<ImageTable>
 
 export interface NotificationTable {
   readonly id: number
